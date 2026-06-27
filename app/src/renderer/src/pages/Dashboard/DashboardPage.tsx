@@ -3,6 +3,13 @@ import { useNavigate } from "react-router-dom"
 
 import { APP } from "../../config/app"
 import { useApp } from "../../contexts/AppContext"
+import MenuCard from "../../components/MenuCard/MenuCard"
+import {
+  Package,
+  Boxes,
+  Recycle,
+  ClipboardList
+} from "lucide-react"
 
 const setores = [
   {
@@ -100,38 +107,34 @@ function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-6 p-10 md:grid-cols-4">
-        <button
+      <section className="grid grid-cols-2 gap-6 p-10 lg:grid-cols-4">
+        <MenuCard
+          title="Lançar Refugo"
+          description="Registrar novos refugos"
+          icon={<Recycle size={48} />}
           onClick={() => navigate("/lancar-refugo")}
-          className="h-36 rounded-xl bg-white p-6 text-lg font-bold shadow transition hover:scale-105 hover:shadow-lg"
-        >
-          ♻️
-          <div className="mt-4">Lançar Refugo</div>
-        </button>
+        />
 
-        <button
+        <MenuCard
+          title="Ver Lançamentos"
+          description="Consultar registros"
+          icon={<ClipboardList size={48} />}
           onClick={() => navigate("/ver-lancamentos")}
-          className="h-36 rounded-xl bg-white p-6 text-lg font-bold shadow transition hover:scale-105 hover:shadow-lg"
-        >
-          📋
-          <div className="mt-4">Ver Lançamentos</div>
-        </button>
+        />
 
-        <button
+        <MenuCard
+          title="Componentes"
+          description="Cadastrar componentes"
+          icon={<Package size={48} />}
           onClick={() => navigate("/componentes")}
-          className="h-36 rounded-xl bg-white p-6 text-lg font-bold shadow transition hover:scale-105 hover:shadow-lg"
-        >
-          📦
-          <div className="mt-4">Cadastrar Componentes</div>
-        </button>
+        />
 
-        <button
+        <MenuCard
+          title="Circuitos"
+          description="Cadastrar circuitos"
+          icon={<Boxes size={48} />}
           onClick={() => navigate("/circuitos")}
-          className="h-36 rounded-xl bg-white p-6 text-lg font-bold shadow transition hover:scale-105 hover:shadow-lg"
-        >
-          🧩
-          <div className="mt-4">Cadastrar Circuitos</div>
-        </button>
+        />
       </section>
     </main>
   )

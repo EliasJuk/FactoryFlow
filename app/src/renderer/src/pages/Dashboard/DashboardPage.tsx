@@ -1,9 +1,11 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
 import { APP } from "../../config/app"
 import { useApp } from "../../contexts/AppContext"
 import MenuCard from "../../components/MenuCard/MenuCard"
+import { Setor } from "../../models/Setor"
+
 import {
   Package,
   Boxes,
@@ -12,46 +14,59 @@ import {
   Building2
 } from "lucide-react"
 
-const setores = [
-  {
-    id: 1,
-    nome: "SETOR-1",
-    subsetores: [
-      "SUB-SETOR A",
-      "SUB-SETOR B",
-      "SUB-SETOR C",
-      "SUB-SETOR D",
-      "SUB-SETOR E",
-      "SUB-SETOR F",
-      "SUB-SETOR G"
-    ]
-  },
-  {
-    id: 2,
-    nome: "SETOR-2",
-    subsetores: ["SUB-SETOR A", "SUB-SETOR B", "SUB-SETOR C"]
-  },
-  {
-    id: 3,
-    nome: "SETOR-3",
-    subsetores: ["SUB-SETOR A", "SUB-SETOR B"]
-  },
-  {
-    id: 4,
-    nome: "SETOR-4",
-    subsetores: ["SUB-SETOR A"]
-  }
-]
+type Subsetor = {
+  id: number
+  nome: string
+  setorId: number
+  setorNome: string
+  ativo: boolean
+}
 
 function DashboardPage() {
   const navigate = useNavigate()
   const { usuario } = useApp()
 
-  const [setorSelecionado, setSetorSelecionado] = useState(1)
-  const [subsetorSelecionado, setSubsetorSelecionado] =
-    useState("SUB-SETOR A")
+  const [setores, setSetores] = useState<Setor[]>([])
+  const [subsetores, setSubsetores] = useState<Subsetor[]>([])
+  const [setorSelecionado, setSetorSelecionado] = useState<number | null>(null)
+  const [subsetorSelecionado, setSubsetorSelecionado] = useState<number | null>(null)
 
-  const setorAtual = setores.find((setor) => setor.id === setorSelecionado)
+  async function carregarDados() {
+    const setoresLista = await window.api.setores.listar()
+    const subsetoresLista = await window.api.subsetores.listar()
+
+    setSetores(setoresLista)
+    setSubsetores(subsetoresLista)
+
+    if (setoresLista.length > 0) {
+      const primeiroSetor = setoresLista[0]
+      setSetorSelecionado(primeiroSetor.id)
+
+      const primeiroSubsetor = subsetoresLista.find(
+        (subsetor) => subsetor.setorId === primeiroSetor.id
+      )
+
+      setSubsetorSelecionado(primeiroSubsetor ? primeiroSubsetor.id : null)
+    }
+  }
+
+  useEffect(() => {
+    carregarDados()
+  }, [])
+
+  const subsetoresDoSetor = subsetores.filter(
+    (subsetor) => subsetor.setorId === setorSelecionado
+  )
+
+  function selecionarSetor(setorId: number) {
+    setSetorSelecionado(setorId)
+
+    const primeiroSubsetor = subsetores.find(
+      (subsetor) => subsetor.setorId === setorId
+    )
+
+    setSubsetorSelecionado(primeiroSubsetor ? primeiroSubsetor.id : null)
+  }
 
   return (
     <main className="min-h-screen bg-slate-100">
@@ -71,10 +86,7 @@ function DashboardPage() {
             return (
               <button
                 key={setor.id}
-                onClick={() => {
-                  setSetorSelecionado(setor.id)
-                  setSubsetorSelecionado(setor.subsetores[0])
-                }}
+                onClick={() => selecionarSetor(setor.id)}
                 className={`border px-4 py-3 font-semibold ${
                   ativo
                     ? "bg-green-600 text-white"
@@ -88,20 +100,20 @@ function DashboardPage() {
         </div>
 
         <div className="mt-3 grid grid-cols-4 gap-2">
-          {setorAtual?.subsetores.map((subsetor) => {
-            const ativo = subsetor === subsetorSelecionado
+          {subsetoresDoSetor.map((subsetor) => {
+            const ativo = subsetor.id === subsetorSelecionado
 
             return (
               <button
-                key={subsetor}
-                onClick={() => setSubsetorSelecionado(subsetor)}
+                key={subsetor.id}
+                onClick={() => setSubsetorSelecionado(subsetor.id)}
                 className={`border px-4 py-3 text-sm font-semibold ${
                   ativo
                     ? "border-green-600 bg-green-50 text-green-700"
                     : "border-green-500 text-green-700 hover:bg-green-50"
                 }`}
               >
-                {subsetor}
+                {subsetor.nome}
               </button>
             )
           })}
@@ -142,6 +154,13 @@ function DashboardPage() {
           description="Cadastrar setores"
           icon={<Building2 size={48} />}
           onClick={() => navigate("/setores")}
+        />
+
+        <MenuCard
+          title="Subsetores"
+          description="Cadastrar subsetores"
+          icon={<Building2 size={48} />}
+          onClick={() => navigate("/subsetores")}
         />
       </section>
     </main>

@@ -3,10 +3,13 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { runMigrations } from "./database/migrations"
 import { registerSetorIpc } from "./ipc/setor.ipc"
+import { registerSubsetorIpc } from "./ipc/subsetor.ipc"
 
 function createWindow(): void {
 runMigrations()
 registerSetorIpc()
+registerSubsetorIpc()
+
 // Create the browser window.
 const mainWindow = new BrowserWindow({
   width: 900,

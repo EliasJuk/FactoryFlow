@@ -1,10 +1,13 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-//import { useApp } from "../../contexts/AppContext"
+import { runMigrations } from "./database/migrations"
+import { registerSetorIpc } from "./ipc/setor.ipc"
 
 function createWindow(): void {
-  // Create the browser window.
+runMigrations()
+registerSetorIpc()
+// Create the browser window.
 const mainWindow = new BrowserWindow({
   width: 900,
   height: 670,
@@ -49,7 +52,7 @@ app.whenReady().then(() => {
   })
 
   // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+  //ipcMain.on('ping', () => console.log('pong'))
 
   createWindow()
 

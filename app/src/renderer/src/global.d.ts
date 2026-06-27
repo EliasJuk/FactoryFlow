@@ -1,16 +1,16 @@
 export {}
 
-type Setor = {
+type SetorApi = {
   id: number
   nome: string
-  ativo: number
+  ativo: boolean
 }
 
 declare global {
   interface Window {
     api: {
       setores: {
-        listar: () => Promise<Setor[]>
+        listar: () => Promise<SetorApi[]>
         criar: (nome: string) => Promise<void>
         editar: (id: number, nome: string) => Promise<void>
         excluir: (id: number) => Promise<void>

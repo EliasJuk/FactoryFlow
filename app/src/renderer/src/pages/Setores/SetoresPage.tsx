@@ -1,33 +1,35 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Pencil, Trash2 } from "lucide-react"
 
 import PageHeader from "../../components/PageHeader/PageHeader"
-import { SetorRepository } from "../../repositories/SetorRepository"
 import { Setor } from "../../models/Setor"
 
-const setorRepository = new SetorRepository()
-
 function SetoresPage() {
-  const [setores, setSetores] = useState<Setor[]>(setorRepository.listar())
+  const [setores, setSetores] = useState<Setor[]>([])
   const [nome, setNome] = useState("")
   const [setorEditando, setSetorEditando] = useState<Setor | null>(null)
 
-  function atualizarLista() {
-    setSetores(setorRepository.listar())
+  async function atualizarLista() {
+    const lista = await window.api.setores.listar()
+    setSetores(lista)
   }
 
-  function salvarSetor() {
+  useEffect(() => {
+    atualizarLista()
+  }, [])
+
+  async function salvarSetor() {
     if (!nome.trim()) return
 
     if (setorEditando) {
-      setorRepository.editar(setorEditando.id, nome)
+      await window.api.setores.editar(setorEditando.id, nome)
       setSetorEditando(null)
     } else {
-      setorRepository.adicionar(nome)
+      await window.api.setores.criar(nome)
     }
 
     setNome("")
-    atualizarLista()
+    await atualizarLista()
   }
 
   function editarSetor(setor: Setor) {
@@ -35,9 +37,9 @@ function SetoresPage() {
     setNome(setor.nome)
   }
 
-  function excluirSetor(id: number) {
-    setorRepository.excluir(id)
-    atualizarLista()
+  async function excluirSetor(id: number) {
+    await window.api.setores.excluir(id)
+    await atualizarLista()
   }
 
   return (
@@ -109,6 +111,17 @@ function SetoresPage() {
                   </td>
                 </tr>
               ))}
+
+              {setores.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={2}
+                    className="px-6 py-8 text-center text-sm text-slate-500"
+                  >
+                    Nenhum setor cadastrado.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -8,16 +8,9 @@ import { registerComponenteIpc } from "./ipc/componente.ipc"
 import { registerCircuitoIpc } from "./ipc/circuito.ipc"
 import { registerCircuitoComponenteIpc } from "./ipc/circuitoComponente.ipc"
 import { registerPostoIpc } from "./ipc/posto.ipc"
+import { registerDefeitoIpc } from "./ipc/defeito.ipc"
 
 function createWindow(): void {
-runMigrations()
-registerSetorIpc()
-registerSubsetorIpc()
-registerComponenteIpc()
-registerCircuitoIpc()
-registerCircuitoComponenteIpc()
-registerPostoIpc()
-
 // Create the browser window.
 const mainWindow = new BrowserWindow({
   width: 900,
@@ -52,6 +45,15 @@ const mainWindow = new BrowserWindow({
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  runMigrations()
+  registerSetorIpc()
+  registerSubsetorIpc()
+  registerComponenteIpc()
+  registerCircuitoIpc()
+  registerCircuitoComponenteIpc()
+  registerPostoIpc()
+  registerDefeitoIpc()
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 

@@ -7,6 +7,7 @@ import LancarRefugoPage from "../pages/LancarRefugo/LancarRefugoPage"
 import VerLancamentosPage from "../pages/VerLancamentos/VerLancamentosPage"
 import ComponentesPage from "../pages/Componentes/ComponentesPage"
 import CircuitosPage from "../pages/Circuitos/CircuitosPage"
+import DefeitosPage from "../pages/Defeitos/DefeitosPage"
 
 import SetoresPage from "../pages/Setores/SetoresPage"
 import Subsetores from "../pages/Subsetores/SubsetoresPage"
@@ -23,6 +24,7 @@ function AppRoutes() {
         <Route path="/ver-lancamentos" element={<VerLancamentosPage />} />
         <Route path="/componentes" element={<ComponentesPage />} />
         <Route path="/circuitos" element={<CircuitosPage />} />
+        <Route path="/defeitos" element={<DefeitosPage />} />
 
         <Route path="/setores" element={<SetoresPage />} />
         <Route path="/subSetores" element={<Subsetores />} />

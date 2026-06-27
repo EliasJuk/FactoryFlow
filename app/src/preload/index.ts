@@ -61,4 +61,13 @@ contextBridge.exposeInMainWorld("api", {
     excluir: (id: number) => ipcRenderer.invoke("postos:excluir", id)
   },
 
+  defeitos: {
+    listar: () => ipcRenderer.invoke("defeitos:listar"),
+    criar: (codigo: string, descricao: string) =>
+      ipcRenderer.invoke("defeitos:criar", codigo, descricao),
+    editar: (id: number, codigo: string, descricao: string) =>
+      ipcRenderer.invoke("defeitos:editar", id, codigo, descricao),
+    excluir: (id: number) => ipcRenderer.invoke("defeitos:excluir", id)
+  },
+
 })

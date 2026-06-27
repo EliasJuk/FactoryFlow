@@ -60,5 +60,12 @@ export function runMigrations() {
       FOREIGN KEY (posto_id) REFERENCES postos(id),
       FOREIGN KEY (componente_id) REFERENCES componentes(id)
     );
+
+    CREATE TABLE IF NOT EXISTS defeitos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      codigo TEXT NOT NULL,
+      descricao TEXT NOT NULL,
+      ativo INTEGER NOT NULL DEFAULT 1
+    );
   `)
 }

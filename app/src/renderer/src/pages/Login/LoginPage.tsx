@@ -1,8 +1,12 @@
+import { APP } from "../../config/app";
+
 function LoginPage() {
   return (
-    <div>
-      <h1>Login</h1>
-    </div>
+    <>
+      <h1>{APP.name}</h1>
+
+      <p>Versão {APP.version}</p>
+    </>
   );
 }
 

@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { APP } from "../../config/app"
+import { useApp } from "../../contexts/AppContext"
 
 const setores = [
   {

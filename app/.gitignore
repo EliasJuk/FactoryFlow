@@ -28,3 +28,8 @@ resources/app-update.yml
 # Arquivos temporários
 *.tmp
 *.temp
+
+#VSCode
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json

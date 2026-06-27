@@ -8,7 +8,8 @@ import {
   Package,
   Boxes,
   Recycle,
-  ClipboardList
+  ClipboardList,
+  Building2
 } from "lucide-react"
 
 const setores = [
@@ -134,6 +135,13 @@ function DashboardPage() {
           description="Cadastrar circuitos"
           icon={<Boxes size={48} />}
           onClick={() => navigate("/circuitos")}
+        />
+
+        <MenuCard
+          title="Setores"
+          description="Cadastrar setores"
+          icon={<Building2 size={48} />}
+          onClick={() => navigate("/setores")}
         />
       </section>
     </main>

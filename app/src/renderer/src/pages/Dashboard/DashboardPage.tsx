@@ -1,24 +1,43 @@
+import { useState } from "react"
 import { APP } from "../../config/app"
 
 const setores = [
-  "SETOR-1",
-  "SETOR-2",
-  "SETOR-3",
-  "SETOR-4"
-]
-
-
-const subsetores1 = [
-  "SUB-SETOR A",
-  "SUB-SETOR B",
-  "SUB-SETOR C",
-  "SUB-SETOR D",
-  "SUB-SETOR E",
-  "SUB-SETOR F",
-  "SUB-SETOR G"
+  {
+    id: 1,
+    nome: "SETOR-1",
+    subsetores: [
+      "SUB-SETOR A",
+      "SUB-SETOR B",
+      "SUB-SETOR C",
+      "SUB-SETOR D",
+      "SUB-SETOR E",
+      "SUB-SETOR F",
+      "SUB-SETOR G"
+    ]
+  },
+  {
+    id: 2,
+    nome: "SETOR-2",
+    subsetores: ["SUB-SETOR A", "SUB-SETOR B", "SUB-SETOR C"]
+  },
+  {
+    id: 3,
+    nome: "SETOR-3",
+    subsetores: ["SUB-SETOR A", "SUB-SETOR B"]
+  },
+  {
+    id: 4,
+    nome: "SETOR-4",
+    subsetores: ["SUB-SETOR A"]
+  }
 ]
 
 function DashboardPage() {
+  const [setorSelecionado, setSetorSelecionado] = useState(1)
+  const [subsetorSelecionado, setSubsetorSelecionado] = useState("SUB-SETOR A")
+
+  const setorAtual = setores.find((setor) => setor.id === setorSelecionado)
+
   return (
     <main className="min-h-screen bg-slate-100">
       <header className="flex h-20 items-center justify-center border-b bg-white">
@@ -27,29 +46,46 @@ function DashboardPage() {
 
       <section className="border-b bg-white px-8 py-4">
         <div className="grid grid-cols-4 gap-2">
-          {setores.map((setor) => (
-            <button
-              key={setor}
-              className={`border px-4 py-3 font-semibold ${
-                setor === "AC"
-                  ? "bg-green-600 text-white"
-                  : "bg-white text-slate-700"
-              }`}
-            >
-              {setor}
-            </button>
-          ))}
+          {setores.map((setor) => {
+            const ativo = setor.id === setorSelecionado
+
+            return (
+              <button
+                key={setor.id}
+                onClick={() => {
+                  setSetorSelecionado(setor.id)
+                  setSubsetorSelecionado(setor.subsetores[0])
+                }}
+                className={`border px-4 py-3 font-semibold ${
+                  ativo
+                    ? "bg-green-600 text-white"
+                    : "bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {setor.nome}
+              </button>
+            )
+          })}
         </div>
 
         <div className="mt-3 grid grid-cols-4 gap-2">
-          {subsetores1.map((subsetor) => (
-            <button
-              key={subsetor}
-              className="border border-green-500 px-4 py-3 text-sm font-semibold text-green-700"
-            >
-              {subsetor}
-            </button>
-          ))}
+          {setorAtual?.subsetores.map((subsetor) => {
+            const ativo = subsetor === subsetorSelecionado
+
+            return (
+              <button
+                key={subsetor}
+                onClick={() => setSubsetorSelecionado(subsetor)}
+                className={`border px-4 py-3 text-sm font-semibold ${
+                  ativo
+                    ? "border-green-600 bg-green-50 text-green-700"
+                    : "border-green-500 text-green-700 hover:bg-green-50"
+                }`}
+              >
+                {subsetor}
+              </button>
+            )
+          })}
         </div>
       </section>
 

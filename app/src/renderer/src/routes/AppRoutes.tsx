@@ -8,6 +8,11 @@ import VerLancamentosPage from "../pages/VerLancamentos/VerLancamentosPage"
 import ComponentesPage from "../pages/Componentes/ComponentesPage"
 import CircuitosPage from "../pages/Circuitos/CircuitosPage"
 
+import SetoresPage from "../pages/Setores/SetoresPage"
+import Subsetores from "../pages/Subsetores/SubsetoresPage"
+import Postos from "../pages/Postos/PostosPage"
+
+
 function AppRoutes() {
   return (
     <HashRouter>
@@ -18,6 +23,10 @@ function AppRoutes() {
         <Route path="/ver-lancamentos" element={<VerLancamentosPage />} />
         <Route path="/componentes" element={<ComponentesPage />} />
         <Route path="/circuitos" element={<CircuitosPage />} />
+
+        <Route path="/setores" element={<SetoresPage />} />
+        <Route path="/subSetores" element={<Subsetores />} />
+        <Route path="/postos" element={<Postos />} />
       </Routes>
     </HashRouter>
   )

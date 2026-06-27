@@ -28,5 +28,28 @@ contextBridge.exposeInMainWorld("api", {
     excluir: (id: number) => ipcRenderer.invoke("componentes:excluir", id)
   },
 
-  
+  circuitos: {
+    listar: () => ipcRenderer.invoke("circuitos:listar"),
+    criar: (codigo: string, nome: string) =>
+      ipcRenderer.invoke("circuitos:criar", codigo, nome),
+    editar: (id: number, codigo: string, nome: string) =>
+      ipcRenderer.invoke("circuitos:editar", id, codigo, nome),
+    excluir: (id: number) =>
+      ipcRenderer.invoke("circuitos:excluir", id)
+  },
+
+  circuitoComponentes: {
+    listarPorCircuito: (circuitoId: number) =>
+      ipcRenderer.invoke("circuito-componentes:listar-por-circuito", circuitoId),
+    adicionar: (circuitoId: number, componenteId: number, quantidade: number) =>
+      ipcRenderer.invoke(
+        "circuito-componentes:adicionar",
+        circuitoId,
+        componenteId,
+        quantidade
+      ),
+    remover: (id: number) =>
+      ipcRenderer.invoke("circuito-componentes:remover", id)
+  }
+
 })

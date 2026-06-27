@@ -6,6 +6,23 @@ type SetorApi = {
   ativo: boolean
 }
 
+type CircuitoApi = {
+  id: number
+  codigo: string
+  nome: string
+  ativo: boolean
+}
+
+type CircuitoComponenteApi = {
+  id: number
+  circuitoId: number
+  componenteId: number
+  codigoComponente: string
+  nomeComponente: string
+  quantidade: number
+  ativo: boolean
+}
+
 declare global {
   interface Window {
     api: {
@@ -23,7 +40,7 @@ declare global {
         excluir: (id: number) => Promise<void>
       },
 
-            componentes: {
+      componentes: {
         listar: () => Promise<ComponenteApi[]>
         criar: (codigo: string, nome: string) => Promise<void>
         editar: (
@@ -33,7 +50,23 @@ declare global {
         ) => Promise<void>
         excluir: (id: number) => Promise<void>
       },
-      
+
+      circuitos: {
+        listar: () => Promise<CircuitoApi[]>
+        criar: (codigo: string, nome: string) => Promise<void>
+        editar: (id: number, codigo: string, nome: string) => Promise<void>
+        excluir: (id: number) => Promise<void>
+      },
+
+      circuitoComponentes: {
+        listarPorCircuito: (circuitoId: number) => Promise<CircuitoComponenteApi[]>
+        adicionar: (
+          circuitoId: number,
+          componenteId: number,
+          quantidade: number
+        ) => Promise<void>
+        remover: (id: number) => Promise<void>
+      },
     }
   }
 }

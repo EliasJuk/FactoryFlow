@@ -1,4 +1,6 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
+
 import { APP } from "../../config/app"
 import { useApp } from "../../contexts/AppContext"
 
@@ -34,18 +36,24 @@ const setores = [
 ]
 
 function DashboardPage() {
+  const navigate = useNavigate()
+  const { usuario } = useApp()
+
   const [setorSelecionado, setSetorSelecionado] = useState(1)
-  const [subsetorSelecionado, setSubsetorSelecionado] = useState("SUB-SETOR A")
+  const [subsetorSelecionado, setSubsetorSelecionado] =
+    useState("SUB-SETOR A")
 
   const setorAtual = setores.find((setor) => setor.id === setorSelecionado)
-  const { usuario } = useApp();
 
   return (
     <main className="min-h-screen bg-slate-100">
       <header className="flex h-20 items-center justify-center border-b bg-white">
         <h1 className="text-2xl font-bold text-slate-800">{APP.name}</h1>
       </header>
-      <div>Olá, {usuario.nome}</div>
+
+      <div className="bg-white px-8 py-3 text-sm text-slate-600">
+        Olá, <span className="font-semibold">{usuario.nome}</span>
+      </div>
 
       <section className="border-b bg-white px-8 py-4">
         <div className="grid grid-cols-4 gap-2">
@@ -93,22 +101,34 @@ function DashboardPage() {
       </section>
 
       <section className="grid grid-cols-2 gap-6 p-10 md:grid-cols-4">
-        <button className="h-36 rounded-xl bg-white p-6 text-lg font-bold shadow hover:shadow-md">
+        <button
+          onClick={() => navigate("/lancar-refugo")}
+          className="h-36 rounded-xl bg-white p-6 text-lg font-bold shadow transition hover:scale-105 hover:shadow-lg"
+        >
           ♻️
           <div className="mt-4">Lançar Refugo</div>
         </button>
 
-        <button className="h-36 rounded-xl bg-white p-6 text-lg font-bold shadow hover:shadow-md">
+        <button
+          onClick={() => navigate("/ver-lancamentos")}
+          className="h-36 rounded-xl bg-white p-6 text-lg font-bold shadow transition hover:scale-105 hover:shadow-lg"
+        >
           📋
           <div className="mt-4">Ver Lançamentos</div>
         </button>
 
-        <button className="h-36 rounded-xl bg-white p-6 text-lg font-bold shadow hover:shadow-md">
+        <button
+          onClick={() => navigate("/componentes")}
+          className="h-36 rounded-xl bg-white p-6 text-lg font-bold shadow transition hover:scale-105 hover:shadow-lg"
+        >
           📦
           <div className="mt-4">Cadastrar Componentes</div>
         </button>
 
-        <button className="h-36 rounded-xl bg-white p-6 text-lg font-bold shadow hover:shadow-md">
+        <button
+          onClick={() => navigate("/circuitos")}
+          className="h-36 rounded-xl bg-white p-6 text-lg font-bold shadow transition hover:scale-105 hover:shadow-lg"
+        >
           🧩
           <div className="mt-4">Cadastrar Circuitos</div>
         </button>

@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { useApp } from "../../contexts/AppContext"
+//import { useApp } from "../../contexts/AppContext"
 
 function createWindow(): void {
   // Create the browser window.

@@ -162,6 +162,13 @@ function DashboardPage() {
           icon={<Building2 size={48} />}
           onClick={() => navigate("/subsetores")}
         />
+
+        <MenuCard
+          title="Postos"
+          description="Postos"
+          icon={<Building2 size={48} />}
+          onClick={() => navigate("/postos")}
+        />
       </section>
     </main>
   )

@@ -23,6 +23,14 @@ type CircuitoComponenteApi = {
   ativo: boolean
 }
 
+type PostoApi = {
+  id: number
+  nome: string
+  subsetorId: number
+  subsetorNome: string
+  ativo: boolean
+}
+
 declare global {
   interface Window {
     api: {
@@ -67,6 +75,13 @@ declare global {
         ) => Promise<void>
         remover: (id: number) => Promise<void>
       },
+      
+      postos: {
+        listar: () => Promise<PostoApi[]>
+        criar: (nome: string, subsetorId: number) => Promise<void>
+        editar: (id: number, nome: string, subsetorId: number) => Promise<void>
+        excluir: (id: number) => Promise<void>
+      }
     }
   }
 }

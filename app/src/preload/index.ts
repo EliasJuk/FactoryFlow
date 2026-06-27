@@ -50,6 +50,15 @@ contextBridge.exposeInMainWorld("api", {
       ),
     remover: (id: number) =>
       ipcRenderer.invoke("circuito-componentes:remover", id)
-  }
+  },
+
+  postos: {
+    listar: () => ipcRenderer.invoke("postos:listar"),
+    criar: (nome: string, subsetorId: number) =>
+      ipcRenderer.invoke("postos:criar", nome, subsetorId),
+    editar: (id: number, nome: string, subsetorId: number) =>
+      ipcRenderer.invoke("postos:editar", id, nome, subsetorId),
+    excluir: (id: number) => ipcRenderer.invoke("postos:excluir", id)
+  },
 
 })

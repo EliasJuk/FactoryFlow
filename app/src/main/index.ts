@@ -7,6 +7,7 @@ import { registerSubsetorIpc } from "./ipc/subsetor.ipc"
 import { registerComponenteIpc } from "./ipc/componente.ipc"
 import { registerCircuitoIpc } from "./ipc/circuito.ipc"
 import { registerCircuitoComponenteIpc } from "./ipc/circuitoComponente.ipc"
+import { registerPostoIpc } from "./ipc/posto.ipc"
 
 function createWindow(): void {
 runMigrations()
@@ -15,6 +16,7 @@ registerSubsetorIpc()
 registerComponenteIpc()
 registerCircuitoIpc()
 registerCircuitoComponenteIpc()
+registerPostoIpc()
 
 // Create the browser window.
 const mainWindow = new BrowserWindow({

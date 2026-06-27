@@ -38,12 +38,14 @@ function DashboardPage() {
   const [subsetorSelecionado, setSubsetorSelecionado] = useState("SUB-SETOR A")
 
   const setorAtual = setores.find((setor) => setor.id === setorSelecionado)
+  const { usuario } = useApp();
 
   return (
     <main className="min-h-screen bg-slate-100">
       <header className="flex h-20 items-center justify-center border-b bg-white">
         <h1 className="text-2xl font-bold text-slate-800">{APP.name}</h1>
       </header>
+      <div>Olá, {usuario.nome}</div>
 
       <section className="border-b bg-white px-8 py-4">
         <div className="grid grid-cols-4 gap-2">

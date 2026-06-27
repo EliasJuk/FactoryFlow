@@ -8,12 +8,19 @@ export function runMigrations() {
       ativo INTEGER NOT NULL DEFAULT 1
     );
 
-      CREATE TABLE IF NOT EXISTS subsetores (
+    CREATE TABLE IF NOT EXISTS subsetores (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nome TEXT NOT NULL,
       setor_id INTEGER NOT NULL,
       ativo INTEGER NOT NULL DEFAULT 1,
       FOREIGN KEY (setor_id) REFERENCES setores(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS componentes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      codigo TEXT NOT NULL,
+      nome TEXT NOT NULL,
+      ativo INTEGER NOT NULL DEFAULT 1
     );
   `)
 }

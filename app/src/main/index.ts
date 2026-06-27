@@ -4,11 +4,13 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { runMigrations } from "./database/migrations"
 import { registerSetorIpc } from "./ipc/setor.ipc"
 import { registerSubsetorIpc } from "./ipc/subsetor.ipc"
+import { registerComponenteIpc } from "./ipc/componente.ipc"
 
 function createWindow(): void {
 runMigrations()
 registerSetorIpc()
 registerSubsetorIpc()
+registerComponenteIpc()
 
 // Create the browser window.
 const mainWindow = new BrowserWindow({

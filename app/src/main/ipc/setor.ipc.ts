@@ -8,12 +8,12 @@ export function registerSetorIpc() {
     return setorRepository.listar()
   })
 
-  ipcMain.handle("setores:criar", (_, nome: string) => {
-    setorRepository.criar(nome)
+  ipcMain.handle("setores:criar", (_, nome: string, sigla: string) => {
+    setorRepository.criar(nome, sigla)
   })
 
-  ipcMain.handle("setores:editar", (_, id: number, nome: string) => {
-    setorRepository.editar(id, nome)
+  ipcMain.handle("setores:editar", (_, id: number, nome: string, sigla: string) => {
+    setorRepository.editar(id, nome, sigla)
   })
 
   ipcMain.handle("setores:excluir", (_, id: number) => {

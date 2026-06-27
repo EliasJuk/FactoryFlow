@@ -3,6 +3,7 @@ export {}
 type SetorApi = {
   id: number
   nome: string
+  sigla: string
   ativo: boolean
 }
 
@@ -43,8 +44,8 @@ declare global {
     api: {
       setores: {
         listar: () => Promise<SetorApi[]>
-        criar: (nome: string) => Promise<void>
-        editar: (id: number, nome: string) => Promise<void>
+        criar: (nome: string, sigla: string) => Promise<void>
+        editar: (id: number, nome: string, sigla: string) => Promise<void>
         excluir: (id: number) => Promise<void>
       },
 
@@ -96,7 +97,7 @@ declare global {
         editar: (id: number, codigo: string, descricao: string) => Promise<void>
         excluir: (id: number) => Promise<void>
       },
-      
+
     }
   }
 }

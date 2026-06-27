@@ -11,10 +11,10 @@ contextBridge.exposeInMainWorld("api", {
 
   subsetores: {
     listar: () => ipcRenderer.invoke("subsetores:listar"),
-    criar: (nome: string, setorId: number) =>
-      ipcRenderer.invoke("subsetores:criar", nome, setorId),
-    editar: (id: number, nome: string, setorId: number) =>
-      ipcRenderer.invoke("subsetores:editar", id, nome, setorId),
+    criar: (nome: string, sigla: string) =>
+      ipcRenderer.invoke("setores:criar", nome, sigla),
+    editar: (id: number, nome: string, sigla: string) =>
+      ipcRenderer.invoke("setores:editar", id, nome, sigla),
     excluir: (id: number) =>
       ipcRenderer.invoke("subsetores:excluir", id)
   },

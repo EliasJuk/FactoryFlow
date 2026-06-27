@@ -7,6 +7,7 @@ import { Setor } from "../../models/Setor"
 function SetoresPage() {
   const [setores, setSetores] = useState<Setor[]>([])
   const [nome, setNome] = useState("")
+  const [sigla, setSigla] = useState("")
   const [setorEditando, setSetorEditando] = useState<Setor | null>(null)
 
   async function atualizarLista() {
@@ -19,22 +20,24 @@ function SetoresPage() {
   }, [])
 
   async function salvarSetor() {
-    if (!nome.trim()) return
+    if (!nome.trim() || !sigla.trim()) return
 
     if (setorEditando) {
-      await window.api.setores.editar(setorEditando.id, nome)
+      await window.api.setores.editar(setorEditando.id, nome, sigla)
       setSetorEditando(null)
     } else {
-      await window.api.setores.criar(nome)
+      await window.api.setores.criar(nome, sigla)
     }
 
     setNome("")
+    setSigla("")
     await atualizarLista()
   }
 
   function editarSetor(setor: Setor) {
     setSetorEditando(setor)
     setNome(setor.nome)
+    setSigla(setor.sigla)
   }
 
   async function excluirSetor(id: number) {
@@ -51,25 +54,40 @@ function SetoresPage() {
 
       <section className="p-8">
         <div className="rounded-xl bg-white p-6 shadow">
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            Nome do Setor
-          </label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Nome do Setor
+              </label>
 
-          <div className="flex gap-3">
-            <input
-              value={nome}
-              onChange={(event) => setNome(event.target.value)}
-              placeholder="Ex: SETOR-1"
-              className="flex-1 rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-600"
-            />
+              <input
+                value={nome}
+                onChange={(event) => setNome(event.target.value)}
+                placeholder="Ex: Ar Condicionado"
+                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-600"
+              />
+            </div>
 
-            <button
-              onClick={salvarSetor}
-              className="rounded-lg bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-700"
-            >
-              {setorEditando ? "Atualizar" : "Salvar"}
-            </button>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Sigla
+              </label>
+
+              <input
+                value={sigla}
+                onChange={(event) => setSigla(event.target.value.toUpperCase())}
+                placeholder="Ex: AC"
+                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-600"
+              />
+            </div>
           </div>
+
+          <button
+            onClick={salvarSetor}
+            className="mt-5 rounded-lg bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-700"
+          >
+            {setorEditando ? "Atualizar" : "Salvar"}
+          </button>
         </div>
 
         <div className="mt-8 overflow-hidden rounded-xl bg-white shadow">
@@ -78,6 +96,9 @@ function SetoresPage() {
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-slate-600">
                   Nome
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-600">
+                  Sigla
                 </th>
                 <th className="px-6 py-4 text-right text-sm font-semibold text-slate-600">
                   Ações
@@ -90,6 +111,10 @@ function SetoresPage() {
                 <tr key={setor.id} className="border-t">
                   <td className="px-6 py-4 font-medium text-slate-700">
                     {setor.nome}
+                  </td>
+
+                  <td className="px-6 py-4 text-slate-700">
+                    {setor.sigla}
                   </td>
 
                   <td className="px-6 py-4">
@@ -115,7 +140,7 @@ function SetoresPage() {
               {setores.length === 0 && (
                 <tr>
                   <td
-                    colSpan={2}
+                    colSpan={3}
                     className="px-6 py-8 text-center text-sm text-slate-500"
                   >
                     Nenhum setor cadastrado.

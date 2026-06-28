@@ -1,0 +1,1 @@
+npx electron-builder --config electron-builder.yml

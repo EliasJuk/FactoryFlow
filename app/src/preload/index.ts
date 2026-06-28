@@ -91,8 +91,27 @@ contextBridge.exposeInMainWorld("api", {
     criar: (input: RefugoInput) =>
       ipcRenderer.invoke("refugos:criar", input),
 
-    listar: (busca: string, limite: number) =>
-      ipcRenderer.invoke("refugos:listar", busca, limite),
+    listar: (busca: string, pagina: number, limite: number) =>
+      ipcRenderer.invoke("refugos:listar", busca, pagina, limite),
+
+    editarBasico: (
+      id: number,
+      matricula: string,
+      turno: string,
+      quantidadeProduzida: number,
+      observacao?: string
+    ) =>
+      ipcRenderer.invoke(
+        "refugos:editar-basico",
+        id,
+        matricula,
+        turno,
+        quantidadeProduzida,
+        observacao
+      ),
+
+    cancelar: (id: number, motivo: string) =>
+      ipcRenderer.invoke("refugos:cancelar", id, motivo)
   },
 
   roteiro: {

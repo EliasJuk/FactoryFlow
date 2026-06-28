@@ -81,6 +81,9 @@ type RefugoListagemApi = {
   postoNome: string
   circuitoCodigo: string
   circuitoNome: string
+  status: string
+  motivoCancelamento?: string | null
+
   itens: {
     componenteCodigo: string
     componenteNome: string
@@ -151,7 +154,25 @@ declare global {
 
       refugos: {
         criar: (input: RefugoInput) => Promise<string>
-        listar: (busca: string, limite: number) => Promise<RefugoListagemApi[]>
+        listar: (
+          busca: string,
+          pagina: number,
+          limite: number
+        ) => Promise<{
+          dados: RefugoListagemApi[]
+          totalRegistros: number
+          totalPaginas: number
+        }>
+
+        editarBasico: (
+          id: number,
+          matricula: string,
+          turno: string,
+          quantidadeProduzida: number,
+          observacao?: string
+        ) => Promise<void>
+
+        cancelar: (id: number, motivo: string) => Promise<void>
       },
 
       roteiro: {

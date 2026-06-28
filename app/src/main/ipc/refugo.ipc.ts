@@ -1,17 +1,43 @@
 import { ipcMain } from "electron"
-import {
-  RefugoRepository,
-  CriarRefugoInput
-} from "../repositories/RefugoRepository"
 
-const repository = new RefugoRepository()
+import { CriarRefugoInput } from "../repositories/RefugoRepository"
+import { RefugoService } from "../services/RefugoService"
+
+const service = new RefugoService()
 
 export function registerRefugoIpc() {
   ipcMain.handle("refugos:criar", (_, input: CriarRefugoInput) => {
-    return repository.criar(input)
+    return service.criar(input)
   })
 
-  ipcMain.handle("refugos:listar", (_, busca: string, limite: number) => {
-    return repository.listar(busca, limite)
+  ipcMain.handle(
+    "refugos:listar",
+    (_, busca: string, pagina: number, limite: number) => {
+      return service.listar(busca, pagina, limite)
+    }
+  )
+
+  ipcMain.handle(
+    "refugos:editar-basico",
+    (
+      _,
+      id: number,
+      matricula: string,
+      turno: string,
+      quantidadeProduzida: number,
+      observacao?: string
+    ) => {
+      return service.editarBasico(
+        id,
+        matricula,
+        turno,
+        quantidadeProduzida,
+        observacao
+      )
+    }
+  )
+
+  ipcMain.handle("refugos:cancelar", (_, id: number, motivo: string) => {
+    return service.cancelar(id, motivo)
   })
 }

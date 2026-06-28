@@ -157,6 +157,20 @@ export function runMigrations() {
     `)
   }
 
+  if (!columnExists("refugos", "status")) {
+    db.exec(`
+      ALTER TABLE refugos 
+      ADD COLUMN status TEXT NOT NULL DEFAULT 'ATIVO';
+    `)
+  }
+
+  if (!columnExists("refugos", "motivo_cancelamento")) {
+    db.exec(`
+      ALTER TABLE refugos 
+      ADD COLUMN motivo_cancelamento TEXT;
+    `)
+  }
+
   db.prepare(`
     INSERT OR IGNORE INTO usuarios (id, nome, matricula, perfil, ativo)
     VALUES (1, 'Sistema', '0000', 'ADMIN', 1)

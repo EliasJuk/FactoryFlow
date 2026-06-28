@@ -9,138 +9,109 @@ export interface RefugoItemInput {
 export interface CriarRefugoInput {
   matriculaOperador: string
   usuarioId?: number | null
-
   setorId: number
   subsetorId: number
   postoId: number
   circuitoId: number
-
   turno: string
   quantidadeProduzida: number
-
   observacao?: string
-
   itens: RefugoItemInput[]
 }
 
 export class RefugoRepository {
   criar(input: CriarRefugoInput): string {
-    const data = new Date()
+    const ano = new Date().getFullYear()
 
-    const ano = data.getFullYear()
-
-    const setor = db.prepare(`
-      SELECT nome, sigla
-      FROM setores
-      WHERE id = ?
-    `).get(input.setorId) as { nome: string; sigla: string | null }
+    const setor = db
+      .prepare(`
+        SELECT nome, sigla
+        FROM setores
+        WHERE id = ?
+      `)
+      .get(input.setorId) as { nome: string; sigla: string | null }
 
     const sigla =
       setor.sigla && setor.sigla.trim() !== ""
         ? setor.sigla.trim().toUpperCase()
         : setor.nome.substring(0, 3).toUpperCase()
 
-    const ultimaSequencia = db.prepare(`
-      SELECT MAX(sequencia) AS seq
-      FROM refugos
-      WHERE ano = ?
-        AND sigla_setor = ?
-    `).get(ano, sigla) as { seq: number | null }
+    const ultimaSequencia = db
+      .prepare(`
+        SELECT MAX(sequencia) AS seq
+        FROM refugos
+        WHERE ano = ?
+          AND sigla_setor = ?
+      `)
+      .get(ano, sigla) as { seq: number | null }
 
     const sequencia = (ultimaSequencia.seq ?? 0) + 1
-
-    const numeroRefugo =
-      `${sigla}-${ano}-${String(sequencia).padStart(6, "0")}`
-
-    const insert = db.prepare(`
-      INSERT INTO refugos (
-
-        numero_refugo,
-        sigla_setor,
-        ano,
-        sequencia,
-
-        data_hora,
-        turno,
-
-        matricula_operador,
-        usuario_id,
-
-        setor_id,
-        subsetor_id,
-        posto_id,
-        circuito_id,
-
-        quantidade_produzida,
-
-        observacao
-
-      )
-
-      VALUES (
-
-        ?,
-        ?,
-        ?,
-        ?,
-
-        datetime('now','localtime'),
-        ?,
-
-        ?,
-        ?,
-
-        ?,
-        ?,
-        ?,
-        ?,
-
-        ?,
-
-        ?
-
-      )
-    `)
-
-    const resultado = insert.run(
-
-      numeroRefugo,
-      sigla,
-      ano,
-      sequencia,
-
-      input.turno,
-
-      input.matriculaOperador,
-      input.usuarioId ?? 1,
-
-      input.setorId,
-      input.subsetorId,
-      input.postoId,
-      input.circuitoId,
-
-      input.quantidadeProduzida,
-
-      input.observacao ?? null
-
-    )
-
-    const refugoId = Number(resultado.lastInsertRowid)
-
-    const insertItem = db.prepare(`
-      INSERT INTO refugo_itens (
-
-        refugo_id,
-        componente_id,
-        defeito_id,
-        quantidade
-
-      )
-
-      VALUES (?, ?, ?, ?)
-    `)
+    const numeroRefugo = `${sigla}-${ano}-${String(sequencia).padStart(6, "0")}`
 
     const transaction = db.transaction(() => {
+      const resultado = db
+        .prepare(`
+          INSERT INTO refugos (
+            numero_refugo,
+            sigla_setor,
+            ano,
+            sequencia,
+            data_hora,
+            turno,
+            matricula_operador,
+            usuario_id,
+            setor_id,
+            subsetor_id,
+            posto_id,
+            circuito_id,
+            quantidade_produzida,
+            observacao,
+            status
+          ) VALUES (
+            ?,
+            ?,
+            ?,
+            ?,
+            datetime('now','localtime'),
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            'ATIVO'
+          )
+        `)
+        .run(
+          numeroRefugo,
+          sigla,
+          ano,
+          sequencia,
+          input.turno,
+          input.matriculaOperador,
+          input.usuarioId ?? 1,
+          input.setorId,
+          input.subsetorId,
+          input.postoId,
+          input.circuitoId,
+          input.quantidadeProduzida,
+          input.observacao ?? null
+        )
+
+      const refugoId = Number(resultado.lastInsertRowid)
+
+      const insertItem = db.prepare(`
+        INSERT INTO refugo_itens (
+          refugo_id,
+          componente_id,
+          defeito_id,
+          quantidade
+        ) VALUES (?, ?, ?, ?)
+      `)
+
       for (const item of input.itens) {
         insertItem.run(
           refugoId,
@@ -156,9 +127,31 @@ export class RefugoRepository {
     return numeroRefugo
   }
 
-
-  listar(busca = "", limite = 10) {
+  listar(busca = "", pagina = 1, limite = 10) {
     const termo = `%${busca}%`
+    const offset = (pagina - 1) * limite
+
+    const filtros = `
+      ? = ''
+      OR r.numero_refugo LIKE ?
+      OR r.matricula_operador LIKE ?
+      OR s.nome LIKE ?
+      OR sub.nome LIKE ?
+      OR p.nome LIKE ?
+      OR c.codigo LIKE ?
+      OR c.nome LIKE ?
+    `
+
+    const parametrosFiltro = [
+      busca,
+      termo,
+      termo,
+      termo,
+      termo,
+      termo,
+      termo,
+      termo
+    ]
 
     const refugos = db
       .prepare(`
@@ -169,6 +162,9 @@ export class RefugoRepository {
           r.turno,
           r.matricula_operador as matriculaOperador,
           r.quantidade_produzida as quantidadeProduzida,
+          r.observacao,
+          r.status,
+          r.motivo_cancelamento as motivoCancelamento,
 
           s.nome as setorNome,
           sub.nome as subsetorNome,
@@ -182,33 +178,30 @@ export class RefugoRepository {
         INNER JOIN postos p ON p.id = r.posto_id
         INNER JOIN circuitos c ON c.id = r.circuito_id
 
-        WHERE
-          ? = ''
-          OR r.numero_refugo LIKE ?
-          OR r.matricula_operador LIKE ?
-          OR s.nome LIKE ?
-          OR sub.nome LIKE ?
-          OR p.nome LIKE ?
-          OR c.codigo LIKE ?
-          OR c.nome LIKE ?
+        WHERE ${filtros}
 
         ORDER BY r.id DESC
         LIMIT ?
+        OFFSET ?
       `)
-      .all(
-        busca,
-        termo,
-        termo,
-        termo,
-        termo,
-        termo,
-        termo,
-        termo,
-        limite
-      ) as any[]
+      .all(...parametrosFiltro, limite, offset) as any[]
+
+    const total = db
+      .prepare(`
+        SELECT COUNT(*) as total
+        FROM refugos r
+        INNER JOIN setores s ON s.id = r.setor_id
+        INNER JOIN subsetores sub ON sub.id = r.subsetor_id
+        INNER JOIN postos p ON p.id = r.posto_id
+        INNER JOIN circuitos c ON c.id = r.circuito_id
+
+        WHERE ${filtros}
+      `)
+      .get(...parametrosFiltro) as { total: number }
 
     const itensStmt = db.prepare(`
       SELECT
+        ri.id,
         comp.codigo as componenteCodigo,
         comp.nome as componenteNome,
         d.codigo as defeitoCodigo,
@@ -221,9 +214,48 @@ export class RefugoRepository {
       ORDER BY comp.codigo
     `)
 
-    return refugos.map((refugo) => ({
-      ...refugo,
-      itens: itensStmt.all(refugo.id)
-    }))
+    return {
+      dados: refugos.map((refugo) => ({
+        ...refugo,
+        itens: itensStmt.all(refugo.id)
+      })),
+      totalRegistros: total.total,
+      totalPaginas: Math.max(1, Math.ceil(total.total / limite))
+    }
+  }
+
+  editarBasico(
+    id: number,
+    matriculaOperador: string,
+    turno: string,
+    quantidadeProduzida: number,
+    observacao?: string
+  ) {
+    db.prepare(`
+      UPDATE refugos
+      SET
+        matricula_operador = ?,
+        turno = ?,
+        quantidade_produzida = ?,
+        observacao = ?
+      WHERE id = ?
+        AND status = 'ATIVO'
+    `).run(
+      matriculaOperador,
+      turno,
+      quantidadeProduzida,
+      observacao ?? null,
+      id
+    )
+  }
+
+  cancelar(id: number, motivo: string) {
+    db.prepare(`
+      UPDATE refugos
+      SET
+        status = 'CANCELADO',
+        motivo_cancelamento = ?
+      WHERE id = ?
+    `).run(motivo, id)
   }
 }

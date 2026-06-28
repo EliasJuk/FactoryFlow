@@ -55,8 +55,8 @@ app.whenReady().then(() => {
   registerCircuitoComponenteIpc()
   registerPostoIpc()
   registerDefeitoIpc()
-  registerRefugoIpc()
   registerRoteiroIpc()
+  registerRefugoIpc()
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')

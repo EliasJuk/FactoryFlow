@@ -69,6 +69,27 @@ type RoteiroComponenteApi = {
   ativo: boolean
 }
 
+type RefugoListagemApi = {
+  id: number
+  numeroRefugo: string
+  dataHora: string
+  turno: string
+  matriculaOperador: string
+  quantidadeProduzida: number
+  setorNome: string
+  subsetorNome: string
+  postoNome: string
+  circuitoCodigo: string
+  circuitoNome: string
+  itens: {
+    componenteCodigo: string
+    componenteNome: string
+    defeitoCodigo: string
+    defeitoDescricao: string
+    quantidadeRefugada: number
+  }[]
+}
+
 declare global {
   interface Window {
     api: {
@@ -130,6 +151,7 @@ declare global {
 
       refugos: {
         criar: (input: RefugoInput) => Promise<string>
+        listar: (busca: string, limite: number) => Promise<RefugoListagemApi[]>
       },
 
       roteiro: {

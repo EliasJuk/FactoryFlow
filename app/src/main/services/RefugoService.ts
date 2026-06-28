@@ -3,8 +3,11 @@ import {
   CriarRefugoInput
 } from "../repositories/RefugoRepository"
 
+import { RefugoPrintService } from "./RefugoPrintService"
+
 export class RefugoService {
   private repository = new RefugoRepository()
+  private printService = new RefugoPrintService()
 
   criar(input: CriarRefugoInput) {
     return this.repository.criar(input)
@@ -34,5 +37,10 @@ export class RefugoService {
 
   cancelar(id: number, motivo: string) {
     return this.repository.cancelar(id, motivo)
+  }
+
+  async imprimir(id: number) {
+    const refugo = this.repository.buscarParaImpressao(id)
+    await this.printService.imprimir(refugo)
   }
 }

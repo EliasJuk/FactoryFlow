@@ -108,8 +108,8 @@ function VerLancamentosPage() {
     )
   }
 
-  function reimprimir(numeroRefugo: string) {
-    alert(`Reimprimir ${numeroRefugo}`)
+  async function reimprimir(id: number) {
+    await window.api.refugos.imprimir(id)
   }
 
   function abrirEdicao(refugo: RefugoListagem) {
@@ -249,17 +249,19 @@ function VerLancamentosPage() {
                 value={busca}
                 onChange={(event) => setBusca(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") carregarLancamentos(1)
+                  if (event.key === "Enter" && !carregando) carregarLancamentos(1)
                 }}
                 placeholder="Número, matrícula, circuito, posto ou defeito..."
                 className={ui.input}
+                autoFocus
               />
             </div>
 
             <div className="flex items-end">
               <button
                 onClick={() => carregarLancamentos(1)}
-                className={ui.buttonPrimary}
+                disabled={carregando}
+                className={`${ui.buttonPrimary} ${carregando ? "opacity-60" : ""}`}
                 title="Buscar"
               >
                 <Search size={16} />
@@ -271,7 +273,9 @@ function VerLancamentosPage() {
         <div className="space-y-3">
           {carregando && (
             <div className={ui.card}>
-              <p className={ui.subtitle}>Carregando lançamentos...</p>
+                <p className="text-xs font-semibold text-[var(--text-light)]">
+                  Atualizando lançamentos...
+                </p>
             </div>
           )}
 
@@ -291,7 +295,10 @@ function VerLancamentosPage() {
                   key={refugo.id}
                   className={`${ui.card} ${
                     cancelado
+                      /*
                       ? "border border-slate-400 bg-slate-200 opacity-75"
+                      : ""*/
+                      ? "border border-slate-500 bg-slate-350 opacity-70"
                       : ""
                   }`}
                 >
@@ -339,7 +346,7 @@ function VerLancamentosPage() {
 
                     <div className="flex gap-2">
                       <button
-                        onClick={() => reimprimir(refugo.numeroRefugo)}
+                        onClick={() => reimprimir(refugo.id)}
                         className={ui.buttonSecondary}
                         title="Reimprimir"
                       >
@@ -428,6 +435,33 @@ function VerLancamentosPage() {
               )
             })}
         </div>
+
+        {totalPaginas > 1 && (
+          <div className="flex items-center justify-center gap-2 pt-2">
+            {paginasVisiveis().map((pagina, index) =>
+              pagina < 0 ? (
+                <span
+                  key={`ellipsis-${index}`}
+                  className="px-2 text-sm text-[var(--text-light)]"
+                >
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={pagina}
+                  onClick={() => carregarLancamentos(pagina)}
+                  className={`rounded-md border px-3 py-1 text-sm font-semibold ${
+                    pagina === paginaAtual
+                      ? "border-[var(--primary)] bg-[var(--primary)] text-white"
+                      : "border-[var(--border)] bg-white text-[var(--text)] hover:bg-[var(--soft)]"
+                  }`}
+                >
+                  {pagina}
+                </button>
+              )
+            )}
+          </div>
+        )}
       </section>
 
       {editando && (
@@ -442,6 +476,7 @@ function VerLancamentosPage() {
                   <label className={ui.label}>Matrícula</label>
                   <input
                     value={editMatricula}
+                    autoComplete="off"
                     onChange={(event) => setEditMatricula(event.target.value)}
                     className={ui.input}
                   />
@@ -461,7 +496,7 @@ function VerLancamentosPage() {
                     <option value="C">C</option>
                   </select>
                 </div>
-
+                
                 <div>
                   <label className={ui.label}>Qtd. produzida</label>
                   <input

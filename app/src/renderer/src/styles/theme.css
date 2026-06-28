@@ -18,4 +18,27 @@
   --success: #22C55E;
 
   --danger: #EF4444;
+
+  --cancelled-bg: #d8dee5;
+  --cancelled-border: #8d99a6;
+}
+
+/* ============================
+  Inputs
+============================ */
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(248, 172, 117, 0.18);
+}
+
+/* ============================
+  Select
+============================ */
+
+select {
+  accent-color: var(--primary);
 }

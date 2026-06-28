@@ -79,11 +79,13 @@ type RefugoListagemApi = {
   observacao?: string | null
   status: string
   motivoCancelamento?: string | null
+
   setorNome: string
   subsetorNome: string
   postoNome: string
   circuitoCodigo: string
   circuitoNome: string
+
   itens: {
     id: number
     defeitoId: number
@@ -156,6 +158,7 @@ declare global {
 
       refugos: {
         criar: (input: RefugoInput) => Promise<string>
+
         listar: (
           busca: string,
           pagina: number,
@@ -166,16 +169,6 @@ declare global {
           totalPaginas: number
         }>
 
-        editarBasico: (
-          id: number,
-          matricula: string,
-          turno: string,
-          quantidadeProduzida: number,
-          observacao?: string
-        ) => Promise<void>
-
-        cancelar: (id: number, motivo: string) => Promise<void>
-
         editarCompleto: (
           id: number,
           matricula: string,
@@ -184,7 +177,11 @@ declare global {
           observacao: string | undefined,
           itens: { id: number; defeitoId: number; quantidade: number }[]
         ) => Promise<void>
-      },
+
+        cancelar: (id: number, motivo: string) => Promise<void>
+
+        imprimir: (id: number) => Promise<void>
+      }
 
       roteiro: {
         listarPorCircuitoEPosto: (

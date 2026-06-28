@@ -42,4 +42,8 @@ export function registerRefugoIpc() {
   ipcMain.handle("refugos:cancelar", (_, id: number, motivo: string) => {
     return service.cancelar(id, motivo)
   })
+
+  ipcMain.handle("refugos:imprimir", (_, id: number) => {
+    return service.imprimir(id)
+  })
 }

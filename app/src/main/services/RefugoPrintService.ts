@@ -6,37 +6,34 @@ import {
 
 export class RefugoPrintService {
   async imprimir(refugo: RefugoPrintData) {
-    console.log("[PRINT] Iniciando impressão:", refugo.numeroRefugo)
-
     const html = gerarFichaRefugoHtml(refugo)
 
     const printWindow = new BrowserWindow({
       show: true,
-      width: 420,
-      height: 600,
+      width: 430,
+      height: 620,
       autoHideMenuBar: true,
+      title: `Ficha ${refugo.numeroRefugo}`,
       webPreferences: {
         sandbox: false
       }
     })
 
     printWindow.webContents.once("did-finish-load", () => {
-      console.log("[PRINT] HTML carregado:", refugo.numeroRefugo)
-
-      printWindow.webContents.print(
-        {
-          silent: false,
-          printBackground: true,
-          pageSize: "A6"
-        },
-        (success, errorType) => {
-          console.log("[PRINT] Resultado:", { success, errorType })
-
-          if (success) {
-            printWindow.close()
+      setTimeout(() => {
+        printWindow.webContents.print(
+          {
+            silent: false,
+            printBackground: true,
+            pageSize: "A6"
+          },
+          () => {
+            if (!printWindow.isDestroyed()) {
+              printWindow.close()
+            }
           }
-        }
-      )
+        )
+      }, 500)
     })
 
     await printWindow.loadURL(

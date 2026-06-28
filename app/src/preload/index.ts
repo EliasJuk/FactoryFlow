@@ -87,34 +87,34 @@ contextBridge.exposeInMainWorld("api", {
     excluir: (id: number) => ipcRenderer.invoke("defeitos:excluir", id)
   },
 
-  refugos: {
-    criar: (input: RefugoInput) =>
-      ipcRenderer.invoke("refugos:criar", input),
+refugos: {
+  criar: (input: RefugoInput) =>
+    ipcRenderer.invoke("refugos:criar", input),
 
-    listar: (busca: string, pagina: number, limite: number) =>
-      ipcRenderer.invoke("refugos:listar", busca, pagina, limite),
+  listar: (busca: string, pagina: number, limite: number) =>
+    ipcRenderer.invoke("refugos:listar", busca, pagina, limite),
 
-    editarCompleto: (
-      id: number,
-      matricula: string,
-      turno: string,
-      quantidadeProduzida: number,
-      observacao: string | undefined,
-      itens: { id: number; quantidade: number }[]
-    ) =>
-      ipcRenderer.invoke(
-        "refugos:editar-completo",
-        id,
-        matricula,
-        turno,
-        quantidadeProduzida,
-        observacao,
-        itens
-      ),
+  editarCompleto: (
+    id: number,
+    matricula: string,
+    turno: string,
+    quantidadeProduzida: number,
+    observacao: string | undefined,
+    itens: { id: number; defeitoId: number; quantidade: number }[]
+  ) =>
+    ipcRenderer.invoke(
+      "refugos:editar-completo",
+      id,
+      matricula,
+      turno,
+      quantidadeProduzida,
+      observacao,
+      itens
+    ),
 
-    cancelar: (id: number, motivo: string) =>
-      ipcRenderer.invoke("refugos:cancelar", id, motivo)
-  },
+  cancelar: (id: number, motivo: string) =>
+    ipcRenderer.invoke("refugos:cancelar", id, motivo)
+},
 
   roteiro: {
     listarTodos: () => ipcRenderer.invoke("roteiro:listar-todos"),

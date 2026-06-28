@@ -9,10 +9,12 @@ import {
 } from "lucide-react"
 
 import PageHeader from "../../components/PageHeader/PageHeader"
+import { Defeito } from "../../models/Defeitos"
 import { ui } from "../../theme/ui"
 
 type RefugoItemListagem = {
   id: number
+  defeitoId: number
   componenteCodigo: string
   componenteNome: string
   defeitoCodigo: string
@@ -40,6 +42,7 @@ type RefugoListagem = {
 
 type EditItem = {
   id: number
+  defeitoId: number
   componenteCodigo: string
   componenteNome: string
   defeitoCodigo: string
@@ -49,6 +52,7 @@ type EditItem = {
 
 function VerLancamentosPage() {
   const [lancamentos, setLancamentos] = useState<RefugoListagem[]>([])
+  const [defeitos, setDefeitos] = useState<Defeito[]>([])
   const [busca, setBusca] = useState("")
   const [carregando, setCarregando] = useState(false)
   const [abertos, setAbertos] = useState<number[]>([])
@@ -56,6 +60,7 @@ function VerLancamentosPage() {
   const [totalPaginas, setTotalPaginas] = useState(1)
 
   const [editando, setEditando] = useState<RefugoListagem | null>(null)
+  const [confirmarEdicao, setConfirmarEdicao] = useState(false)
   const [editMatricula, setEditMatricula] = useState("")
   const [editTurno, setEditTurno] = useState<"A" | "B" | "C">("A")
   const [editQuantidadeProduzida, setEditQuantidadeProduzida] = useState(0)
@@ -85,8 +90,14 @@ function VerLancamentosPage() {
     }
   }
 
+  async function carregarDefeitos() {
+    const lista = await window.api.defeitos.listar()
+    setDefeitos(lista)
+  }
+
   useEffect(() => {
     carregarLancamentos(1)
+    carregarDefeitos()
   }, [])
 
   function alternarAberto(id: number) {
@@ -105,6 +116,7 @@ function VerLancamentosPage() {
     const itens = refugo.itens ?? []
 
     setEditando(refugo)
+    setConfirmarEdicao(false)
     setEditMatricula(refugo.matriculaOperador)
     setEditTurno(refugo.turno as "A" | "B" | "C")
     setEditQuantidadeProduzida(refugo.quantidadeProduzida)
@@ -113,6 +125,7 @@ function VerLancamentosPage() {
     setEditItens(
       itens.map((item) => ({
         id: item.id,
+        defeitoId: item.defeitoId,
         componenteCodigo: item.componenteCodigo,
         componenteNome: item.componenteNome,
         defeitoCodigo: item.defeitoCodigo,
@@ -120,6 +133,12 @@ function VerLancamentosPage() {
         quantidade: item.quantidadeRefugada
       }))
     )
+  }
+
+  function fecharEdicao() {
+    setEditando(null)
+    setConfirmarEdicao(false)
+    setEditItens([])
   }
 
   function alterarQuantidadeItem(id: number, quantidade: number) {
@@ -130,7 +149,24 @@ function VerLancamentosPage() {
     )
   }
 
-  async function salvarEdicao() {
+  function alterarDefeitoItem(id: number, defeitoId: number) {
+    const defeito = defeitos.find((item) => item.id === defeitoId)
+
+    setEditItens((atuais) =>
+      atuais.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              defeitoId,
+              defeitoCodigo: defeito?.codigo ?? item.defeitoCodigo,
+              defeitoDescricao: defeito?.descricao ?? item.defeitoDescricao
+            }
+          : item
+      )
+    )
+  }
+
+  async function salvarEdicaoConfirmada() {
     if (!editando) return
 
     await window.api.refugos.editarCompleto(
@@ -141,12 +177,12 @@ function VerLancamentosPage() {
       editObservacao.trim() || undefined,
       editItens.map((item) => ({
         id: item.id,
+        defeitoId: item.defeitoId,
         quantidade: item.quantidade
       }))
     )
 
-    setEditando(null)
-    setEditItens([])
+    fecharEdicao()
     await carregarLancamentos(paginaAtual)
   }
 
@@ -310,23 +346,25 @@ function VerLancamentosPage() {
                         <Printer size={16} />
                       </button>
 
-                      <button
-                        onClick={() => abrirEdicao(refugo)}
-                        className={ui.buttonSecondary}
-                        title="Editar"
-                        disabled={cancelado}
-                      >
-                        <Pencil size={16} />
-                      </button>
+                      {!cancelado && (
+                        <>
+                          <button
+                            onClick={() => abrirEdicao(refugo)}
+                            className={ui.buttonSecondary}
+                            title="Editar"
+                          >
+                            <Pencil size={16} />
+                          </button>
 
-                      <button
-                        onClick={() => abrirCancelamento(refugo)}
-                        className={ui.buttonDanger}
-                        title="Cancelar"
-                        disabled={cancelado}
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                          <button
+                            onClick={() => abrirCancelamento(refugo)}
+                            className={ui.buttonDanger}
+                            title="Cancelar"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -389,45 +427,12 @@ function VerLancamentosPage() {
                 </div>
               )
             })}
-
-          {!carregando && lancamentos.length === 0 && (
-            <div className={ui.card}>
-              <p className={ui.empty}>Nenhum lançamento encontrado.</p>
-            </div>
-          )}
         </div>
-
-        {totalPaginas > 1 && (
-          <div className="flex items-center justify-center gap-2 pt-2">
-            {paginasVisiveis().map((pagina, index) =>
-              pagina < 0 ? (
-                <span
-                  key={`ellipsis-${index}`}
-                  className="px-2 text-sm text-[var(--text-light)]"
-                >
-                  ...
-                </span>
-              ) : (
-                <button
-                  key={pagina}
-                  onClick={() => carregarLancamentos(pagina)}
-                  className={`rounded-md border px-3 py-1 text-sm font-semibold ${
-                    pagina === paginaAtual
-                      ? "border-[var(--primary)] bg-[var(--primary)] text-white"
-                      : "border-[var(--border)] bg-white text-[var(--text)] hover:bg-[var(--soft)]"
-                  }`}
-                >
-                  {pagina}
-                </button>
-              )
-            )}
-          </div>
-        )}
       </section>
 
       {editando && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-4 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-4 shadow-xl">
             <h2 className={ui.title}>Editar lançamento</h2>
             <p className={ui.subtitle}>{editando.numeroRefugo}</p>
 
@@ -488,7 +493,7 @@ function VerLancamentosPage() {
                   {editItens.map((item) => (
                     <div
                       key={item.id}
-                      className="grid grid-cols-[1fr_90px] items-center gap-2 rounded-md border border-[var(--border)] px-3 py-2"
+                      className="grid grid-cols-[1fr_240px_90px] items-center gap-2 rounded-md border border-[var(--border)] px-3 py-2"
                     >
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -500,11 +505,21 @@ function VerLancamentosPage() {
                             {item.componenteNome}
                           </span>
                         </div>
-
-                        <div className="mt-0.5 text-xs text-[var(--text-light)]">
-                          {item.defeitoCodigo} - {item.defeitoDescricao}
-                        </div>
                       </div>
+
+                      <select
+                        value={item.defeitoId}
+                        onChange={(event) =>
+                          alterarDefeitoItem(item.id, Number(event.target.value))
+                        }
+                        className={ui.select}
+                      >
+                        {defeitos.map((defeito) => (
+                          <option key={defeito.id} value={defeito.id}>
+                            {defeito.codigo} - {defeito.descricao}
+                          </option>
+                        ))}
+                      </select>
 
                       <input
                         type="number"
@@ -525,18 +540,49 @@ function VerLancamentosPage() {
             </div>
 
             <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setEditando(null)
-                  setEditItens([])
-                }}
-                className={ui.buttonSecondary}
-              >
+              <button onClick={fecharEdicao} className={ui.buttonSecondary}>
                 Cancelar
               </button>
 
-              <button onClick={salvarEdicao} className={ui.buttonPrimary}>
+              <button
+                onClick={() => setConfirmarEdicao(true)}
+                className={ui.buttonPrimary}
+              >
                 Salvar Alterações
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmarEdicao && editando && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+            <h2 className={ui.title}>Confirmar alterações</h2>
+
+            <p className="mt-3 text-sm text-[var(--text)]">
+              Deseja realmente salvar as alterações do lançamento{" "}
+              <strong>{editando.numeroRefugo}</strong>?
+            </p>
+
+            <p className="mt-2 text-xs text-[var(--text-light)]">
+              Essa ação alterará os dados do lançamento, incluindo defeito e
+              quantidade dos componentes.
+            </p>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmarEdicao(false)}
+                className={ui.buttonSecondary}
+              >
+                Voltar
+              </button>
+
+              <button
+                onClick={salvarEdicaoConfirmada}
+                className={ui.buttonPrimary}
+              >
+                Confirmar e salvar
               </button>
             </div>
           </div>
@@ -548,9 +594,7 @@ function VerLancamentosPage() {
           <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
             <h2 className={ui.title}>Cancelar lançamento</h2>
 
-            <p className={ui.subtitle}>
-              {cancelando.numeroRefugo}
-            </p>
+            <p className={ui.subtitle}>{cancelando.numeroRefugo}</p>
 
             <p className="mt-3 text-sm text-[var(--text)]">
               O lançamento não será apagado. Ele ficará no histórico como{" "}

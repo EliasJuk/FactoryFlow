@@ -76,16 +76,17 @@ type RefugoListagemApi = {
   turno: string
   matriculaOperador: string
   quantidadeProduzida: number
+  observacao?: string | null
+  status: string
+  motivoCancelamento?: string | null
   setorNome: string
   subsetorNome: string
   postoNome: string
   circuitoCodigo: string
   circuitoNome: string
-  status: string
-  motivoCancelamento?: string | null
-
   itens: {
     id: number
+    defeitoId: number
     componenteCodigo: string
     componenteNome: string
     defeitoCodigo: string
@@ -181,7 +182,7 @@ declare global {
           turno: string,
           quantidadeProduzida: number,
           observacao: string | undefined,
-          itens: { id: number; quantidade: number }[]
+          itens: { id: number; defeitoId: number; quantidade: number }[]
         ) => Promise<void>
       },
 

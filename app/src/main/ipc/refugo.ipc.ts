@@ -26,7 +26,7 @@ export function registerRefugoIpc() {
       turno: string,
       quantidadeProduzida: number,
       observacao: string | undefined,
-      itens: { id: number; quantidade: number }[]
+      itens: { id: number; defeitoId: number; quantidade: number }[]
     ) => {
       return service.editarCompleto(
         id,

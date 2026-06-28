@@ -202,6 +202,7 @@ export class RefugoRepository {
     const itensStmt = db.prepare(`
       SELECT
         ri.id,
+        ri.defeito_id as defeitoId,
         comp.codigo as componenteCodigo,
         comp.nome as componenteNome,
         d.codigo as defeitoCodigo,
@@ -224,48 +225,13 @@ export class RefugoRepository {
     }
   }
 
-  editarBasico(
-    id: number,
-    matriculaOperador: string,
-    turno: string,
-    quantidadeProduzida: number,
-    observacao?: string
-  ) {
-    db.prepare(`
-      UPDATE refugos
-      SET
-        matricula_operador = ?,
-        turno = ?,
-        quantidade_produzida = ?,
-        observacao = ?
-      WHERE id = ?
-        AND status = 'ATIVO'
-    `).run(
-      matriculaOperador,
-      turno,
-      quantidadeProduzida,
-      observacao ?? null,
-      id
-    )
-  }
-
-  cancelar(id: number, motivo: string) {
-    db.prepare(`
-      UPDATE refugos
-      SET
-        status = 'CANCELADO',
-        motivo_cancelamento = ?
-      WHERE id = ?
-    `).run(motivo, id)
-  }
-
   editarCompleto(
     id: number,
     matriculaOperador: string,
     turno: string,
     quantidadeProduzida: number,
     observacao: string | undefined,
-    itens: { id: number; quantidade: number }[]
+    itens: { id: number; defeitoId: number; quantidade: number }[]
   ) {
     const transaction = db.transaction(() => {
       db.prepare(`
@@ -287,15 +253,28 @@ export class RefugoRepository {
 
       const updateItem = db.prepare(`
         UPDATE refugo_itens
-        SET quantidade = ?
+        SET
+          defeito_id = ?,
+          quantidade = ?
         WHERE id = ?
       `)
 
       for (const item of itens) {
-        updateItem.run(item.quantidade, item.id)
+        updateItem.run(item.defeitoId, item.quantidade, item.id)
       }
     })
 
     transaction()
+  }
+
+  cancelar(id: number, motivo: string) {
+    db.prepare(`
+      UPDATE refugos
+      SET
+        status = 'CANCELADO',
+        motivo_cancelamento = ?
+      WHERE id = ?
+        AND status = 'ATIVO'
+    `).run(motivo, id)
   }
 }

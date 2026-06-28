@@ -20,7 +20,7 @@ export class RefugoService {
     turno: string,
     quantidadeProduzida: number,
     observacao: string | undefined,
-    itens: { id: number; quantidade: number }[]
+    itens: { id: number; defeitoId: number; quantidade: number }[]
   ) {
     return this.repository.editarCompleto(
       id,

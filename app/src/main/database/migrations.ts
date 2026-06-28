@@ -126,6 +126,13 @@ export function runMigrations() {
     );
   `)
 
+  if (!columnExists("usuarios", "senha_hash")) {
+    db.exec(`
+      ALTER TABLE usuarios 
+      ADD COLUMN senha_hash TEXT;
+    `)
+  }
+
   if (!columnExists("setores", "sigla")) {
     db.exec(`ALTER TABLE setores ADD COLUMN sigla TEXT;`)
   }

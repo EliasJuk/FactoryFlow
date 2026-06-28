@@ -97,6 +97,14 @@ type RefugoListagemApi = {
   }[]
 }
 
+type UsuarioApi = {
+  id: number
+  nome: string
+  matricula: string
+  perfil: string
+  ativo: boolean
+}
+
 declare global {
   interface Window {
     api: {
@@ -199,7 +207,31 @@ declare global {
         remover: (id: number) => Promise<void>
 
         listarTodos: () => Promise<RoteiroComponenteApi[]>
-      },  
+      },
+
+      usuarios: {
+        listar: () => Promise<UsuarioApi[]>
+
+        criar: (input: {
+          nome: string
+          matricula: string
+          perfil: string
+          senha?: string
+        }) => Promise<void>
+
+        editar: (
+          id: number,
+          input: {
+            nome: string
+            matricula: string
+            perfil: string
+            senha?: string
+          }
+        ) => Promise<void>
+
+        excluir: (id: number) => Promise<void>
+        ativar: (id: number) => Promise<void>
+      },
     }
   }
 }

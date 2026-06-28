@@ -148,4 +148,29 @@ subsetores: {
     listar: (busca: string, limite: number) =>
     ipcRenderer.invoke("refugos:listar", busca, limite)
   },
+
+  usuarios: {
+    listar: () => ipcRenderer.invoke("usuarios:listar"),
+
+    criar: (input: {
+      nome: string
+      matricula: string
+      perfil: string
+      senha?: string
+    }) => ipcRenderer.invoke("usuarios:criar", input),
+
+    editar: (
+      id: number,
+      input: {
+        nome: string
+        matricula: string
+        perfil: string
+        senha?: string
+      }
+    ) => ipcRenderer.invoke("usuarios:editar", id, input),
+
+    excluir: (id: number) => ipcRenderer.invoke("usuarios:excluir", id),
+
+    ativar: (id: number) => ipcRenderer.invoke("usuarios:ativar", id)
+  },
 })

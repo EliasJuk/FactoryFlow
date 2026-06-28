@@ -9,6 +9,8 @@ import { registerCircuitoIpc } from "./ipc/circuito.ipc"
 import { registerCircuitoComponenteIpc } from "./ipc/circuitoComponente.ipc"
 import { registerPostoIpc } from "./ipc/posto.ipc"
 import { registerDefeitoIpc } from "./ipc/defeito.ipc"
+import { registerRefugoIpc } from "./ipc/refugo.ipc"
+import { registerRoteiroIpc } from "./ipc/roteiro.ipc"
 
 function createWindow(): void {
 // Create the browser window.
@@ -53,6 +55,8 @@ app.whenReady().then(() => {
   registerCircuitoComponenteIpc()
   registerPostoIpc()
   registerDefeitoIpc()
+  registerRefugoIpc()
+  registerRoteiroIpc()
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')

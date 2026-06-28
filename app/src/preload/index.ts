@@ -1,5 +1,22 @@
 import { contextBridge, ipcRenderer } from "electron"
 
+type RefugoItemInput = {
+  componenteId: number
+  defeitoId: number
+  quantidade: number
+}
+
+type RefugoInput = {
+  matriculaOperador: string
+  usuarioId?: number | null
+  setorId: number
+  subsetorId: number
+  postoId: number
+  circuitoId: number
+  observacao?: string
+  itens: RefugoItemInput[]
+}
+
 contextBridge.exposeInMainWorld("api", {
   setores: {
     listar: () => ipcRenderer.invoke("setores:listar"),
@@ -70,4 +87,35 @@ contextBridge.exposeInMainWorld("api", {
     excluir: (id: number) => ipcRenderer.invoke("defeitos:excluir", id)
   },
 
+  refugos: {
+  criar: (input: RefugoInput) =>
+    ipcRenderer.invoke("refugos:criar", input)
+  },
+
+  roteiro: {
+    listarTodos: () => ipcRenderer.invoke("roteiro:listar-todos"),
+
+    listarPorCircuitoEPosto: (circuitoId: number, postoId: number) =>
+      ipcRenderer.invoke(
+        "roteiro:listar-por-circuito-e-posto",
+        circuitoId,
+        postoId
+      ),
+
+    adicionar: (
+      circuitoId: number,
+      postoId: number,
+      componenteId: number,
+      quantidade: number
+    ) =>
+      ipcRenderer.invoke(
+        "roteiro:adicionar",
+        circuitoId,
+        postoId,
+        componenteId,
+        quantidade
+      ),
+
+    remover: (id: number) => ipcRenderer.invoke("roteiro:remover", id)
+  }
 })

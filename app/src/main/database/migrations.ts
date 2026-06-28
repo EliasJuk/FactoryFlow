@@ -10,9 +10,18 @@ function columnExists(table: string, column: string): boolean {
 
 export function runMigrations() {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS usuarios (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL,
+      matricula TEXT,
+      perfil TEXT NOT NULL DEFAULT 'OPERADOR',
+      ativo INTEGER NOT NULL DEFAULT 1
+    );
+
     CREATE TABLE IF NOT EXISTS setores (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nome TEXT NOT NULL,
+      sigla TEXT,
       ativo INTEGER NOT NULL DEFAULT 1
     );
 
@@ -85,6 +94,7 @@ export function runMigrations() {
       sequencia INTEGER NOT NULL,
 
       data_hora TEXT NOT NULL,
+      turno TEXT NOT NULL DEFAULT 'A',
       matricula_operador TEXT NOT NULL,
       usuario_id INTEGER,
 
@@ -93,8 +103,10 @@ export function runMigrations() {
       posto_id INTEGER NOT NULL,
       circuito_id INTEGER NOT NULL,
 
+      quantidade_produzida INTEGER NOT NULL DEFAULT 0,
       observacao TEXT,
 
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
       FOREIGN KEY (setor_id) REFERENCES setores(id),
       FOREIGN KEY (subsetor_id) REFERENCES subsetores(id),
       FOREIGN KEY (posto_id) REFERENCES postos(id),
@@ -115,8 +127,38 @@ export function runMigrations() {
   `)
 
   if (!columnExists("setores", "sigla")) {
+    db.exec(`ALTER TABLE setores ADD COLUMN sigla TEXT;`)
+  }
+
+  if (!columnExists("refugos", "numero_refugo")) {
+    db.exec(`ALTER TABLE refugos ADD COLUMN numero_refugo TEXT;`)
+  }
+
+  if (!columnExists("refugos", "sigla_setor")) {
+    db.exec(`ALTER TABLE refugos ADD COLUMN sigla_setor TEXT;`)
+  }
+
+  if (!columnExists("refugos", "ano")) {
+    db.exec(`ALTER TABLE refugos ADD COLUMN ano INTEGER;`)
+  }
+
+  if (!columnExists("refugos", "sequencia")) {
+    db.exec(`ALTER TABLE refugos ADD COLUMN sequencia INTEGER;`)
+  }
+
+  if (!columnExists("refugos", "turno")) {
+    db.exec(`ALTER TABLE refugos ADD COLUMN turno TEXT NOT NULL DEFAULT 'A';`)
+  }
+
+  if (!columnExists("refugos", "quantidade_produzida")) {
     db.exec(`
-      ALTER TABLE setores ADD COLUMN sigla TEXT;
+      ALTER TABLE refugos 
+      ADD COLUMN quantidade_produzida INTEGER NOT NULL DEFAULT 0;
     `)
   }
+
+  db.prepare(`
+    INSERT OR IGNORE INTO usuarios (id, nome, matricula, perfil, ativo)
+    VALUES (1, 'Sistema', '0000', 'ADMIN', 1)
+  `).run()
 }

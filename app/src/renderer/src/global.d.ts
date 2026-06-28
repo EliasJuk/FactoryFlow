@@ -39,6 +39,36 @@ type DefeitoApi = {
   ativo: boolean
 }
 
+type RefugoItemInput = {
+  componenteId: number
+  defeitoId: number
+  quantidade: number
+}
+
+type RefugoInput = {
+  matriculaOperador: string
+  usuarioId?: number | null
+  setorId: number
+  subsetorId: number
+  postoId: number
+  circuitoId: number
+  turno: string
+  quantidadeProduzida: number
+  observacao?: string
+  itens: RefugoItemInput[]
+}
+
+type RoteiroComponenteApi = {
+  id: number
+  circuitoId: number
+  postoId: number
+  componenteId: number
+  codigoComponente: string
+  nomeComponente: string
+  quantidade: number
+  ativo: boolean
+}
+
 declare global {
   interface Window {
     api: {
@@ -98,6 +128,27 @@ declare global {
         excluir: (id: number) => Promise<void>
       },
 
+      refugos: {
+        criar: (input: RefugoInput) => Promise<string>
+      },
+
+      roteiro: {
+        listarPorCircuitoEPosto: (
+          circuitoId: number,
+          postoId: number
+        ) => Promise<RoteiroComponenteApi[]>
+
+        adicionar: (
+          circuitoId: number,
+          postoId: number,
+          componenteId: number,
+          quantidade: number
+        ) => Promise<void>
+
+        remover: (id: number) => Promise<void>
+
+        listarTodos: () => Promise<RoteiroComponenteApi[]>
+      },  
     }
   }
 }

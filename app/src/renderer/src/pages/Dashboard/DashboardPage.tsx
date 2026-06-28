@@ -1,181 +1,152 @@
-import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
 import { APP } from "../../config/app"
 import { useApp } from "../../contexts/AppContext"
-import MenuCard from "../../components/MenuCard/MenuCard"
-import { Setor } from "../../models/Setor"
+import { ui } from "../../theme/ui"
 
 import {
   Package,
   Boxes,
   Recycle,
   ClipboardList,
-  Building2
+  Building2,
+  Route,
+  AlertTriangle,
+  MapPinned,
+  Layers3,
+  Settings,
+  Users
 } from "lucide-react"
 
-type Subsetor = {
-  id: number
-  nome: string
-  setorId: number
-  setorNome: string
-  ativo: boolean
+type DashboardCardProps = {
+  title: string
+  description: string
+  icon: React.ReactNode
+  onClick: () => void
+}
+
+function DashboardCard({ title, description, icon, onClick }: DashboardCardProps) {
+  return (
+    <button onClick={onClick} className={ui.dashboardCard}>
+      <div className={ui.dashboardCardIcon}>{icon}</div>
+
+      <div>
+        <div className={ui.dashboardCardTitle}>{title}</div>
+        <div className={ui.dashboardCardDescription}>{description}</div>
+      </div>
+    </button>
+  )
 }
 
 function DashboardPage() {
   const navigate = useNavigate()
   const { usuario } = useApp()
 
-  const [setores, setSetores] = useState<Setor[]>([])
-  const [subsetores, setSubsetores] = useState<Subsetor[]>([])
-  const [setorSelecionado, setSetorSelecionado] = useState<number | null>(null)
-  const [subsetorSelecionado, setSubsetorSelecionado] = useState<number | null>(null)
-
-  async function carregarDados() {
-    const setoresLista = await window.api.setores.listar()
-    const subsetoresLista = await window.api.subsetores.listar()
-
-    setSetores(setoresLista)
-    setSubsetores(subsetoresLista)
-
-    if (setoresLista.length > 0) {
-      const primeiroSetor = setoresLista[0]
-      setSetorSelecionado(primeiroSetor.id)
-
-      const primeiroSubsetor = subsetoresLista.find(
-        (subsetor) => subsetor.setorId === primeiroSetor.id
-      )
-
-      setSubsetorSelecionado(primeiroSubsetor ? primeiroSubsetor.id : null)
-    }
-  }
-
-  useEffect(() => {
-    carregarDados()
-  }, [])
-
-  const subsetoresDoSetor = subsetores.filter(
-    (subsetor) => subsetor.setorId === setorSelecionado
-  )
-
-  function selecionarSetor(setorId: number) {
-    setSetorSelecionado(setorId)
-
-    const primeiroSubsetor = subsetores.find(
-      (subsetor) => subsetor.setorId === setorId
-    )
-
-    setSubsetorSelecionado(primeiroSubsetor ? primeiroSubsetor.id : null)
-  }
-
   return (
-    <main className="min-h-screen bg-slate-100">
-      <header className="flex h-20 items-center justify-center border-b bg-white">
-        <h1 className="text-2xl font-bold text-slate-800">{APP.name}</h1>
+    <main className={ui.page}>
+      <header className={ui.dashboardHeader}>
+        <h1 className={ui.dashboardTitle}>{APP.name}</h1>
       </header>
 
-      <div className="bg-white px-8 py-3 text-sm text-slate-600">
+      <div className={ui.dashboardUserBar}>
         Olá, <span className="font-semibold">{usuario.nome}</span>
       </div>
 
-      <section className="border-b bg-white px-8 py-4">
-        <div className="grid grid-cols-4 gap-2">
-          {setores.map((setor) => {
-            const ativo = setor.id === setorSelecionado
+      <section className="p-6">
+        <div className={ui.dashboardGroup}>
+          <h2 className={ui.dashboardGroupTitle}>Operação</h2>
 
-            return (
-              <button
-                key={setor.id}
-                onClick={() => selecionarSetor(setor.id)}
-                className={`border px-4 py-3 font-semibold ${
-                  ativo
-                    ? "bg-green-600 text-white"
-                    : "bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                {setor.nome}
-              </button>
-            )
-          })}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <DashboardCard
+              title="Lançar Refugo"
+              description="Registrar novos refugos"
+              icon={<Recycle size={24} />}
+              onClick={() => navigate("/lancar-refugo")}
+            />
+
+            <DashboardCard
+              title="Ver Lançamentos"
+              description="Consultar registros"
+              icon={<ClipboardList size={24} />}
+              onClick={() => navigate("/ver-lancamentos")}
+            />
+
+            <DashboardCard
+              title="Roteiro"
+              description="Circuito por posto"
+              icon={<Route size={24} />}
+              onClick={() => navigate("/roteiro")}
+            />
+          </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-4 gap-2">
-          {subsetoresDoSetor.map((subsetor) => {
-            const ativo = subsetor.id === subsetorSelecionado
+        <div className="mt-6 space-y-3">
+          <h2 className={ui.dashboardGroupTitle}>Cadastros principais</h2>
 
-            return (
-              <button
-                key={subsetor.id}
-                onClick={() => setSubsetorSelecionado(subsetor.id)}
-                className={`border px-4 py-3 text-sm font-semibold ${
-                  ativo
-                    ? "border-green-600 bg-green-50 text-green-700"
-                    : "border-green-500 text-green-700 hover:bg-green-50"
-                }`}
-              >
-                {subsetor.nome}
-              </button>
-            )
-          })}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <DashboardCard
+              title="Componentes"
+              description="Cadastrar componentes"
+              icon={<Package size={24} />}
+              onClick={() => navigate("/componentes")}
+            />
+
+            <DashboardCard
+              title="Circuitos"
+              description="Cadastrar circuitos"
+              icon={<Boxes size={24} />}
+              onClick={() => navigate("/circuitos")}
+            />
+
+            <DashboardCard
+              title="Postos"
+              description="Postos de trabalho"
+              icon={<MapPinned size={24} />}
+              onClick={() => navigate("/postos")}
+            />
+
+            <DashboardCard
+              title="Defeitos"
+              description="Códigos de defeito"
+              icon={<AlertTriangle size={24} />}
+              onClick={() => navigate("/defeitos")}
+            />
+          </div>
         </div>
-      </section>
 
-      <section className="grid grid-cols-2 gap-6 p-10 lg:grid-cols-4">
-        <MenuCard
-          title="Lançar Refugo"
-          description="Registrar novos refugos"
-          icon={<Recycle size={48} />}
-          onClick={() => navigate("/lancar-refugo")}
-        />
+        <div className="mt-6 space-y-3">
+          <h2 className={ui.dashboardGroupTitle}>Demais cadastros</h2>
 
-        <MenuCard
-          title="Ver Lançamentos"
-          description="Consultar registros"
-          icon={<ClipboardList size={48} />}
-          onClick={() => navigate("/ver-lancamentos")}
-        />
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <DashboardCard
+              title="Setores"
+              description="Cadastrar setores"
+              icon={<Building2 size={24} />}
+              onClick={() => navigate("/setores")}
+            />
 
-        <MenuCard
-          title="Componentes"
-          description="Cadastrar componentes"
-          icon={<Package size={48} />}
-          onClick={() => navigate("/componentes")}
-        />
+            <DashboardCard
+              title="Subsetores"
+              description="Cadastrar subsetores"
+              icon={<Layers3 size={24} />}
+              onClick={() => navigate("/subsetores")}
+            />
 
-        <MenuCard
-          title="Circuitos"
-          description="Cadastrar circuitos"
-          icon={<Boxes size={48} />}
-          onClick={() => navigate("/circuitos")}
-        />
+            <DashboardCard
+              title="Usuários"
+              description="Perfis e acessos"
+              icon={<Users size={24} />}
+              onClick={() => navigate("/usuarios")}
+            />
 
-        <MenuCard
-          title="Setores"
-          description="Cadastrar setores"
-          icon={<Building2 size={48} />}
-          onClick={() => navigate("/setores")}
-        />
-
-        <MenuCard
-          title="Subsetores"
-          description="Cadastrar subsetores"
-          icon={<Building2 size={48} />}
-          onClick={() => navigate("/subsetores")}
-        />
-
-        <MenuCard
-          title="Postos"
-          description="Postos"
-          icon={<Building2 size={48} />}
-          onClick={() => navigate("/postos")}
-        />
-
-        <MenuCard
-          title="Defeitos"
-          description="Defeitos"
-          icon={<Building2 size={48} />}
-          onClick={() => navigate("/defeitos")}
-        />
+            <DashboardCard
+              title="Configurações"
+              description="Sistema e impressão"
+              icon={<Settings size={24} />}
+              onClick={() => navigate("/configuracoes")}
+            />
+          </div>
+        </div>
       </section>
     </main>
   )

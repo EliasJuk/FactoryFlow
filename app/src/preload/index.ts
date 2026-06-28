@@ -173,4 +173,12 @@ subsetores: {
 
     ativar: (id: number) => ipcRenderer.invoke("usuarios:ativar", id)
   },
+
+  importacao: {
+    baixarModelo: (tipo: string) =>
+      ipcRenderer.invoke("importacao:baixar-modelo", tipo),
+
+    importar: (tipo: string) =>
+      ipcRenderer.invoke("importacao:importar", tipo)
+  },
 })

@@ -232,6 +232,21 @@ declare global {
         excluir: (id: number) => Promise<void>
         ativar: (id: number) => Promise<void>
       },
+
+      importacao: {
+        baixarModelo: (tipo: string) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
+
+        importar: (tipo: string) => Promise<{
+          sucesso: boolean
+          mensagem: string
+          inseridos: number
+          atualizados: number
+          ignorados: number
+        }>
+      },
     }
   }
 }

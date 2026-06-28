@@ -15,7 +15,8 @@ import {
   MapPinned,
   Layers3,
   Settings,
-  Users
+  Users,
+  Upload
 } from "lucide-react"
 
 type DashboardCardProps = {
@@ -143,6 +144,13 @@ function DashboardPage() {
               description="Sistema e impressão"
               icon={<Settings size={24} />}
               onClick={() => navigate("/configuracoes")}
+            />
+
+            <DashboardCard
+              title="Importação de Dados"
+              description="Importar cadastros por modelos CSV."
+              icon={<Upload size={24} />}
+              onClick={() => navigate("/importacao")}
             />
           </div>
         </div>

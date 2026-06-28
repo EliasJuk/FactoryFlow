@@ -84,6 +84,19 @@ function DashboardPage() {
           <h2 className={ui.dashboardGroupTitle}>Cadastros principais</h2>
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <DashboardCard
+              title="Postos de Trabalho"
+              description="gerenciar Postos de trabalho"
+              icon={<MapPinned size={24} />}
+              onClick={() => navigate("/postos")}
+            />
+            <DashboardCard
+              title="Defeitos"
+              description="Códigos de defeito"
+              icon={<AlertTriangle size={24} />}
+              onClick={() => navigate("/defeitos")}
+            />
+
             <DashboardCard
               title="Componentes"
               description="Cadastrar componentes"
@@ -96,20 +109,6 @@ function DashboardPage() {
               description="Cadastrar circuitos"
               icon={<Boxes size={24} />}
               onClick={() => navigate("/circuitos")}
-            />
-
-            <DashboardCard
-              title="Postos"
-              description="Postos de trabalho"
-              icon={<MapPinned size={24} />}
-              onClick={() => navigate("/postos")}
-            />
-
-            <DashboardCard
-              title="Defeitos"
-              description="Códigos de defeito"
-              icon={<AlertTriangle size={24} />}
-              onClick={() => navigate("/defeitos")}
             />
           </div>
         </div>

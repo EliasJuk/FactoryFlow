@@ -3,6 +3,7 @@ import { Pencil, Trash2 } from "lucide-react"
 
 import PageHeader from "../../components/PageHeader/PageHeader"
 import { Setor } from "../../models/Setor"
+import { ui } from "../../theme/ui"
 
 function SetoresPage() {
   const [setores, setSetores] = useState<Setor[]>([])
@@ -23,10 +24,10 @@ function SetoresPage() {
     if (!nome.trim() || !sigla.trim()) return
 
     if (setorEditando) {
-      await window.api.setores.editar(setorEditando.id, nome, sigla)
+      await window.api.setores.editar(setorEditando.id, nome.trim(), sigla.trim())
       setSetorEditando(null)
     } else {
-      await window.api.setores.criar(nome, sigla)
+      await window.api.setores.criar(nome.trim(), sigla.trim())
     }
 
     setNome("")
@@ -45,92 +46,88 @@ function SetoresPage() {
     await atualizarLista()
   }
 
+  function cancelarEdicao() {
+    setSetorEditando(null)
+    setNome("")
+    setSigla("")
+  }
+
   return (
-    <main className="min-h-screen bg-slate-100">
+    <main className={ui.page}>
       <PageHeader
         title="Cadastro de Setores"
         subtitle="Cadastre e gerencie os setores."
       />
 
-      <section className="p-8">
-        <div className="rounded-xl bg-white p-6 shadow">
-          <div className="grid gap-4 md:grid-cols-2">
+      <section className={ui.section}>
+        <div className={ui.card}>
+          <div className="grid gap-3 md:grid-cols-[1fr_180px_160px]">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Nome do Setor
-              </label>
-
+              <label className={ui.label}>Nome do Setor</label>
               <input
                 value={nome}
                 onChange={(event) => setNome(event.target.value)}
                 placeholder="Ex: Ar Condicionado"
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-600"
+                className={ui.input}
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Sigla
-              </label>
-
+              <label className={ui.label}>Sigla</label>
               <input
                 value={sigla}
                 onChange={(event) => setSigla(event.target.value.toUpperCase())}
                 placeholder="Ex: AC"
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-600"
+                className={ui.input}
               />
             </div>
-          </div>
 
-          <button
-            onClick={salvarSetor}
-            className="mt-5 rounded-lg bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-700"
-          >
-            {setorEditando ? "Atualizar" : "Salvar"}
-          </button>
+            <div className="flex items-end gap-2">
+              <button onClick={salvarSetor} className={ui.buttonPrimary}>
+                {setorEditando ? "Atualizar" : "Salvar"}
+              </button>
+
+              {setorEditando && (
+                <button onClick={cancelarEdicao} className={ui.buttonSecondary}>
+                  Cancelar
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="mt-8 overflow-hidden rounded-xl bg-white shadow">
-          <table className="min-w-full">
-            <thead className="bg-slate-50">
+        <div className="overflow-hidden rounded-lg bg-white shadow-sm">
+          <table className={ui.table}>
+            <thead className="[background-color:var(--soft)]">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-600">
-                  Nome
-                </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-600">
-                  Sigla
-                </th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-slate-600">
-                  Ações
-                </th>
+                <th className={ui.tableHeader}>Nome</th>
+                <th className={ui.tableHeader}>Sigla</th>
+                <th className={ui.tableHeaderRight}>Ações</th>
               </tr>
             </thead>
 
             <tbody>
               {setores.map((setor) => (
-                <tr key={setor.id} className="border-t">
-                  <td className="px-6 py-4 font-medium text-slate-700">
-                    {setor.nome}
-                  </td>
+                <tr key={setor.id} className="border-t border-[var(--border)]">
+                  <td className={ui.tableCellStrong}>{setor.nome}</td>
+                  <td className={ui.tableCell}>{setor.sigla}</td>
 
-                  <td className="px-6 py-4 text-slate-700">
-                    {setor.sigla}
-                  </td>
-
-                  <td className="px-6 py-4">
+                  <td className={ui.tableCell}>
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => editarSetor(setor)}
-                        className="rounded-lg bg-blue-600 p-2 text-white hover:bg-blue-700"
+                        className={ui.buttonSecondary}
+                        title="Editar"
                       >
-                        <Pencil size={18} />
+                        <Pencil size={15} />
                       </button>
 
                       <button
                         onClick={() => excluirSetor(setor.id)}
-                        className="rounded-lg bg-red-600 p-2 text-white hover:bg-red-700"
+                        className={ui.buttonDanger}
+                        title="Excluir"
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   </td>
@@ -139,10 +136,7 @@ function SetoresPage() {
 
               {setores.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={3}
-                    className="px-6 py-8 text-center text-sm text-slate-500"
-                  >
+                  <td colSpan={3} className={ui.empty}>
                     Nenhum setor cadastrado.
                   </td>
                 </tr>

@@ -258,4 +258,44 @@ export class RefugoRepository {
       WHERE id = ?
     `).run(motivo, id)
   }
+
+  editarCompleto(
+    id: number,
+    matriculaOperador: string,
+    turno: string,
+    quantidadeProduzida: number,
+    observacao: string | undefined,
+    itens: { id: number; quantidade: number }[]
+  ) {
+    const transaction = db.transaction(() => {
+      db.prepare(`
+        UPDATE refugos
+        SET
+          matricula_operador = ?,
+          turno = ?,
+          quantidade_produzida = ?,
+          observacao = ?
+        WHERE id = ?
+          AND status = 'ATIVO'
+      `).run(
+        matriculaOperador,
+        turno,
+        quantidadeProduzida,
+        observacao ?? null,
+        id
+      )
+
+      const updateItem = db.prepare(`
+        UPDATE refugo_itens
+        SET quantidade = ?
+        WHERE id = ?
+      `)
+
+      for (const item of itens) {
+        updateItem.run(item.quantidade, item.id)
+      }
+    })
+
+    transaction()
+  }
 }

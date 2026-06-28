@@ -94,20 +94,22 @@ contextBridge.exposeInMainWorld("api", {
     listar: (busca: string, pagina: number, limite: number) =>
       ipcRenderer.invoke("refugos:listar", busca, pagina, limite),
 
-    editarBasico: (
+    editarCompleto: (
       id: number,
       matricula: string,
       turno: string,
       quantidadeProduzida: number,
-      observacao?: string
+      observacao: string | undefined,
+      itens: { id: number; quantidade: number }[]
     ) =>
       ipcRenderer.invoke(
-        "refugos:editar-basico",
+        "refugos:editar-completo",
         id,
         matricula,
         turno,
         quantidadeProduzida,
-        observacao
+        observacao,
+        itens
       ),
 
     cancelar: (id: number, motivo: string) =>

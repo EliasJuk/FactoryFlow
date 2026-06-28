@@ -85,6 +85,7 @@ type RefugoListagemApi = {
   motivoCancelamento?: string | null
 
   itens: {
+    id: number
     componenteCodigo: string
     componenteNome: string
     defeitoCodigo: string
@@ -173,6 +174,15 @@ declare global {
         ) => Promise<void>
 
         cancelar: (id: number, motivo: string) => Promise<void>
+
+        editarCompleto: (
+          id: number,
+          matricula: string,
+          turno: string,
+          quantidadeProduzida: number,
+          observacao: string | undefined,
+          itens: { id: number; quantidade: number }[]
+        ) => Promise<void>
       },
 
       roteiro: {

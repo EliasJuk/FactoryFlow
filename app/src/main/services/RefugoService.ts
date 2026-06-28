@@ -14,19 +14,21 @@ export class RefugoService {
     return this.repository.listar(busca, pagina, limite)
   }
 
-  editarBasico(
+  editarCompleto(
     id: number,
     matricula: string,
     turno: string,
     quantidadeProduzida: number,
-    observacao?: string
+    observacao: string | undefined,
+    itens: { id: number; quantidade: number }[]
   ) {
-    return this.repository.editarBasico(
+    return this.repository.editarCompleto(
       id,
       matricula,
       turno,
       quantidadeProduzida,
-      observacao
+      observacao,
+      itens
     )
   }
 

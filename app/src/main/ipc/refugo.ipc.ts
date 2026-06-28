@@ -18,21 +18,23 @@ export function registerRefugoIpc() {
   )
 
   ipcMain.handle(
-    "refugos:editar-basico",
+    "refugos:editar-completo",
     (
       _,
       id: number,
       matricula: string,
       turno: string,
       quantidadeProduzida: number,
-      observacao?: string
+      observacao: string | undefined,
+      itens: { id: number; quantidade: number }[]
     ) => {
-      return service.editarBasico(
+      return service.editarCompleto(
         id,
         matricula,
         turno,
         quantidadeProduzida,
-        observacao
+        observacao,
+        itens
       )
     }
   )

@@ -9,8 +9,17 @@ export class RefugoService {
   private repository = new RefugoRepository()
   private printService = new RefugoPrintService()
 
-  criar(input: CriarRefugoInput) {
-    return this.repository.criar(input)
+  async criar(input: CriarRefugoInput) {
+    const resultado = this.repository.criar(input)
+
+    try {
+      const refugo = this.repository.buscarParaImpressao(resultado.id)
+      await this.printService.imprimir(refugo)
+    } catch (error) {
+      console.error("[REFUGO] Erro ao imprimir ficha:", error)
+    }
+
+    return resultado.numeroRefugo
   }
 
   listar(busca = "", pagina = 1, limite = 10) {

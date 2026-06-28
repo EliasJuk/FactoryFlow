@@ -20,8 +20,8 @@ export class RefugoPrintService {
       }
     })
 
-    printWindow.webContents.on("did-finish-load", () => {
-      console.log("[PRINT] HTML carregado. Abrindo diálogo de impressão...")
+    printWindow.webContents.once("did-finish-load", () => {
+      console.log("[PRINT] HTML carregado:", refugo.numeroRefugo)
 
       printWindow.webContents.print(
         {
@@ -31,6 +31,10 @@ export class RefugoPrintService {
         },
         (success, errorType) => {
           console.log("[PRINT] Resultado:", { success, errorType })
+
+          if (success) {
+            printWindow.close()
+          }
         }
       )
     })

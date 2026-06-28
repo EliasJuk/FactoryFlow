@@ -20,7 +20,7 @@ export interface CriarRefugoInput {
 }
 
 export class RefugoRepository {
-  criar(input: CriarRefugoInput): string {
+  criar(input: CriarRefugoInput): { id: number; numeroRefugo: string } {
     const ano = new Date().getFullYear()
 
     const setor = db
@@ -30,6 +30,10 @@ export class RefugoRepository {
         WHERE id = ?
       `)
       .get(input.setorId) as { nome: string; sigla: string | null }
+
+    if (!setor) {
+      throw new Error("Setor não encontrado.")
+    }
 
     const sigla =
       setor.sigla && setor.sigla.trim() !== ""
@@ -47,6 +51,8 @@ export class RefugoRepository {
 
     const sequencia = (ultimaSequencia.seq ?? 0) + 1
     const numeroRefugo = `${sigla}-${ano}-${String(sequencia).padStart(6, "0")}`
+
+    let refugoId: number | null = null
 
     const transaction = db.transaction(() => {
       const resultado = db
@@ -101,7 +107,7 @@ export class RefugoRepository {
           input.observacao ?? null
         )
 
-      const refugoId = Number(resultado.lastInsertRowid)
+      refugoId = Number(resultado.lastInsertRowid)
 
       const insertItem = db.prepare(`
         INSERT INTO refugo_itens (
@@ -124,7 +130,14 @@ export class RefugoRepository {
 
     transaction()
 
-    return numeroRefugo
+    if (refugoId === null) {
+      throw new Error("Não foi possível criar o refugo.")
+    }
+
+    return {
+      id: refugoId,
+      numeroRefugo
+    }
   }
 
   listar(busca = "", pagina = 1, limite = 10) {
@@ -157,52 +170,56 @@ export class RefugoRepository {
       termo
     ]
 
-    const refugos = db.prepare(`
-      SELECT DISTINCT
-        r.id,
-        r.numero_refugo as numeroRefugo,
-        r.data_hora as dataHora,
-        r.turno,
-        r.matricula_operador as matriculaOperador,
-        r.quantidade_produzida as quantidadeProduzida,
-        r.observacao,
-        r.status,
-        r.motivo_cancelamento as motivoCancelamento,
+    const refugos = db
+      .prepare(`
+        SELECT DISTINCT
+          r.id,
+          r.numero_refugo as numeroRefugo,
+          r.data_hora as dataHora,
+          r.turno,
+          r.matricula_operador as matriculaOperador,
+          r.quantidade_produzida as quantidadeProduzida,
+          r.observacao,
+          r.status,
+          r.motivo_cancelamento as motivoCancelamento,
 
-        s.nome as setorNome,
-        sub.nome as subsetorNome,
-        p.nome as postoNome,
-        c.codigo as circuitoCodigo,
-        c.nome as circuitoNome
+          s.nome as setorNome,
+          sub.nome as subsetorNome,
+          p.nome as postoNome,
+          c.codigo as circuitoCodigo,
+          c.nome as circuitoNome
 
-      FROM refugos r
-      INNER JOIN setores s ON s.id = r.setor_id
-      INNER JOIN subsetores sub ON sub.id = r.subsetor_id
-      INNER JOIN postos p ON p.id = r.posto_id
-      INNER JOIN circuitos c ON c.id = r.circuito_id
-      INNER JOIN refugo_itens ri ON ri.refugo_id = r.id
-      INNER JOIN defeitos d ON d.id = ri.defeito_id
+        FROM refugos r
+        INNER JOIN setores s ON s.id = r.setor_id
+        INNER JOIN subsetores sub ON sub.id = r.subsetor_id
+        INNER JOIN postos p ON p.id = r.posto_id
+        INNER JOIN circuitos c ON c.id = r.circuito_id
+        INNER JOIN refugo_itens ri ON ri.refugo_id = r.id
+        INNER JOIN defeitos d ON d.id = ri.defeito_id
 
-      WHERE ${filtros}
+        WHERE ${filtros}
 
-      ORDER BY r.id DESC
-      LIMIT ?
-      OFFSET ?
-    `).all(...parametrosFiltro, limite, offset) as any[]
+        ORDER BY r.id DESC
+        LIMIT ?
+        OFFSET ?
+      `)
+      .all(...parametrosFiltro, limite, offset) as any[]
 
-    const total = db.prepare(`
-      SELECT COUNT(DISTINCT r.id) as total
+    const total = db
+      .prepare(`
+        SELECT COUNT(DISTINCT r.id) as total
 
-      FROM refugos r
-      INNER JOIN setores s ON s.id = r.setor_id
-      INNER JOIN subsetores sub ON sub.id = r.subsetor_id
-      INNER JOIN postos p ON p.id = r.posto_id
-      INNER JOIN circuitos c ON c.id = r.circuito_id
-      INNER JOIN refugo_itens ri ON ri.refugo_id = r.id
-      INNER JOIN defeitos d ON d.id = ri.defeito_id
+        FROM refugos r
+        INNER JOIN setores s ON s.id = r.setor_id
+        INNER JOIN subsetores sub ON sub.id = r.subsetor_id
+        INNER JOIN postos p ON p.id = r.posto_id
+        INNER JOIN circuitos c ON c.id = r.circuito_id
+        INNER JOIN refugo_itens ri ON ri.refugo_id = r.id
+        INNER JOIN defeitos d ON d.id = ri.defeito_id
 
-      WHERE ${filtros}
-    `).get(...parametrosFiltro) as { total: number }
+        WHERE ${filtros}
+      `)
+      .get(...parametrosFiltro) as { total: number }
 
     const itensStmt = db.prepare(`
       SELECT
@@ -286,7 +303,7 @@ export class RefugoRepository {
         AND status = 'ATIVO'
     `).run(motivo, id)
   }
-  
+
   buscarParaImpressao(id: number) {
     const refugo = db
       .prepare(`
@@ -329,16 +346,20 @@ export class RefugoRepository {
           d.codigo as defeitoCodigo,
           d.descricao as defeitoDescricao,
           ri.quantidade as quantidadeRefugada
+
         FROM refugo_itens ri
         INNER JOIN componentes comp ON comp.id = ri.componente_id
         INNER JOIN defeitos d ON d.id = ri.defeito_id
+
         WHERE ri.refugo_id = ?
+
         ORDER BY comp.codigo
       `)
       .all(id)
 
     return {
       ...refugo,
+      status: refugo.status ?? "ATIVO",
       itens
     }
   }

@@ -1,0 +1,21 @@
+:root {
+  /* Cores principais */
+  --primary: #F5A623;
+  --primary-hover: #E08E00;
+
+  --secondary: #1F2937;
+
+  --soft: #dce7e9;
+
+  --surface: #FFFFFF;
+
+  --border: #D1D5DB;
+
+  --text: #1F2937;
+
+  --text-light: #6B7280;
+
+  --success: #22C55E;
+
+  --danger: #EF4444;
+}

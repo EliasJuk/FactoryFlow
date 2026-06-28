@@ -33,3 +33,6 @@ resources/app-update.yml
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# Database
+database/factoryflow.db

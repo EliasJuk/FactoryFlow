@@ -173,3 +173,6 @@ resources/app-update.yml
 # Arquivos temporários
 *.tmp
 *.temp
+
+# Database
+factoryflow/database/factoryflow.db

@@ -160,6 +160,8 @@ function PostosPage() {
     return "Erro ao executar operação."
   }
 
+  const podeSalvar = nome.trim().length > 0 && subsetorId !== ""
+
   return (
     <main className={ui.page}>
       <PageHeader
@@ -273,7 +275,7 @@ function PostosPage() {
                   <select
                     value={subsetorId}
                     onChange={(event) =>
-                      setSubsetorId(Number(event.target.value))
+                      setSubsetorId(event.target.value === "" ? "" : Number(event.target.value))
                     }
                     disabled={processando}
                     className={ui.select}
@@ -311,7 +313,7 @@ function PostosPage() {
 
                 <button
                   onClick={salvarPosto}
-                  disabled={processando}
+                  disabled={!podeSalvar || processando}
                   className={ui.buttonPrimary}
                 >
                   {processando

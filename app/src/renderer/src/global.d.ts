@@ -105,6 +105,16 @@ type UsuarioApi = {
   ativo: boolean
 }
 
+type CircuitoPorPostoApi = {
+  circuitoId: number
+  codigoCircuito: string
+  nomeCircuito: string
+  postoId: number
+  postoNome: string
+  subsetorNome: string
+  totalComponentes: number
+}
+
 declare global {
   interface Window {
     api: {
@@ -192,6 +202,13 @@ declare global {
       }
 
       roteiro: {
+        listarTodos: () => Promise<RoteiroComponenteApi[]>
+
+        listarCircuitosPorPosto: (
+          postoId: number,
+          busca: string
+        ) => Promise<CircuitoPorPostoApi[]>
+
         listarPorCircuitoEPosto: (
           circuitoId: number,
           postoId: number
@@ -204,9 +221,9 @@ declare global {
           quantidade: number
         ) => Promise<void>
 
-        remover: (id: number) => Promise<void>
+        editarQuantidade: (id: number, quantidade: number) => Promise<void>
 
-        listarTodos: () => Promise<RoteiroComponenteApi[]>
+        remover: (id: number) => Promise<void>
       },
 
       usuarios: {

@@ -122,12 +122,11 @@ subsetores: {
   roteiro: {
     listarTodos: () => ipcRenderer.invoke("roteiro:listar-todos"),
 
+    listarCircuitosPorPosto: (postoId: number, busca: string) =>
+      ipcRenderer.invoke("roteiro:listar-circuitos-por-posto", postoId, busca),
+
     listarPorCircuitoEPosto: (circuitoId: number, postoId: number) =>
-      ipcRenderer.invoke(
-        "roteiro:listar-por-circuito-e-posto",
-        circuitoId,
-        postoId
-      ),
+      ipcRenderer.invoke("roteiro:listar-por-circuito-e-posto", circuitoId, postoId),
 
     adicionar: (
       circuitoId: number,
@@ -143,10 +142,10 @@ subsetores: {
         quantidade
       ),
 
-    remover: (id: number) => ipcRenderer.invoke("roteiro:remover", id),
+    editarQuantidade: (id: number, quantidade: number) =>
+      ipcRenderer.invoke("roteiro:editar-quantidade", id, quantidade),
 
-    listar: (busca: string, limite: number) =>
-    ipcRenderer.invoke("refugos:listar", busca, limite)
+    remover: (id: number) => ipcRenderer.invoke("roteiro:remover", id)
   },
 
   usuarios: {

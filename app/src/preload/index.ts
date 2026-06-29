@@ -29,17 +29,23 @@ contextBridge.exposeInMainWorld("api", {
 
     excluir: (id: number) =>
       ipcRenderer.invoke("setores:excluir", id),
-    
+
     contarSubsetoresAtivos: (id: number) =>
       ipcRenderer.invoke("setores:contar-subsetores-ativos", id),
   },
 
   subsetores: {
     listar: () => ipcRenderer.invoke("subsetores:listar"),
+
     criar: (nome: string, setorId: number) =>
       ipcRenderer.invoke("subsetores:criar", nome, setorId),
+
     editar: (id: number, nome: string, setorId: number) =>
       ipcRenderer.invoke("subsetores:editar", id, nome, setorId),
+
+    contarPostosAtivos: (id: number) =>
+      ipcRenderer.invoke("subsetores:contar-postos-ativos", id),
+
     excluir: (id: number) =>
       ipcRenderer.invoke("subsetores:excluir", id)
   },

@@ -145,6 +145,8 @@ function SubsetoresPage() {
     return "Erro ao executar operação."
   }
 
+  const podeSalvar = nome.trim().length > 0 && setorId !== ""
+
   return (
     <main className={ui.page}>
       <PageHeader
@@ -257,7 +259,9 @@ function SubsetoresPage() {
                   <label className={ui.label}>Setor</label>
                   <select
                     value={setorId}
-                    onChange={(event) => setSetorId(Number(event.target.value))}
+                    onChange={(event) =>
+                      setSetorId(event.target.value === "" ? "" : Number(event.target.value))
+                    }
                     disabled={processando}
                     className={ui.select}
                   >
@@ -294,7 +298,7 @@ function SubsetoresPage() {
 
                 <button
                   onClick={salvarSubsetor}
-                  disabled={processando}
+                  disabled={!podeSalvar || processando}
                   className={ui.buttonPrimary}
                 >
                   {processando

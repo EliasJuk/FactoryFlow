@@ -85,11 +85,18 @@ contextBridge.exposeInMainWorld("api", {
 
   postos: {
     listar: () => ipcRenderer.invoke("postos:listar"),
+
     criar: (nome: string, subsetorId: number) =>
       ipcRenderer.invoke("postos:criar", nome, subsetorId),
+
     editar: (id: number, nome: string, subsetorId: number) =>
       ipcRenderer.invoke("postos:editar", id, nome, subsetorId),
-    excluir: (id: number) => ipcRenderer.invoke("postos:excluir", id)
+
+    contarRoteirosAtivos: (id: number) =>
+      ipcRenderer.invoke("postos:contar-roteiros-ativos", id),
+
+    excluir: (id: number) =>
+      ipcRenderer.invoke("postos:excluir", id)
   },
 
   defeitos: {

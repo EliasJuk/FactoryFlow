@@ -29,6 +29,7 @@ type PostoApi = {
   nome: string
   subsetorId: number
   subsetorNome: string
+  setorNome: string
   ativo: boolean
 }
 
@@ -166,6 +167,7 @@ declare global {
         listar: () => Promise<PostoApi[]>
         criar: (nome: string, subsetorId: number) => Promise<void>
         editar: (id: number, nome: string, subsetorId: number) => Promise<void>
+        contarRoteirosAtivos: (id: number) => Promise<number>
         excluir: (id: number) => Promise<void>
       },
 

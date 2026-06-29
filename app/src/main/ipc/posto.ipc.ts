@@ -9,17 +9,21 @@ export function registerPostoIpc() {
   })
 
   ipcMain.handle("postos:criar", (_, nome: string, subsetorId: number) => {
-    postoRepository.criar(nome, subsetorId)
+    return postoRepository.criar(nome, subsetorId)
   })
 
   ipcMain.handle(
     "postos:editar",
     (_, id: number, nome: string, subsetorId: number) => {
-      postoRepository.editar(id, nome, subsetorId)
+      return postoRepository.editar(id, nome, subsetorId)
     }
   )
 
+  ipcMain.handle("postos:contar-roteiros-ativos", (_, id: number) => {
+    return postoRepository.contarRoteirosAtivos(id)
+  })
+
   ipcMain.handle("postos:excluir", (_, id: number) => {
-    postoRepository.excluir(id)
+    return postoRepository.excluir(id)
   })
 }

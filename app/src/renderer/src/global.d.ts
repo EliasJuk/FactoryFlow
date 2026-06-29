@@ -123,6 +123,7 @@ declare global {
         criar: (nome: string, sigla: string) => Promise<void>
         editar: (id: number, nome: string, sigla: string) => Promise<void>
         excluir: (id: number) => Promise<void>
+        contarSubsetoresAtivos: (id: number) => Promise<number>
       },
 
       subsetores: {

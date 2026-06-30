@@ -4,10 +4,13 @@ import {
 } from "../repositories/RefugoRepository"
 
 import { RefugoPrintService } from "./RefugoPrintService"
+import { ResultadoRepository } from "../repositories/ResultadoRepository"
+import type { ResultadoFiltros } from "../repositories/ResultadoRepository"
 
 export class RefugoService {
   private repository = new RefugoRepository()
   private printService = new RefugoPrintService()
+  private resultadoRepository = new ResultadoRepository()
 
   async criar(input: CriarRefugoInput) {
     const resultado = this.repository.criar(input)
@@ -51,5 +54,9 @@ export class RefugoService {
   async imprimir(id: number) {
     const refugo = this.repository.buscarParaImpressao(id)
     await this.printService.imprimir(refugo)
+  }
+
+  resultados(filtros: ResultadoFiltros) {
+    return this.resultadoRepository.resultados(filtros)
   }
 }

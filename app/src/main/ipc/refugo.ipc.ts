@@ -46,4 +46,8 @@ export function registerRefugoIpc() {
   ipcMain.handle("refugos:imprimir", (_, id: number) => {
     return service.imprimir(id)
   })
+
+  ipcMain.handle("refugos:resultados", (_, filtros) => {
+    return service.resultados(filtros)
+  })
 }

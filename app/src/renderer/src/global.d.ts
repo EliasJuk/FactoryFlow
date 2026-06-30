@@ -116,6 +116,33 @@ type CircuitoPorPostoApi = {
   totalComponentes: number
 }
 
+type ResultadoFiltrosApi = {
+  dataInicio?: string
+  dataFim?: string
+  setorId?: number | null
+  subsetorId?: number | null
+  postoId?: number | null
+  circuitoId?: number | null
+}
+
+type ResultadoItemApi = {
+  nome: string
+  total: number
+}
+
+type ResultadosApi = {
+  resumo: {
+    totalLancamentos: number
+    totalPecasRefugadas: number
+    defeitoMaisComum: string
+    circuitoMaisCritico: string
+  }
+  topDefeitos: ResultadoItemApi[]
+  topSetores: ResultadoItemApi[]
+  topPostos: ResultadoItemApi[]
+  topComponentes: ResultadoItemApi[]
+}
+
 declare global {
   interface Window {
     api: {
@@ -203,6 +230,8 @@ declare global {
         cancelar: (id: number, motivo: string) => Promise<void>
 
         imprimir: (id: number) => Promise<void>
+
+        resultados: (filtros: ResultadoFiltrosApi) => Promise<ResultadosApi>
       }
 
       roteiro: {

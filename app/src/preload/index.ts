@@ -137,7 +137,16 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.invoke("refugos:cancelar", id, motivo),
 
     imprimir: (id: number) =>
-      ipcRenderer.invoke("refugos:imprimir", id)
+      ipcRenderer.invoke("refugos:imprimir", id),
+
+    resultados: (filtros: {
+      dataInicio?: string
+      dataFim?: string
+      setorId?: number | null
+      subsetorId?: number | null
+      postoId?: number | null
+      circuitoId?: number | null
+    }) => ipcRenderer.invoke("refugos:resultados", filtros),
   }, 
 
   roteiro: {
@@ -201,4 +210,13 @@ contextBridge.exposeInMainWorld("api", {
     importar: (tipo: string) =>
       ipcRenderer.invoke("importacao:importar", tipo)
   },
+
+  resultados: (filtros: {
+  dataInicio?: string
+  dataFim?: string
+  setorId?: number | null
+  subsetorId?: number | null
+  postoId?: number | null
+  circuitoId?: number | null
+  }) => ipcRenderer.invoke("refugos:resultados", filtros)
 })

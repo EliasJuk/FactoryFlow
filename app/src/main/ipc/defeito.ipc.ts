@@ -9,17 +9,17 @@ export function registerDefeitoIpc() {
   })
 
   ipcMain.handle("defeitos:criar", (_, codigo: string, descricao: string) => {
-    defeitoRepository.criar(codigo, descricao)
+    return defeitoRepository.criar(codigo, descricao)
   })
 
   ipcMain.handle(
     "defeitos:editar",
     (_, id: number, codigo: string, descricao: string) => {
-      defeitoRepository.editar(id, codigo, descricao)
+      return defeitoRepository.editar(id, codigo, descricao)
     }
   )
 
   ipcMain.handle("defeitos:excluir", (_, id: number) => {
-    defeitoRepository.excluir(id)
+    return defeitoRepository.excluir(id)
   })
 }

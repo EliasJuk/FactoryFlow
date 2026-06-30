@@ -1,4 +1,6 @@
-import db from "../database/database"
+//import db from "../database/database"
+import { getDatabase } from "../database/connection"
+const db = getDatabase()
 
 export type ResultadoFiltros = {
   dataInicio?: string

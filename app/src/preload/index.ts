@@ -52,10 +52,13 @@ contextBridge.exposeInMainWorld("api", {
 
   componentes: {
     listar: () => ipcRenderer.invoke("componentes:listar"),
-    criar: (codigo: string, nome: string) =>
-      ipcRenderer.invoke("componentes:criar", codigo, nome),
-    editar: (id: number, codigo: string, nome: string) =>
-      ipcRenderer.invoke("componentes:editar", id, codigo, nome),
+
+    criar: (codigo: string, nome: string, precoAtual: number) =>
+      ipcRenderer.invoke("componentes:criar", codigo, nome, precoAtual),
+
+    editar: (id: number, codigo: string, nome: string, precoAtual: number) =>
+      ipcRenderer.invoke("componentes:editar", id, codigo, nome, precoAtual),
+
     excluir: (id: number) => ipcRenderer.invoke("componentes:excluir", id)
   },
 

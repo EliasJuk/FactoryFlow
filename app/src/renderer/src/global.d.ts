@@ -143,6 +143,14 @@ type ResultadosApi = {
   topComponentes: ResultadoItemApi[]
 }
 
+type ComponenteApi = {
+  id: number
+  codigo: string
+  nome: string
+  precoAtual: number
+  ativo: boolean
+}
+
 declare global {
   interface Window {
     api: {
@@ -164,11 +172,12 @@ declare global {
 
       componentes: {
         listar: () => Promise<ComponenteApi[]>
-        criar: (codigo: string, nome: string) => Promise<void>
+        criar: (codigo: string, nome: string, precoAtual: number) => Promise<void>
         editar: (
           id: number,
           codigo: string,
-          nome: string
+          nome: string,
+          precoAtual: number
         ) => Promise<void>
         excluir: (id: number) => Promise<void>
       },

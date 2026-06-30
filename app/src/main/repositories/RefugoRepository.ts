@@ -1,6 +1,4 @@
-//import db from "../database/database"
-import { getDatabase } from "../database/connection"
-const db = getDatabase()
+import db from "../database/database"
 
 export interface RefugoItemInput {
   componenteId: number
@@ -22,6 +20,22 @@ export interface CriarRefugoInput {
 }
 
 export class RefugoRepository {
+  private buscarPrecoAtualComponente(componenteId: number): number {
+    const preco = db
+      .prepare(`
+        SELECT valor_unitario as valorUnitario
+        FROM componentes_precos
+        WHERE componente_id = ?
+          AND ativo = 1
+          AND vigencia_fim IS NULL
+        ORDER BY id DESC
+        LIMIT 1
+      `)
+      .get(componenteId) as { valorUnitario: number } | undefined
+
+    return preco?.valorUnitario ?? 0
+  }
+
   criar(input: CriarRefugoInput): { id: number; numeroRefugo: string } {
     const ano = new Date().getFullYear()
 
@@ -116,16 +130,47 @@ export class RefugoRepository {
           refugo_id,
           componente_id,
           defeito_id,
-          quantidade
-        ) VALUES (?, ?, ?, ?)
+          quantidade,
+          codigo_componente_snapshot,
+          nome_componente_snapshot,
+          codigo_defeito_snapshot,
+          descricao_defeito_snapshot,
+          preco_unitario_snapshot,
+          custo_total_snapshot
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
 
       for (const item of input.itens) {
+        const componente = db
+          .prepare(`
+            SELECT codigo, nome
+            FROM componentes
+            WHERE id = ?
+          `)
+          .get(item.componenteId) as { codigo: string; nome: string }
+
+        const defeito = db
+          .prepare(`
+            SELECT codigo, descricao
+            FROM defeitos
+            WHERE id = ?
+          `)
+          .get(item.defeitoId) as { codigo: string; descricao: string }
+
+        const precoUnitario = this.buscarPrecoAtualComponente(item.componenteId)
+        const custoTotal = precoUnitario * item.quantidade
+
         insertItem.run(
           refugoId,
           item.componenteId,
           item.defeitoId,
-          item.quantidade
+          item.quantidade,
+          componente.codigo,
+          componente.nome,
+          defeito.codigo,
+          defeito.descricao,
+          precoUnitario,
+          custoTotal
         )
       }
     })
@@ -227,11 +272,16 @@ export class RefugoRepository {
       SELECT
         ri.id,
         ri.defeito_id as defeitoId,
-        comp.codigo as componenteCodigo,
-        comp.nome as componenteNome,
-        d.codigo as defeitoCodigo,
-        d.descricao as defeitoDescricao,
-        ri.quantidade as quantidadeRefugada
+
+        COALESCE(ri.codigo_componente_snapshot, comp.codigo) as componenteCodigo,
+        COALESCE(ri.nome_componente_snapshot, comp.nome) as componenteNome,
+
+        COALESCE(ri.codigo_defeito_snapshot, d.codigo) as defeitoCodigo,
+        COALESCE(ri.descricao_defeito_snapshot, d.descricao) as defeitoDescricao,
+
+        ri.quantidade as quantidadeRefugada,
+        ri.preco_unitario_snapshot as precoUnitario,
+        ri.custo_total_snapshot as custoTotal
 
       FROM refugo_itens ri
       INNER JOIN componentes comp ON comp.id = ri.componente_id
@@ -283,12 +333,30 @@ export class RefugoRepository {
         UPDATE refugo_itens
         SET
           defeito_id = ?,
-          quantidade = ?
+          quantidade = ?,
+          codigo_defeito_snapshot = ?,
+          descricao_defeito_snapshot = ?,
+          custo_total_snapshot = preco_unitario_snapshot * ?
         WHERE id = ?
       `)
 
       for (const item of itens) {
-        updateItem.run(item.defeitoId, item.quantidade, item.id)
+        const defeito = db
+          .prepare(`
+            SELECT codigo, descricao
+            FROM defeitos
+            WHERE id = ?
+          `)
+          .get(item.defeitoId) as { codigo: string; descricao: string }
+
+        updateItem.run(
+          item.defeitoId,
+          item.quantidade,
+          defeito.codigo,
+          defeito.descricao,
+          item.quantidade,
+          item.id
+        )
       }
     })
 
@@ -343,11 +411,13 @@ export class RefugoRepository {
     const itens = db
       .prepare(`
         SELECT
-          comp.codigo as componenteCodigo,
-          comp.nome as componenteNome,
-          d.codigo as defeitoCodigo,
-          d.descricao as defeitoDescricao,
-          ri.quantidade as quantidadeRefugada
+          COALESCE(ri.codigo_componente_snapshot, comp.codigo) as componenteCodigo,
+          COALESCE(ri.nome_componente_snapshot, comp.nome) as componenteNome,
+          COALESCE(ri.codigo_defeito_snapshot, d.codigo) as defeitoCodigo,
+          COALESCE(ri.descricao_defeito_snapshot, d.descricao) as defeitoDescricao,
+          ri.quantidade as quantidadeRefugada,
+          ri.preco_unitario_snapshot as precoUnitario,
+          ri.custo_total_snapshot as custoTotal
 
         FROM refugo_itens ri
         INNER JOIN componentes comp ON comp.id = ri.componente_id

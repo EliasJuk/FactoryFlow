@@ -8,18 +8,21 @@ export function registerComponenteIpc() {
     return componenteRepository.listar()
   })
 
-  ipcMain.handle("componentes:criar", (_, codigo: string, nome: string) => {
-    componenteRepository.criar(codigo, nome)
-  })
+  ipcMain.handle(
+    "componentes:criar",
+    (_, codigo: string, nome: string, precoAtual: number) => {
+      return componenteRepository.criar(codigo, nome, precoAtual)
+    }
+  )
 
   ipcMain.handle(
     "componentes:editar",
-    (_, id: number, codigo: string, nome: string) => {
-      componenteRepository.editar(id, codigo, nome)
+    (_, id: number, codigo: string, nome: string, precoAtual: number) => {
+      return componenteRepository.editar(id, codigo, nome, precoAtual)
     }
   )
 
   ipcMain.handle("componentes:excluir", (_, id: number) => {
-    componenteRepository.excluir(id)
+    return componenteRepository.excluir(id)
   })
 }

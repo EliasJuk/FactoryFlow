@@ -306,6 +306,16 @@ declare global {
           ignorados: number
         }>
       },
+
+      exportacaoDados: {
+        refugosCsv: (filtros: {
+          dataInicio: string
+          dataFim: string
+        }) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
+      },
     }
   }
 }

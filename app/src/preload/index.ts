@@ -221,5 +221,10 @@ contextBridge.exposeInMainWorld("api", {
   subsetorId?: number | null
   postoId?: number | null
   circuitoId?: number | null
-  }) => ipcRenderer.invoke("refugos:resultados", filtros)
+  }) => ipcRenderer.invoke("refugos:resultados", filtros),
+
+  exportacaoDados: {
+    refugosCsv: (filtros: { dataInicio: string; dataFim: string }) =>
+      ipcRenderer.invoke("exportacao:refugos-csv", filtros)
+  },
 })

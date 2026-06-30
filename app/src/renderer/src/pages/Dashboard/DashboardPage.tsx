@@ -18,6 +18,7 @@ import {
   Users,
   Upload,
   BarChart3,
+  FileDown,
 } from "lucide-react"
 
 type DashboardCardProps = {
@@ -158,6 +159,12 @@ function DashboardPage() {
               description="Importar cadastros por modelos CSV."
               icon={<Upload size={24} />}
               onClick={() => navigate("/importacao")}
+            />
+            <DashboardCard
+              title="Exportação de Dados"
+              description="Gerar CSV para SAP e Power BI"
+              icon={<FileDown size={24} />}
+              onClick={() => navigate("/exportacao")}
             />
           </div>
         </div>

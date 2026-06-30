@@ -16,7 +16,8 @@ import {
   Layers3,
   Settings,
   Users,
-  Upload
+  Upload,
+  BarChart3,
 } from "lucide-react"
 
 type DashboardCardProps = {
@@ -69,6 +70,13 @@ function DashboardPage() {
               description="Consultar registros"
               icon={<ClipboardList size={24} />}
               onClick={() => navigate("/ver-lancamentos")}
+            />
+
+            <DashboardCard
+              title="Ver Resultados"
+              description="Indicadores e gráficos"
+              icon={<BarChart3 size={24} />}
+              onClick={() => navigate("/resultados")}
             />
           </div>
         </div>

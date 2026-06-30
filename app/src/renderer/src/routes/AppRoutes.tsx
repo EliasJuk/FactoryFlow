@@ -15,6 +15,7 @@ import Postos from "../pages/Postos/PostosPage"
 import RoteiroPage from "../pages/Roteiro/RoteiroPage"
 import UsuariosPage from "../pages/Usuarios/UsuariosPage"
 import ImportacaoPage from "../pages/Importacao/ImportacaoPage"
+import ResultadosPage from "../pages/Resultados/ResultadosPage"
 
 
 function AppRoutes() {
@@ -35,6 +36,7 @@ function AppRoutes() {
         <Route path="/roteiro" element={<RoteiroPage />} />
         <Route path="/usuarios" element={<UsuariosPage />} />
         <Route path="/importacao" element={<ImportacaoPage />} />
+        <Route path="/resultados" element={<ResultadosPage />} />
       </Routes>
     </HashRouter>
   )

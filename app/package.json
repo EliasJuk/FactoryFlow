@@ -28,6 +28,7 @@
     "better-sqlite3": "^12.11.1",
     "lucide-react": "^1.21.0",
     "react-router-dom": "^7.18.0",
+    "recharts": "^3.9.0",
     "tailwindcss": "^4.3.1"
   },
   "devDependencies": {
@@ -52,7 +53,6 @@
     "typescript": "^5.9.3",
     "vite": "^7.2.6"
   },
-
   "build": {
     "appId": "com.elias.factoryflow",
     "productName": "FactoryFlow",

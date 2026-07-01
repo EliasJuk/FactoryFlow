@@ -1,7 +1,7 @@
 import {
   UsuarioRepository,
   UsuarioInput
-} from "../repositories/UsuarioRepository"
+} from "../repositories/sqlite/UsuarioRepository"
 
 export class UsuarioService {
   private repository = new UsuarioRepository()

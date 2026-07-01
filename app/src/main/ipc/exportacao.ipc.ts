@@ -2,7 +2,7 @@ import { dialog } from "electron"
 import { writeFileSync } from "fs"
 import { ipcMain } from "electron"
 
-import { ExportacaoRepository } from "../repositories/ExportacaoRepository"
+import { ExportacaoRepository } from "../repositories/sqlite/ExportacaoRepository"
 
 const exportacaoRepository = new ExportacaoRepository()
 

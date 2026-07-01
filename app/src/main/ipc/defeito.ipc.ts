@@ -1,5 +1,5 @@
 import { ipcMain } from "electron"
-import { DefeitoRepository } from "../repositories/DefeitoRepository"
+import { DefeitoRepository } from "../repositories/sqlite/DefeitoRepository"
 
 const defeitoRepository = new DefeitoRepository()
 

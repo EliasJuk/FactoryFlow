@@ -1,5 +1,5 @@
 import { ipcMain } from "electron"
-import { CircuitoComponenteRepository } from "../repositories/CircuitoComponenteRepository"
+import { CircuitoComponenteRepository } from "../repositories/sqlite/CircuitoComponenteRepository"
 
 const repository = new CircuitoComponenteRepository()
 

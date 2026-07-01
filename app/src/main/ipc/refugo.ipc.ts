@@ -1,6 +1,6 @@
 import { ipcMain } from "electron"
 
-import { CriarRefugoInput } from "../repositories/RefugoRepository"
+import { CriarRefugoInput } from "../repositories/sqlite/RefugoRepository"
 import { RefugoService } from "../services/RefugoService"
 
 const service = new RefugoService()

@@ -1,15 +1,15 @@
-import type { DatabaseConfig } from "./database.types"
-import Database from "better-sqlite3"
-import sqliteDb from "./database"
+import sqlite from "./sqlite/connection"
 
-const config: DatabaseConfig = {
-  driver: "sqlite"
+type SqliteDatabase = typeof sqlite
+
+export function getDatabase(): SqliteDatabase {
+  return sqlite
 }
 
-export function getDatabase(): Database.Database  {
-  if (config.driver === "sqlite") {
-    return sqliteDb
-  }
+/*
+import type { Database as DatabaseType } from "better-sqlite3"
+import sqlite from "./sqlite/connection"
 
-  throw new Error("PostgreSQL ainda não implementado.")
-}
+export function getDatabase(): DatabaseType {
+  return sqlite
+}*/

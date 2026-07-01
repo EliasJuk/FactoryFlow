@@ -1,11 +1,11 @@
 import {
   RefugoRepository,
   CriarRefugoInput
-} from "../repositories/RefugoRepository"
+} from "../repositories/sqlite/RefugoRepository"
 
 import { RefugoPrintService } from "./RefugoPrintService"
-import { ResultadoRepository } from "../repositories/ResultadoRepository"
-import type { ResultadoFiltros } from "../repositories/ResultadoRepository"
+import { ResultadoRepository } from "../repositories/sqlite/ResultadoRepository"
+import type { ResultadoFiltros } from "../repositories/sqlite/ResultadoRepository"
 
 export class RefugoService {
   private repository = new RefugoRepository()

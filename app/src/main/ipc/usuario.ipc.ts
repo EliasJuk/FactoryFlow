@@ -1,5 +1,5 @@
 import { ipcMain } from "electron"
-import { UsuarioInput } from "../repositories/UsuarioRepository"
+import { UsuarioInput } from "../repositories/sqlite/UsuarioRepository"
 import { UsuarioService } from "../services/UsuarioService"
 
 const service = new UsuarioService()

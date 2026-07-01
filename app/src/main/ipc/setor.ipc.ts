@@ -1,5 +1,5 @@
 import { ipcMain } from "electron"
-import { SetorRepository } from "../repositories/SetorRepository"
+import { SetorRepository } from "../repositories/sqlite/SetorRepository"
 
 const setorRepository = new SetorRepository()
 

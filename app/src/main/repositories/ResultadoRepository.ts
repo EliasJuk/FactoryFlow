@@ -16,6 +16,14 @@ export type ResultadoItem = {
   total: number
 }
 
+export type ResultadoDiaTurno = {
+  dia: string
+  turnoA: number
+  turnoB: number
+  turnoC: number
+  total: number
+}
+
 export class ResultadoRepository {
   private montarFiltros(filtros: ResultadoFiltros) {
     const where: string[] = ["r.status = 'ATIVO'"]
@@ -57,8 +65,31 @@ export class ResultadoRepository {
 
     return {
       where: where.join(" AND "),
-      params
+      params,
+      dataInicio,
+      dataFim
     }
+  }
+
+  private montarDiasDoPeriodo(dataInicio: string, dataFim: string) {
+    const dias: ResultadoDiaTurno[] = []
+    const inicio = new Date(`${dataInicio}T00:00:00`)
+    const fim = new Date(`${dataFim}T00:00:00`)
+    const atual = new Date(inicio)
+
+    while (atual <= fim) {
+      dias.push({
+        dia: String(atual.getDate()).padStart(2, "0"),
+        turnoA: 0,
+        turnoB: 0,
+        turnoC: 0,
+        total: 0
+      })
+
+      atual.setDate(atual.getDate() + 1)
+    }
+
+    return dias
   }
 
   resumo(filtros: ResultadoFiltros) {
@@ -68,7 +99,8 @@ export class ResultadoRepository {
       .prepare(`
         SELECT
           COUNT(DISTINCT r.id) as totalLancamentos,
-          COALESCE(SUM(ri.quantidade), 0) as totalPecasRefugadas
+          COALESCE(SUM(ri.quantidade), 0) as totalPecasRefugadas,
+          COALESCE(SUM(ri.custo_total_snapshot), 0) as custoTotalRefugo
         FROM refugos r
         INNER JOIN refugo_itens ri ON ri.refugo_id = r.id
         WHERE ${filtro.where}
@@ -76,18 +108,22 @@ export class ResultadoRepository {
       .get(...filtro.params) as {
       totalLancamentos: number
       totalPecasRefugadas: number
+      custoTotalRefugo: number
     }
 
     const defeitoMaisComum = db
       .prepare(`
         SELECT
-          d.codigo || ' - ' || d.descricao as nome,
+          COALESCE(
+            ri.codigo_defeito_snapshot || ' - ' || ri.descricao_defeito_snapshot,
+            d.codigo || ' - ' || d.descricao
+          ) as nome,
           COALESCE(SUM(ri.quantidade), 0) as total
         FROM refugos r
         INNER JOIN refugo_itens ri ON ri.refugo_id = r.id
         INNER JOIN defeitos d ON d.id = ri.defeito_id
         WHERE ${filtro.where}
-        GROUP BY d.id
+        GROUP BY COALESCE(ri.codigo_defeito_snapshot, d.codigo)
         ORDER BY total DESC
         LIMIT 1
       `)
@@ -108,12 +144,90 @@ export class ResultadoRepository {
       `)
       .get(...filtro.params) as ResultadoItem | undefined
 
+    const turnoMaisCritico = db
+      .prepare(`
+        SELECT
+          r.turno as nome,
+          COALESCE(SUM(ri.custo_total_snapshot), 0) as total
+        FROM refugos r
+        INNER JOIN refugo_itens ri ON ri.refugo_id = r.id
+        WHERE ${filtro.where}
+        GROUP BY r.turno
+        ORDER BY total DESC
+        LIMIT 1
+      `)
+      .get(...filtro.params) as ResultadoItem | undefined
+
     return {
       totalLancamentos: resumo.totalLancamentos ?? 0,
       totalPecasRefugadas: resumo.totalPecasRefugadas ?? 0,
+      custoTotalRefugo: resumo.custoTotalRefugo ?? 0,
       defeitoMaisComum: defeitoMaisComum?.nome ?? "-",
-      circuitoMaisCritico: circuitoMaisCritico?.nome ?? "-"
+      circuitoMaisCritico: circuitoMaisCritico?.nome ?? "-",
+      turnoMaisCritico: turnoMaisCritico?.nome ?? "-"
     }
+  }
+
+  custoPorDiaTurno(filtros: ResultadoFiltros): ResultadoDiaTurno[] {
+    const filtro = this.montarFiltros(filtros)
+    const dias = this.montarDiasDoPeriodo(filtro.dataInicio, filtro.dataFim)
+
+    const linhas = db
+      .prepare(`
+        SELECT
+          strftime('%d', r.data_hora) as dia,
+          UPPER(TRIM(r.turno)) as turno,
+          COALESCE(SUM(ri.custo_total_snapshot), 0) as total
+        FROM refugos r
+        INNER JOIN refugo_itens ri ON ri.refugo_id = r.id
+        WHERE ${filtro.where}
+        GROUP BY strftime('%d', r.data_hora), UPPER(TRIM(r.turno))
+        ORDER BY dia
+      `)
+      .all(...filtro.params) as Array<{
+      dia: string
+      turno: string
+      total: number
+    }>
+
+    for (const linha of linhas) {
+      const dia = dias.find((item) => item.dia === linha.dia)
+
+      if (!dia) continue
+
+      if (linha.turno === "A") {
+        dia.turnoA = linha.total
+      }
+
+      if (linha.turno === "B") {
+        dia.turnoB = linha.total
+      }
+
+      if (linha.turno === "C") {
+        dia.turnoC = linha.total
+      }
+
+      dia.total += linha.total
+    }
+
+    return dias
+  }
+
+  custoPorTurno(filtros: ResultadoFiltros): ResultadoItem[] {
+    const filtro = this.montarFiltros(filtros)
+
+    return db
+      .prepare(`
+        SELECT
+          'Turno ' || UPPER(TRIM(r.turno)) as nome,
+          COALESCE(SUM(ri.custo_total_snapshot), 0) as total
+        FROM refugos r
+        INNER JOIN refugo_itens ri ON ri.refugo_id = r.id
+        WHERE ${filtro.where}
+        GROUP BY UPPER(TRIM(r.turno))
+        ORDER BY total DESC
+      `)
+      .all(...filtro.params) as ResultadoItem[]
   }
 
   topDefeitos(filtros: ResultadoFiltros): ResultadoItem[] {
@@ -122,13 +236,16 @@ export class ResultadoRepository {
     return db
       .prepare(`
         SELECT
-          d.codigo || ' - ' || d.descricao as nome,
+          COALESCE(
+            ri.codigo_defeito_snapshot || ' - ' || ri.descricao_defeito_snapshot,
+            d.codigo || ' - ' || d.descricao
+          ) as nome,
           COALESCE(SUM(ri.quantidade), 0) as total
         FROM refugos r
         INNER JOIN refugo_itens ri ON ri.refugo_id = r.id
         INNER JOIN defeitos d ON d.id = ri.defeito_id
         WHERE ${filtro.where}
-        GROUP BY d.id
+        GROUP BY COALESCE(ri.codigo_defeito_snapshot, d.codigo)
         ORDER BY total DESC
         LIMIT 10
       `)
@@ -179,13 +296,38 @@ export class ResultadoRepository {
     return db
       .prepare(`
         SELECT
-          comp.codigo || ' - ' || comp.nome as nome,
+          COALESCE(
+            ri.codigo_componente_snapshot || ' - ' || ri.nome_componente_snapshot,
+            comp.codigo || ' - ' || comp.nome
+          ) as nome,
           COALESCE(SUM(ri.quantidade), 0) as total
         FROM refugos r
         INNER JOIN refugo_itens ri ON ri.refugo_id = r.id
         INNER JOIN componentes comp ON comp.id = ri.componente_id
         WHERE ${filtro.where}
-        GROUP BY comp.id
+        GROUP BY COALESCE(ri.codigo_componente_snapshot, comp.codigo)
+        ORDER BY total DESC
+        LIMIT 10
+      `)
+      .all(...filtro.params) as ResultadoItem[]
+  }
+
+  topCustoComponentes(filtros: ResultadoFiltros): ResultadoItem[] {
+    const filtro = this.montarFiltros(filtros)
+
+    return db
+      .prepare(`
+        SELECT
+          COALESCE(
+            ri.codigo_componente_snapshot || ' - ' || ri.nome_componente_snapshot,
+            comp.codigo || ' - ' || comp.nome
+          ) as nome,
+          COALESCE(SUM(ri.custo_total_snapshot), 0) as total
+        FROM refugos r
+        INNER JOIN refugo_itens ri ON ri.refugo_id = r.id
+        INNER JOIN componentes comp ON comp.id = ri.componente_id
+        WHERE ${filtro.where}
+        GROUP BY COALESCE(ri.codigo_componente_snapshot, comp.codigo)
         ORDER BY total DESC
         LIMIT 10
       `)
@@ -195,10 +337,13 @@ export class ResultadoRepository {
   resultados(filtros: ResultadoFiltros) {
     return {
       resumo: this.resumo(filtros),
+      custoPorDiaTurno: this.custoPorDiaTurno(filtros),
+      custoPorTurno: this.custoPorTurno(filtros),
       topDefeitos: this.topDefeitos(filtros),
       topSetores: this.topSetores(filtros),
       topPostos: this.topPostos(filtros),
-      topComponentes: this.topComponentes(filtros)
+      topComponentes: this.topComponentes(filtros),
+      topCustoComponentes: this.topCustoComponentes(filtros)
     }
   }
 }

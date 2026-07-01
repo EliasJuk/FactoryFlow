@@ -3,10 +3,15 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
-  YAxis
+  YAxis,
+  ReferenceLine
 } from "recharts"
 
 import PageHeader from "../../components/PageHeader/PageHeader"
@@ -42,18 +47,33 @@ type ResultadoItem = {
   total: number
 }
 
+type ResultadoDiaTurno = {
+  dia: string
+  turnoA: number
+  turnoB: number
+  turnoC: number
+  total: number
+}
+
 type Resultados = {
   resumo: {
     totalLancamentos: number
     totalPecasRefugadas: number
+    custoTotalRefugo: number
     defeitoMaisComum: string
     circuitoMaisCritico: string
+    turnoMaisCritico: string
   }
+  custoPorDiaTurno: ResultadoDiaTurno[]
+  custoPorTurno: ResultadoItem[]
   topDefeitos: ResultadoItem[]
   topSetores: ResultadoItem[]
   topPostos: ResultadoItem[]
   topComponentes: ResultadoItem[]
+  topCustoComponentes: ResultadoItem[]
 }
+
+const CORES_TURNOS = ["#2563EB", "#0F766E", "#F97316"]
 
 function getInicioMesAtual() {
   const hoje = new Date()
@@ -63,6 +83,17 @@ function getInicioMesAtual() {
 
 function getHoje() {
   return new Date().toISOString().slice(0, 10)
+}
+
+function formatarMoeda(valor: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL"
+  }).format(valor || 0)
+}
+
+function formatarNumero(valor: number) {
+  return new Intl.NumberFormat("pt-BR").format(valor || 0)
 }
 
 function CardIndicador({
@@ -85,10 +116,12 @@ function CardIndicador({
 
 function GraficoBarras({
   titulo,
-  dados
+  dados,
+  monetario = false
 }: {
   titulo: string
   dados: ResultadoItem[]
+  monetario?: boolean
 }) {
   return (
     <div className={ui.card}>
@@ -105,15 +138,133 @@ function GraficoBarras({
               margin={{ top: 5, right: 20, left: 100, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" allowDecimals={false} />
-              <YAxis dataKey="nome" type="category" width={140} />
-              <Tooltip />
-              <Bar 
-                dataKey="total"
-                fill="#3B82F6"
-                radius={[0, 6, 6, 0]} 
+              <XAxis
+                type="number"
+                allowDecimals={false}
+                tickFormatter={(valor) =>
+                  monetario ? formatarMoeda(Number(valor)) : String(valor)
+                }
               />
+              <YAxis dataKey="nome" type="category" 
+                width={160}
+                tickFormatter={(texto) => {
+                  //CORTA A LEGENDA DOS GRAFICOS
+                  const partes = texto.split(" - ")
+                  return partes[0]
+                }}
+              />
+              <Tooltip
+                formatter={(valor) =>
+                  monetario
+                    ? formatarMoeda(Number(valor))
+                    : formatarNumero(Number(valor))
+                }
+              />
+              <Bar dataKey="total" fill="#3B82F6" radius={[0, 6, 6, 0]} />
             </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GraficoPrincipalCusto({
+  dados
+}: {
+  dados: ResultadoDiaTurno[]
+}) {
+  return (
+    <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">
+            Custo de refugo por dia e turno
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Soma em R$ dos refugos lançados no período selecionado.
+          </p>
+        </div>
+
+        <div className="rounded-md bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
+          Gráfico principal
+        </div>
+      </div>
+
+      {dados.length === 0 ? (
+        <div className={ui.empty}>Nenhum dado encontrado para este período.</div>
+      ) : (
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={dados}
+              margin={{ top: 10, right: 30, left: 20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="dia" />
+              <YAxis tickFormatter={(valor) => formatarMoeda(Number(valor))} />
+              <ReferenceLine
+                y={120}
+                stroke="#DC2626"
+                strokeDasharray="6 6"
+                label={{
+                  value: "Limite R$ 120,00",
+                  position: "insideTopRight",
+                  fill: "#DC2626",
+                  fontSize: 12
+                }}
+              />
+              <Tooltip
+                formatter={(valor) => formatarMoeda(Number(valor))}
+                labelFormatter={(label) => `Dia ${label}`}
+              />
+              <Legend />
+              <Bar dataKey="turnoA" name="Turno A" fill="#557ef1" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="turnoB" name="Turno B" fill="#239b91" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="turnoC" name="Turno C" fill="#e28f53" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GraficoPizzaTurnos({
+  dados
+}: {
+  dados: ResultadoItem[]
+}) {
+  return (
+    <div className={ui.card}>
+      <h2 className={ui.title}>Custo de refugo por turno</h2>
+      <p className={ui.subtitle}>
+        Mostra qual turno concentrou o maior custo de refugo.
+      </p>
+
+      {dados.length === 0 ? (
+        <div className={ui.empty}>Nenhum dado encontrado para este período.</div>
+      ) : (
+        <div className="mt-4 h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={dados}
+                dataKey="total"
+                nameKey="nome"
+                outerRadius={110}
+                label={({ name }) => String(name)}
+              >
+                {dados.map((_, index) => (
+                  <Cell
+                    key={index}
+                    fill={CORES_TURNOS[index % CORES_TURNOS.length]}
+                  />
+                ))}
+              </Pie>
+              <Tooltip formatter={(valor) => formatarMoeda(Number(valor))} />
+              <Legend />
+            </PieChart>
           </ResponsiveContainer>
         </div>
       )}
@@ -168,8 +319,6 @@ function ResultadosPage() {
         circuitoId: circuitoId === "" ? null : Number(circuitoId)
       })
 
-      console.log("[RESULTADOS]", dados)
-
       setResultados(dados)
     } catch (error) {
       console.error("[RESULTADOS]", error)
@@ -208,8 +357,7 @@ function ResultadosPage() {
     setCircuitoId("")
   }
 
-  const totalGeral =
-    resultados?.resumo.totalLancamentos ?? 0
+  const totalGeral = resultados?.resumo.totalLancamentos ?? 0
 
   return (
     <main className={ui.page}>
@@ -356,7 +504,9 @@ function ResultadosPage() {
 
         {resultados && (
           <>
-            <div className="grid gap-3 md:grid-cols-4">
+            <GraficoPrincipalCusto dados={resultados.custoPorDiaTurno} />
+
+            <div className="grid gap-3 md:grid-cols-5">
               <CardIndicador
                 titulo="Lançamentos"
                 valor={resultados.resumo.totalLancamentos}
@@ -370,15 +520,21 @@ function ResultadosPage() {
               />
 
               <CardIndicador
-                titulo="Defeito mais comum"
-                valor={resultados.resumo.defeitoMaisComum}
-                descricao="Maior volume no período"
+                titulo="Custo total"
+                valor={formatarMoeda(resultados.resumo.custoTotalRefugo)}
+                descricao="Custo de refugo no período"
               />
 
               <CardIndicador
-                titulo="Circuito mais crítico"
-                valor={resultados.resumo.circuitoMaisCritico}
-                descricao="Circuito com maior quantidade"
+                titulo="Turno crítico"
+                valor={resultados.resumo.turnoMaisCritico}
+                descricao="Maior custo de refugo"
+              />
+
+              <CardIndicador
+                titulo="Defeito mais comum"
+                valor={resultados.resumo.defeitoMaisComum}
+                descricao="Maior volume no período"
               />
             </div>
 
@@ -391,6 +547,14 @@ function ResultadosPage() {
             )}
 
             <div className="grid gap-4 lg:grid-cols-2">
+              <GraficoPizzaTurnos dados={resultados.custoPorTurno} />
+
+              <GraficoBarras
+                titulo="Top custo por componente"
+                dados={resultados.topCustoComponentes}
+                monetario
+              />
+
               <GraficoBarras
                 titulo="Top refugos por defeito"
                 dados={resultados.topDefeitos}

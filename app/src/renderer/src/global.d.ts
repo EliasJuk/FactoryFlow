@@ -134,13 +134,24 @@ type ResultadosApi = {
   resumo: {
     totalLancamentos: number
     totalPecasRefugadas: number
+    custoTotalRefugo: number
     defeitoMaisComum: string
     circuitoMaisCritico: string
+    turnoMaisCritico: string
   }
+  custoPorDiaTurno: {
+    dia: string
+    turnoA: number
+    turnoB: number
+    turnoC: number
+    total: number
+  }[]
+  custoPorTurno: ResultadoItemApi[]
   topDefeitos: ResultadoItemApi[]
   topSetores: ResultadoItemApi[]
   topPostos: ResultadoItemApi[]
   topComponentes: ResultadoItemApi[]
+  topCustoComponentes: ResultadoItemApi[]
 }
 
 type ComponenteApi = {
@@ -150,6 +161,8 @@ type ComponenteApi = {
   precoAtual: number
   ativo: boolean
 }
+
+
 
 declare global {
   interface Window {

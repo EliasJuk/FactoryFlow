@@ -1,6 +1,6 @@
 import crypto from "crypto"
 //import db from "../database/database"
-import { getDatabase } from "../database/connection"
+import { getDatabase } from "../../database/connection"
 const db = getDatabase()
 
 export interface UsuarioInput {

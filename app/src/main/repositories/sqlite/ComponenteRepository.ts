@@ -1,4 +1,4 @@
-import db from "../database/database"
+import db from "../../database/database"
 
 export interface Componente {
   id: number
@@ -21,8 +21,8 @@ export class ComponenteRepository {
         FROM componentes c
         LEFT JOIN componentes_precos cp
           ON cp.componente_id = c.id
-         AND cp.ativo = 1
-         AND cp.vigencia_fim IS NULL
+          AND cp.ativo = 1
+          AND cp.vigencia_fim IS NULL
         WHERE c.ativo = 1
         ORDER BY c.codigo
       `)

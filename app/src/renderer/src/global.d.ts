@@ -329,6 +329,44 @@ declare global {
           mensagem: string
         }>
       },
+
+      configuracao: {
+        carregarBanco: () => Promise<{
+          provider: "sqlite" | "postgres"
+          postgres: {
+            host: string
+            port: number
+            database: string
+            user: string
+            password: string
+          }
+        }>
+
+        salvarBanco: (config: {
+          provider: "sqlite" | "postgres"
+          postgres: {
+            host: string
+            port: number
+            database: string
+            user: string
+            password: string
+          }
+        }) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
+
+        testarPostgres: (config: {
+          host: string
+          port: number
+          database: string
+          user: string
+          password: string
+        }) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
+      },
     }
   }
 }

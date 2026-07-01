@@ -17,6 +17,7 @@ import UsuariosPage from "../pages/Usuarios/UsuariosPage"
 import ImportacaoPage from "../pages/Importacao/ImportacaoPage"
 import ResultadosPage from "../pages/Resultados/ResultadosPage"
 import ExportacaoPage from "../pages/Exportacao/ExportacaoPage"
+import ConfiguracoesPage from "../pages/Configuracoes/ConfiguracoesPage"
 
 
 function AppRoutes() {
@@ -39,6 +40,7 @@ function AppRoutes() {
         <Route path="/importacao" element={<ImportacaoPage />} />
         <Route path="/resultados" element={<ResultadosPage />} />
         <Route path="/exportacao" element={<ExportacaoPage />} />
+        <Route path="/configuracoes" element={<ConfiguracoesPage />} />
       </Routes>
     </HashRouter>
   )

@@ -227,4 +227,30 @@ contextBridge.exposeInMainWorld("api", {
     refugosCsv: (filtros: { dataInicio: string; dataFim: string }) =>
       ipcRenderer.invoke("exportacao:refugos-csv", filtros)
   },
+
+  configuracao: {
+    carregarBanco: () =>
+      ipcRenderer.invoke("configuracao:banco-carregar"),
+
+    salvarBanco: (config: {
+      provider: "sqlite" | "postgres"
+      postgres: {
+        host: string
+        port: number
+        database: string
+        user: string
+        password: string
+      }
+    }) =>
+      ipcRenderer.invoke("configuracao:banco-salvar", config),
+
+    testarPostgres: (config: {
+      host: string
+      port: number
+      database: string
+      user: string
+      password: string
+    }) =>
+      ipcRenderer.invoke("configuracao:postgres-testar", config)
+  },
 })

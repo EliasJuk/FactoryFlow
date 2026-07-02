@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow} from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { runMigrations } from "./database/migrations"
+//import { runMigrations } from "./database/migrations"
 import { registerSetorIpc } from "./ipc/setor.ipc"
 import { registerSubsetorIpc } from "./ipc/subsetor.ipc"
 import { registerComponenteIpc } from "./ipc/componente.ipc"
@@ -15,6 +15,8 @@ import { registerUsuarioIpc } from "./ipc/usuario.ipc"
 import { registerImportacaoIpc } from "./ipc/importacao.ipc"
 import { registerExportacaoIpc } from "./ipc/exportacao.ipc"
 import { registerConfiguracaoIpc } from "./ipc/configuracao.ipc"
+import { DatabaseManager } from "./database/DatabaseManager"
+import { globalShortcut } from "electron"
 
 
 function createWindow(): void {
@@ -29,6 +31,8 @@ const mainWindow = new BrowserWindow({
     sandbox: false
   }
 })
+  //DEV TOOLS
+  //mainWindow.webContents.openDevTools()
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -51,8 +55,9 @@ const mainWindow = new BrowserWindow({
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-  runMigrations()
+app.whenReady().then(async () => {
+  //runMigrations()
+  await DatabaseManager.initialize()
   registerSetorIpc()
   registerSubsetorIpc()
   registerComponenteIpc()
@@ -66,6 +71,11 @@ app.whenReady().then(() => {
   registerImportacaoIpc()
   registerExportacaoIpc()
   registerConfiguracaoIpc()
+
+  //DEV TOOLS
+  globalShortcut.register("F12", () => {
+    BrowserWindow.getFocusedWindow()?.webContents.toggleDevTools()
+  })
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')

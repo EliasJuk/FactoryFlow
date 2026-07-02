@@ -1,26 +1,29 @@
 import { ipcMain } from "electron"
-import { SetorRepository } from "../repositories/sqlite/SetorRepository"
+import { SetorService } from "../services/SetorService"
 
-const setorRepository = new SetorRepository()
+const setorService = new SetorService()
 
 export function registerSetorIpc() {
-  ipcMain.handle("setores:listar", () => {
-    return setorRepository.listar()
+  ipcMain.handle("setores:listar", async () => {
+    return await setorService.listar()
   })
 
-  ipcMain.handle("setores:criar", (_, nome: string, sigla: string) => {
-    return setorRepository.criar(nome, sigla)
+  ipcMain.handle("setores:criar", async (_, nome: string, sigla: string) => {
+    return await setorService.criar(nome, sigla)
   })
 
-  ipcMain.handle("setores:editar", (_, id: number, nome: string, sigla: string) => {
-    return setorRepository.editar(id, nome, sigla)
+  ipcMain.handle(
+    "setores:editar",
+    async (_, id: number, nome: string, sigla: string) => {
+      return await setorService.editar(id, nome, sigla)
+    }
+  )
+
+  ipcMain.handle("setores:excluir", async (_, id: number) => {
+    return await setorService.excluir(id)
   })
 
-  ipcMain.handle("setores:excluir", (_, id: number) => {
-    return setorRepository.excluir(id)
-  })
-
-  ipcMain.handle("setores:contar-subsetores-ativos", (_, id: number) => {
-    return setorRepository.contarSubsetoresAtivos(id)
+  ipcMain.handle("setores:contar-subsetores-ativos", async (_, id: number) => {
+    return await setorService.contarSubsetoresAtivos(id)
   })
 }

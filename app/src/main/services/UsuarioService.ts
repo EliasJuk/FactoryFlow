@@ -1,28 +1,28 @@
-import {
-  UsuarioRepository,
-  UsuarioInput
-} from "../repositories/sqlite/UsuarioRepository"
+import { RepositoryFactory } from "../repositories/factory/RepositoryFactory"
+import type { UsuarioInput } from "../repositories/postgres/UsuarioRepository"
+
+export type { UsuarioInput }
 
 export class UsuarioService {
-  private repository = new UsuarioRepository()
+  private repository = RepositoryFactory.usuarios()
 
-  listar() {
-    return this.repository.listar()
+  async listar() {
+    return await this.repository.listar()
   }
 
-  criar(input: UsuarioInput) {
-    return this.repository.criar(input)
+  async criar(input: UsuarioInput) {
+    return await this.repository.criar(input)
   }
 
-  editar(id: number, input: UsuarioInput) {
-    return this.repository.editar(id, input)
+  async editar(id: number, input: UsuarioInput) {
+    return await this.repository.editar(id, input)
   }
 
-  excluir(id: number) {
-    return this.repository.excluir(id)
+  async excluir(id: number) {
+    return await this.repository.excluir(id)
   }
 
-  ativar(id: number) {
-    return this.repository.ativar(id)
+  async ativar(id: number) {
+    return await this.repository.ativar(id)
   }
 }

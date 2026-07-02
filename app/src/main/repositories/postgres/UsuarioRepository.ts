@@ -8,6 +8,14 @@ export interface UsuarioInput {
   senha?: string
 }
 
+export interface Usuario {
+  id: number
+  nome: string
+  matricula: string
+  perfil: string
+  ativo: boolean
+}
+
 function gerarHashSenha(senha: string) {
   const salt = crypto.randomBytes(16).toString("hex")
 
@@ -19,8 +27,8 @@ function gerarHashSenha(senha: string) {
 }
 
 export class UsuarioRepository {
-  async listar() {
-    const result = await pool.query(`
+  async listar(): Promise<Usuario[]> {
+    const resultado = await pool.query<Usuario>(`
       SELECT
         id,
         nome,
@@ -31,7 +39,7 @@ export class UsuarioRepository {
       ORDER BY nome
     `)
 
-    return result.rows.map((usuario) => ({
+    return resultado.rows.map((usuario) => ({
       ...usuario,
       ativo: Boolean(usuario.ativo)
     }))
@@ -42,73 +50,88 @@ export class UsuarioRepository {
       ? gerarHashSenha(input.senha)
       : null
 
-    await pool.query(`
-      INSERT INTO usuarios (
-        nome,
-        matricula,
-        perfil,
-        senha_hash,
-        ativo
-      ) VALUES ($1, $2, $3, $4, true)
-    `, [
-      input.nome,
-      input.matricula,
-      input.perfil,
-      senhaHash
-    ])
+    await pool.query(
+      `
+        INSERT INTO usuarios (
+          nome,
+          matricula,
+          perfil,
+          senha_hash,
+          ativo
+        ) VALUES ($1, $2, $3, $4, true)
+      `,
+      [
+        input.nome.trim(),
+        input.matricula.trim(),
+        input.perfil,
+        senhaHash
+      ]
+    )
   }
 
   async editar(id: number, input: UsuarioInput): Promise<void> {
     if (input.senha?.trim()) {
       const senhaHash = gerarHashSenha(input.senha)
 
-      await pool.query(`
-        UPDATE usuarios
-        SET
-          nome = $1,
-          matricula = $2,
-          perfil = $3,
-          senha_hash = $4
-        WHERE id = $5
-      `, [
-        input.nome,
-        input.matricula,
-        input.perfil,
-        senhaHash,
-        id
-      ])
+      await pool.query(
+        `
+          UPDATE usuarios
+          SET
+            nome = $1,
+            matricula = $2,
+            perfil = $3,
+            senha_hash = $4
+          WHERE id = $5
+        `,
+        [
+          input.nome.trim(),
+          input.matricula.trim(),
+          input.perfil,
+          senhaHash,
+          id
+        ]
+      )
 
       return
     }
 
-    await pool.query(`
-      UPDATE usuarios
-      SET
-        nome = $1,
-        matricula = $2,
-        perfil = $3
-      WHERE id = $4
-    `, [
-      input.nome,
-      input.matricula,
-      input.perfil,
-      id
-    ])
+    await pool.query(
+      `
+        UPDATE usuarios
+        SET
+          nome = $1,
+          matricula = $2,
+          perfil = $3
+        WHERE id = $4
+      `,
+      [
+        input.nome.trim(),
+        input.matricula.trim(),
+        input.perfil,
+        id
+      ]
+    )
   }
 
   async excluir(id: number): Promise<void> {
-    await pool.query(`
-      UPDATE usuarios
-      SET ativo = false
-      WHERE id = $1
-    `, [id])
+    await pool.query(
+      `
+        UPDATE usuarios
+        SET ativo = false
+        WHERE id = $1
+      `,
+      [id]
+    )
   }
 
   async ativar(id: number): Promise<void> {
-    await pool.query(`
-      UPDATE usuarios
-      SET ativo = true
-      WHERE id = $1
-    `, [id])
+    await pool.query(
+      `
+        UPDATE usuarios
+        SET ativo = true
+        WHERE id = $1
+      `,
+      [id]
+    )
   }
 }

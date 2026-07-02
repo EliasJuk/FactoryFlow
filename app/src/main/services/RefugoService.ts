@@ -1,22 +1,22 @@
 import {
-  RefugoRepository,
   CriarRefugoInput
-} from "../repositories/sqlite/RefugoRepository"
+} from "../repositories/postgres/RefugoRepository"
 
+import type { ResultadoFiltros } from "../repositories/postgres/ResultadoRepository"
+
+import { RepositoryFactory } from "../repositories/factory/RepositoryFactory"
 import { RefugoPrintService } from "./RefugoPrintService"
-import { ResultadoRepository } from "../repositories/sqlite/ResultadoRepository"
-import type { ResultadoFiltros } from "../repositories/sqlite/ResultadoRepository"
 
 export class RefugoService {
-  private repository = new RefugoRepository()
+  private repository = RepositoryFactory.refugos()
+  private resultadoRepository = RepositoryFactory.resultados()
   private printService = new RefugoPrintService()
-  private resultadoRepository = new ResultadoRepository()
 
   async criar(input: CriarRefugoInput) {
-    const resultado = this.repository.criar(input)
+    const resultado = await this.repository.criar(input)
 
     try {
-      const refugo = this.repository.buscarParaImpressao(resultado.id)
+      const refugo = await this.repository.buscarParaImpressao(resultado.id)
       await this.printService.imprimir(refugo)
     } catch (error) {
       console.error("[REFUGO] Erro ao imprimir ficha:", error)
@@ -25,11 +25,11 @@ export class RefugoService {
     return resultado.numeroRefugo
   }
 
-  listar(busca = "", pagina = 1, limite = 10) {
-    return this.repository.listar(busca, pagina, limite)
+  async listar(busca = "", pagina = 1, limite = 10) {
+    return await this.repository.listar(busca, pagina, limite)
   }
 
-  editarCompleto(
+  async editarCompleto(
     id: number,
     matricula: string,
     turno: string,
@@ -37,7 +37,7 @@ export class RefugoService {
     observacao: string | undefined,
     itens: { id: number; defeitoId: number; quantidade: number }[]
   ) {
-    return this.repository.editarCompleto(
+    return await this.repository.editarCompleto(
       id,
       matricula,
       turno,
@@ -47,16 +47,16 @@ export class RefugoService {
     )
   }
 
-  cancelar(id: number, motivo: string) {
-    return this.repository.cancelar(id, motivo)
+  async cancelar(id: number, motivo: string) {
+    return await this.repository.cancelar(id, motivo)
   }
 
   async imprimir(id: number) {
-    const refugo = this.repository.buscarParaImpressao(id)
+    const refugo = await this.repository.buscarParaImpressao(id)
     await this.printService.imprimir(refugo)
   }
 
-  resultados(filtros: ResultadoFiltros) {
-    return this.resultadoRepository.resultados(filtros)
+  async resultados(filtros: ResultadoFiltros) {
+    return await this.resultadoRepository.resultados(filtros)
   }
 }

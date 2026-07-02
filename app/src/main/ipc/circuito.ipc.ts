@@ -1,25 +1,28 @@
 import { ipcMain } from "electron"
-import { CircuitoRepository } from "../repositories/sqlite/CircuitoRepository"
+import { RepositoryFactory } from "../repositories/factory/RepositoryFactory"
 
-const circuitoRepository = new CircuitoRepository()
+const circuitoRepository = RepositoryFactory.circuitos()
 
 export function registerCircuitoIpc() {
-  ipcMain.handle("circuitos:listar", () => {
-    return circuitoRepository.listar()
-  })
-
-  ipcMain.handle("circuitos:criar", (_, codigo: string, nome: string) => {
-    circuitoRepository.criar(codigo, nome)
+  ipcMain.handle("circuitos:listar", async () => {
+    return await circuitoRepository.listar()
   })
 
   ipcMain.handle(
-    "circuitos:editar",
-    (_, id: number, codigo: string, nome: string) => {
-      circuitoRepository.editar(id, codigo, nome)
+    "circuitos:criar",
+    async (_, codigo: string, nome: string) => {
+      return await circuitoRepository.criar(codigo, nome)
     }
   )
 
-  ipcMain.handle("circuitos:excluir", (_, id: number) => {
-    circuitoRepository.excluir(id)
+  ipcMain.handle(
+    "circuitos:editar",
+    async (_, id: number, codigo: string, nome: string) => {
+      return await circuitoRepository.editar(id, codigo, nome)
+    }
+  )
+
+  ipcMain.handle("circuitos:excluir", async (_, id: number) => {
+    return await circuitoRepository.excluir(id)
   })
 }

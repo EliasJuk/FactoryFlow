@@ -1,10 +1,9 @@
-import { dialog } from "electron"
+import { dialog, ipcMain } from "electron"
 import { writeFileSync } from "fs"
-import { ipcMain } from "electron"
 
-import { ExportacaoRepository } from "../repositories/sqlite/ExportacaoRepository"
+import { RepositoryFactory } from "../repositories/factory/RepositoryFactory"
 
-const exportacaoRepository = new ExportacaoRepository()
+const exportacaoRepository = RepositoryFactory.exportacoes()
 
 export function registerExportacaoIpc() {
   ipcMain.handle(
@@ -23,7 +22,7 @@ export function registerExportacaoIpc() {
         }
       }
 
-      const csv = exportacaoRepository.gerarCsvRefugos(filtros)
+      const csv = await exportacaoRepository.gerarCsvRefugos(filtros)
 
       writeFileSync(resultado.filePath, csv, "utf8")
 

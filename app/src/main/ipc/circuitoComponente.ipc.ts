@@ -1,21 +1,36 @@
 import { ipcMain } from "electron"
-import { CircuitoComponenteRepository } from "../repositories/sqlite/CircuitoComponenteRepository"
+import { RepositoryFactory } from "../repositories/factory/RepositoryFactory"
 
-const repository = new CircuitoComponenteRepository()
+const repository = RepositoryFactory.circuitoComponentes()
 
 export function registerCircuitoComponenteIpc() {
-  ipcMain.handle("circuito-componentes:listar-por-circuito", (_, circuitoId: number) => {
-    return repository.listarPorCircuito(circuitoId)
-  })
-
   ipcMain.handle(
-    "circuito-componentes:adicionar",
-    (_, circuitoId: number, componenteId: number, quantidade: number) => {
-      repository.adicionar(circuitoId, componenteId, quantidade)
+    "circuito-componentes:listar-por-circuito",
+    async (_, circuitoId: number) => {
+      return await repository.listarPorCircuito(circuitoId)
     }
   )
 
-  ipcMain.handle("circuito-componentes:remover", (_, id: number) => {
-    repository.remover(id)
-  })
+  ipcMain.handle(
+    "circuito-componentes:adicionar",
+    async (
+      _,
+      circuitoId: number,
+      componenteId: number,
+      quantidade: number
+    ) => {
+      return await repository.adicionar(
+        circuitoId,
+        componenteId,
+        quantidade
+      )
+    }
+  )
+
+  ipcMain.handle(
+    "circuito-componentes:remover",
+    async (_, id: number) => {
+      return await repository.remover(id)
+    }
+  )
 }

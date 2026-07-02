@@ -1,25 +1,28 @@
 import { ipcMain } from "electron"
-import { DefeitoRepository } from "../repositories/sqlite/DefeitoRepository"
+import { RepositoryFactory } from "../repositories/factory/RepositoryFactory"
 
-const defeitoRepository = new DefeitoRepository()
+const defeitoRepository = RepositoryFactory.defeitos()
 
 export function registerDefeitoIpc() {
-  ipcMain.handle("defeitos:listar", () => {
-    return defeitoRepository.listar()
-  })
-
-  ipcMain.handle("defeitos:criar", (_, codigo: string, descricao: string) => {
-    return defeitoRepository.criar(codigo, descricao)
+  ipcMain.handle("defeitos:listar", async () => {
+    return await defeitoRepository.listar()
   })
 
   ipcMain.handle(
-    "defeitos:editar",
-    (_, id: number, codigo: string, descricao: string) => {
-      return defeitoRepository.editar(id, codigo, descricao)
+    "defeitos:criar",
+    async (_, codigo: string, descricao: string) => {
+      return await defeitoRepository.criar(codigo, descricao)
     }
   )
 
-  ipcMain.handle("defeitos:excluir", (_, id: number) => {
-    return defeitoRepository.excluir(id)
+  ipcMain.handle(
+    "defeitos:editar",
+    async (_, id: number, codigo: string, descricao: string) => {
+      return await defeitoRepository.editar(id, codigo, descricao)
+    }
+  )
+
+  ipcMain.handle("defeitos:excluir", async (_, id: number) => {
+    return await defeitoRepository.excluir(id)
   })
 }

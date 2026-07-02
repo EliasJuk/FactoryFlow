@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { ChevronDown, Database, HardDrive, Printer, Save, Server, TestTube, X } from "lucide-react"
+import { Database, HardDrive, Printer, Save, Server, TestTube, X } from "lucide-react"
 
 import PageHeader from "../../components/PageHeader/PageHeader"
 import { ui } from "../../theme/ui"

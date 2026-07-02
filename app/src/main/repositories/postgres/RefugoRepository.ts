@@ -282,7 +282,7 @@ export class RefugoRepository {
       ORDER BY comp.codigo
     `
 
-    const dados = []
+    const dados: any[] = []
 
     for (const refugo of refugos.rows) {
       const itens = await pool.query(itensQuery, [refugo.id])

@@ -1,71 +1,30 @@
-import { app } from "electron"
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs"
-import { dirname, join } from "path"
 import { Client } from "pg"
+import {
+  loadConfig,
+  saveConfig,
+  type AppConfig,
+  type DatabaseProvider
+} from "../config/appConfig"
 
-export type DatabaseProvider = "sqlite" | "postgres"
-
-export type ConfiguracaoBanco = {
-  provider: DatabaseProvider
-  postgres: {
-    host: string
-    port: number
-    database: string
-    user: string
-    password: string
-  }
-}
-
-function getApplicationFolder() {
-  if (!app.isPackaged) {
-    return process.cwd()
-  }
-
-  return process.env.PORTABLE_EXECUTABLE_DIR || dirname(app.getPath("exe"))
-}
-
-const configFolder = join(getApplicationFolder(), "config")
-const configPath = join(configFolder, "database-config.json")
-
-const configPadrao: ConfiguracaoBanco = {
-  provider: "sqlite",
-  postgres: {
-    host: "localhost",
-    port: 5432,
-    database: "factoryflow",
-    user: "postgres",
-    password: ""
-  }
-}
+export type ConfiguracaoBanco = AppConfig["database"]
 
 export class ConfiguracaoService {
   carregarBanco(): ConfiguracaoBanco {
-    if (!existsSync(configFolder)) {
-      mkdirSync(configFolder, { recursive: true })
-    }
-
-    if (!existsSync(configPath)) {
-      writeFileSync(configPath, JSON.stringify(configPadrao, null, 2), "utf8")
-      return configPadrao
-    }
-
-    const conteudo = readFileSync(configPath, "utf8")
-    return {
-      ...configPadrao,
-      ...JSON.parse(conteudo)
-    }
+    return loadConfig().database
   }
 
   salvarBanco(config: ConfiguracaoBanco) {
-    if (!existsSync(configFolder)) {
-      mkdirSync(configFolder, { recursive: true })
-    }
+    const configuracao = loadConfig()
 
-    writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8")
+    saveConfig({
+      ...configuracao,
+      database: config
+    })
 
     return {
       sucesso: true,
-      mensagem: "Configuração salva com sucesso. Reinicie o sistema para aplicar a troca de banco."
+      mensagem:
+        "Configuração salva com sucesso. Reinicie o FactoryFlow para aplicar a alteração do banco de dados."
     }
   }
 
@@ -86,8 +45,27 @@ export class ConfiguracaoService {
         sucesso: true,
         mensagem: "Conexão com PostgreSQL realizada com sucesso."
       }
+    } catch (error) {
+      return {
+        sucesso: false,
+        mensagem: `Erro ao conectar: ${
+          error instanceof Error ? error.message : "Erro desconhecido"
+        }`
+      }
     } finally {
-      await client.end()
+      await client.end().catch(() => {})
     }
+  }
+
+  getProvider(): DatabaseProvider {
+    return loadConfig().database.provider
+  }
+
+  isSqlite(): boolean {
+    return this.getProvider() === "sqlite"
+  }
+
+  isPostgres(): boolean {
+    return this.getProvider() === "postgres"
   }
 }

@@ -146,25 +146,38 @@ function SetoresPage() {
 
     try {
       if (modalModo === "editar" && setorEditando) {
-        await window.api.setores.editar(
+        const resultado = await window.api.setores.editar(
           setorEditando.id,
           nome.trim(),
           sigla.trim().toUpperCase()
         )
 
+        if (!resultado.sucesso) {
+          setMensagemErro(resultado.mensagem)
+          return
+        }
+
         setMensagemSucesso("Setor atualizado com sucesso.")
       } else {
-        await window.api.setores.criar(nome.trim(), sigla.trim().toUpperCase())
+        const resultado = await window.api.setores.criar(
+          nome.trim(),
+          sigla.trim().toUpperCase()
+        )
+
+        if (!resultado.sucesso) {
+          setMensagemErro(resultado.mensagem)
+          return
+        }
+
         setMensagemSucesso("Setor cadastrado com sucesso.")
       }
 
       fecharModal()
       await atualizarListas()
-    } catch (error) {
-      setMensagemErro(extrairMensagemErro(error))
     } finally {
       setProcessando(false)
     }
+    
   }
 
   async function solicitarInativacao(setor: Setor) {

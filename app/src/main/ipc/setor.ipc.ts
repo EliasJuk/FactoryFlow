@@ -9,13 +9,43 @@ export function registerSetorIpc() {
   })
 
   ipcMain.handle("setores:criar", async (_, nome: string, sigla: string) => {
-    return await setorService.criar(nome, sigla)
+    try {
+      await setorService.criar(nome, sigla)
+
+      return {
+        sucesso: true,
+        mensagem: "Setor cadastrado com sucesso."
+      }
+    } catch (error) {
+      return {
+        sucesso: false,
+        mensagem:
+          error instanceof Error
+            ? error.message
+            : "Erro ao cadastrar setor."
+      }
+    }
   })
 
   ipcMain.handle(
     "setores:editar",
     async (_, id: number, nome: string, sigla: string) => {
-      return await setorService.editar(id, nome, sigla)
+      try {
+        await setorService.editar(id, nome, sigla)
+
+        return {
+          sucesso: true,
+          mensagem: "Setor atualizado com sucesso."
+        }
+      } catch (error) {
+        return {
+          sucesso: false,
+          mensagem:
+            error instanceof Error
+              ? error.message
+              : "Erro ao editar setor."
+        }
+      }
     }
   )
 

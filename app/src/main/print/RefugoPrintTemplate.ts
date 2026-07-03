@@ -34,12 +34,34 @@ function escapeHtml(value: string | number | null | undefined) {
     .replaceAll("'", "&#039;")
 }
 
-export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
-  const totalRefugado = refugo.itens.reduce(
-    (total, item) => total + item.quantidadeRefugada,
-    0
-  )
+function formatarData(dataHora: string) {
+  const data = new Date(dataHora)
 
+  if (Number.isNaN(data.getTime())) {
+    return escapeHtml(dataHora)
+  }
+
+  return data.toLocaleDateString("pt-BR")
+}
+
+function preencherLinhas(itens: RefugoPrintItem[]) {
+  const linhas = [...itens]
+
+  while (linhas.length < 20) {
+    linhas.push({
+      componenteCodigo: "",
+      componenteNome: "",
+      defeitoCodigo: "",
+      defeitoDescricao: "",
+      quantidadeRefugada: 0
+    })
+  }
+
+  return linhas.slice(0, 20)
+}
+
+export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
+  const itens = preencherLinhas(refugo.itens)
   const cancelado = refugo.status === "CANCELADO"
 
   return `
@@ -51,7 +73,7 @@ export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
 <style>
   @page {
     size: A6 portrait;
-    margin: 5mm;
+    margin: 2.5mm;
   }
 
   * {
@@ -60,213 +82,282 @@ export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
 
   body {
     margin: 0;
+    padding: 0;
+    background: #fff;
+    color: #000;
     font-family: Arial, Helvetica, sans-serif;
-    color: #111;
-    font-size: 9px;
+    font-size: 6.2px;
   }
 
   .ficha {
     width: 100%;
-    border: 1px solid #111;
-    padding: 5px;
-    position: relative;
-  }
-
-  .marca-cancelado {
-    display: ${cancelado ? "block" : "none"};
-    position: absolute;
-    top: 45%;
-    left: 8%;
-    transform: rotate(-25deg);
-    font-size: 32px;
-    font-weight: 900;
-    color: rgba(180, 0, 0, 0.18);
-    border: 3px solid rgba(180, 0, 0, 0.18);
-    padding: 8px 18px;
-  }
-
-  .topo {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    border-bottom: 1px solid #111;
-    padding-bottom: 4px;
-    margin-bottom: 4px;
-  }
-
-  .titulo {
-    text-align: center;
-    font-size: 13px;
-    font-weight: bold;
-  }
-
-  .numero {
-    font-size: 10px;
-    font-weight: bold;
-    text-align: right;
-  }
-
-  .linha {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3px;
-    margin-bottom: 3px;
-  }
-
-  .campo {
-    border: 1px solid #555;
-    padding: 2px 3px;
-    min-height: 18px;
-  }
-
-  .label {
-    font-size: 7px;
-    font-weight: bold;
-    color: #333;
-  }
-
-  .valor {
-    font-size: 9px;
-    font-weight: bold;
-    margin-top: 1px;
-  }
-
-  .status {
-    color: ${cancelado ? "#b00000" : "#008000"};
+    height: auto;
+    border: 0.1px solid #000;
+    overflow: hidden;
   }
 
   table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 4px;
+    table-layout: fixed;
   }
 
-  th,
-  td {
-    border: 1px solid #333;
-    padding: 2px;
-    vertical-align: top;
-  }
-
+  td,
   th {
-    background: #eee;
-    font-size: 8px;
+    border: 0.55px solid #000;
+    padding: 0.6px 1.3px;
+    vertical-align: middle;
+    overflow: hidden;
+    white-space: nowrap;
   }
 
-  td {
-    font-size: 8px;
+  .topo td {
+    height: 4mm;
   }
 
-  .obs {
-    margin-top: 4px;
-    border: 1px solid #333;
-    min-height: 32px;
-    padding: 3px;
-  }
-
-  .assinaturas {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 4px;
-    margin-top: 12px;
-  }
-
-  .assinatura {
+  .marca {
+    width: 23mm;
+    font-size: 7.5px;
+    font-weight: bold;
     text-align: center;
-    font-size: 7px;
   }
 
-  .linha-assinatura {
-    border-top: 1px solid #111;
-    margin-bottom: 2px;
+  .titulo {
+    width: 57mm;
+    text-align: center;
+    font-size: 8.5px;
+    font-weight: 900;
+    letter-spacing: 0.1px;
   }
 
-  .rodape {
-    margin-top: 5px;
+  .id {
+    width: 20mm;
     text-align: center;
     font-size: 7px;
     font-weight: bold;
+  }
+
+  .id-numero {
+    border-top: 0.55px solid #000;
+    margin: 1px -1.3px -0.6px;
+    padding-top: 1px;
+    font-size: 7px;
+  }
+
+  .info td {
+    height: 4mm;
+    font-size: 6.4px;
+  }
+
+  .label {
+    font-weight: 900;
+    margin-right: 2px;
+  }
+
+  .valor {
+    font-weight: 700;
+  }
+
+  .ctf-produzido {
+    font-size: 6.5px;
+    font-weight: 900;
+    text-align: center;
+  }
+
+  .tabela-defeitos th {
+    height: 4mm;
+    background: #e9e9e9;
+    font-size: 6.4px;
+    font-weight: 900;
+    text-align: left;
+  }
+
+  .tabela-defeitos td {
+    height: 4mm;
+    font-size: 5px;
+  }
+
+  .col-ctf {
+    width: 34%;
+  }
+
+  .col-defeito {
+    width: 46%;
+  }
+
+  .col-qtd {
+    width: 20%;
+    text-align: center;
+  }
+
+  .qtd {
+    text-align: center;
+    font-weight: 700;
+  }
+
+  .rodape-area {
+    margin-top: 2px;
+    height: auto;
+  }
+
+  .instrucoes {
+    width: 41%;
+    height: 37mm;
+    vertical-align: top;
+    white-space: normal;
+    font-size: 4.8px;
+    line-height: 1.17;
+    padding: 1.5px 2px;
+  }
+
+  .justificativa-area {
+    width: 59%;
+    height: 37mm;
+    padding: 0;
+    vertical-align: top;
+  }
+
+  .just-title {
+    height: 4.5mm;
+    border-bottom: 0.55px solid #000;
+    text-align: center;
+    font-size: 6.8px;
+    font-weight: normal;
+    padding-top: 1px;
+  }
+
+  .just-box {
+    height: 15.5mm;
+    border-bottom: 0.55px solid #000;
+    white-space: normal;
+    padding: 1px 2px;
+    font-size: 5.8px;
+  }
+
+  .assinaturas {
+    height: 17mm;
+    padding: 0 4px;
+  }
+
+  .assinaturas-grid {
+    width: 100%;
+    height: 100%;
+    border-collapse: separate;
+    border-spacing: 4px 3px;
+  }
+
+  .assinaturas-grid td {
+    border: none;
+    text-align: center;
+    vertical-align: bottom;
+    font-size: 4.9px;
+    height: 7mm;
+    padding: 0;
+  }
+
+  .linha-ass {
+    border-top: 0.55px solid #000;
+    height: 1px;
+    margin-bottom: 1.2px;
+  }
+
+  .cancelado {
+    display: ${cancelado ? "block" : "none"};
+    position: absolute;
+    top: 58mm;
+    left: 14mm;
+    transform: rotate(-22deg);
+    font-size: 19px;
+    font-weight: 900;
+    color: rgba(150, 0, 0, 0.18);
+    border: 1.5px solid rgba(150, 0, 0, 0.18);
+    padding: 3px 10px;
   }
 </style>
 </head>
 
 <body>
   <div class="ficha">
-    <div class="marca-cancelado">CANCELADO</div>
+    <div class="cancelado">CANCELADO</div>
 
-    <div class="topo">
-      <div class="titulo">FICHA DE REFUGO</div>
-      <div class="numero">${escapeHtml(refugo.numeroRefugo)}</div>
-    </div>
+    <table class="topo">
+      <tr>
+        <td class="marca">FactoryFlow</td>
+        <td class="titulo">FICHA DE DEFEITOS ${escapeHtml(refugo.setorNome).toUpperCase()}</td>
+        <td class="id">
+          ID
+          <div class="id-numero">${escapeHtml(refugo.numeroRefugo)}</div>
+        </td>
+      </tr>
+    </table>
 
-    <div class="linha">
-      <div class="campo">
-        <div class="label">Data / Hora</div>
-        <div class="valor">${escapeHtml(refugo.dataHora)}</div>
-      </div>
+    <table class="info">
+      <tr>
+        <td style="width: 33%;">
+          <span class="label">Data:</span>
+          <span class="valor">${formatarData(refugo.dataHora)}</span>
+        </td>
 
-      <div class="campo">
-        <div class="label">Turno / Matrícula</div>
-        <div class="valor">${escapeHtml(refugo.turno)} / ${escapeHtml(refugo.matriculaOperador)}</div>
-      </div>
-    </div>
+        <td style="width: 34%;">
+          <span class="label">Matrícula:</span>
+          <span class="valor">${escapeHtml(refugo.matriculaOperador)}</span>
+        </td>
 
-    <div class="linha">
-      <div class="campo">
-        <div class="label">Setor / Subsetor</div>
-        <div class="valor">${escapeHtml(refugo.setorNome)} / ${escapeHtml(refugo.subsetorNome)}</div>
-      </div>
+        <td style="width: 33%;">
+          <span class="label">Turno:</span>
+          <span class="valor">${escapeHtml(refugo.turno)}</span>
+        </td>
+      </tr>
 
-      <div class="campo">
-        <div class="label">Posto</div>
-        <div class="valor">${escapeHtml(refugo.postoNome)}</div>
-      </div>
-    </div>
+      <tr>
+        <td style="width: 33%;">
+          <span class="label">Setor:</span>
+          <span class="valor">${escapeHtml(refugo.subsetorNome || refugo.setorNome)}</span>
+        </td>
 
-    <div class="campo">
-      <div class="label">Circuito</div>
-      <div class="valor">${escapeHtml(refugo.circuitoCodigo)} - ${escapeHtml(refugo.circuitoNome)}</div>
-    </div>
+        <td colspan="2">
+          <span class="label">Posto de trabalho:</span>
+          <span class="valor">${escapeHtml(refugo.postoNome)}</span>
+        </td>
+      </tr>
 
-    <div class="linha" style="margin-top: 3px;">
-      <div class="campo">
-        <div class="label">Quantidade Produzida</div>
-        <div class="valor">${escapeHtml(refugo.quantidadeProduzida)}</div>
-      </div>
+      <tr>
+        <td colspan="2">
+          <span class="label">CTF Produzido:</span>
+          <span class="ctf-produzido">${escapeHtml(refugo.circuitoCodigo)} - ${escapeHtml(refugo.circuitoNome)}</span>
+        </td>
 
-      <div class="campo">
-        <div class="label">Quantidade Refugada</div>
-        <div class="valor">${escapeHtml(totalRefugado)}</div>
-      </div>
-    </div>
+        <td>
+          <span class="label">Qtd. Produzido:</span>
+          <span class="valor">${escapeHtml(refugo.quantidadeProduzida)}</span>
+        </td>
+      </tr>
+    </table>
 
-    <div class="campo">
-      <div class="label">Status</div>
-      <div class="valor status">${escapeHtml(refugo.status)}</div>
-    </div>
-
-    <table>
+    <table class="tabela-defeitos">
       <thead>
         <tr>
-          <th>Componente</th>
-          <th>Defeito</th>
-          <th>Qtde</th>
+          <th class="col-ctf">CTF</th>
+          <th class="col-defeito">Defeito</th>
+          <th class="col-qtd">Quantidade</th>
         </tr>
       </thead>
 
       <tbody>
-        ${refugo.itens
+        ${itens
           .map(
             (item) => `
               <tr>
-                <td>
-                  <strong>${escapeHtml(item.componenteCodigo)}</strong><br />
-                  ${escapeHtml(item.componenteNome)}
+                <td class="col-ctf">${escapeHtml(item.componenteCodigo)}</td>
+                <td class="col-defeito">
+                  ${
+                    item.defeitoCodigo || item.defeitoDescricao
+                      ? `${escapeHtml(item.defeitoCodigo)} - ${escapeHtml(item.defeitoDescricao)}`
+                      : ""
+                  }
                 </td>
-                <td>
-                  ${escapeHtml(item.defeitoCodigo)} - ${escapeHtml(item.defeitoDescricao)}
-                </td>
-                <td style="text-align:center; font-weight:bold;">
-                  ${escapeHtml(item.quantidadeRefugada)}
+                <td class="col-qtd qtd">
+                  ${item.quantidadeRefugada > 0 ? escapeHtml(item.quantidadeRefugada) : ""}
                 </td>
               </tr>
             `
@@ -275,31 +366,62 @@ export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
       </tbody>
     </table>
 
-    <div class="obs">
-      <div class="label">Observação / Justificativa</div>
-      ${escapeHtml(cancelado ? refugo.motivoCancelamento : refugo.observacao)}
-    </div>
+    <table class="rodape-area">
+      <tr>
+        <td class="instrucoes">
+          * <strong>Líder de Linha</strong> deve conferir durante o processo:<br />
+          &nbsp;&nbsp;* Quantidade de peças refugadas indicada na ficha é a mesma que no físico?<br />
+          &nbsp;&nbsp;* Defeito indicado na ficha de refugo está correto?<br />
+          &nbsp;&nbsp;* Para casos de mais de 20 peças preencher campo Justificativa/Causa<br />
+          * <strong>Técnico de Produção</strong> deve conferir durante a mesa em conjunto com QA se a peça realmente é refugo e se a ficha esta preenchida corretamente<br />
+          * <strong>Coordenador</strong> da área deverá assinar quando:<br />
+          &nbsp;&nbsp;* Refugo da Pré fabricados for maior que 20 peças;<br />
+          &nbsp;&nbsp;* Circuitos acabados for maior que 5 peças;<br />
+          * <strong>Qualidade</strong> irá conferir todos se todos os campos acima estão corretos e realmente se a peça refugado deve ser sucateada
+        </td>
 
-    <div class="assinaturas">
-      <div class="assinatura">
-        <div class="linha-assinatura"></div>
-        Operador
-      </div>
+        <td class="justificativa-area">
+          <div class="just-title">Justificativa/Causa:</div>
 
-      <div class="assinatura">
-        <div class="linha-assinatura"></div>
-        Líder
-      </div>
+          <div class="just-box">
+            ${escapeHtml(cancelado ? refugo.motivoCancelamento : refugo.observacao)}
+          </div>
 
-      <div class="assinatura">
-        <div class="linha-assinatura"></div>
-        Técnico
-      </div>
-    </div>
+          <div class="assinaturas">
+            <table class="assinaturas-grid">
+              <tr>
+                <td>
+                  <div class="linha-ass"></div>
+                  Operador do Posto
+                </td>
 
-    <div class="rodape">
-      ${escapeHtml(refugo.numeroRefugo)} - FactoryFlow
-    </div>
+                <td>
+                  <div class="linha-ass"></div>
+                  Líder de Linha
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  <div class="linha-ass"></div>
+                  Técnico de Produção
+                </td>
+
+                <td>
+                  <div class="linha-ass"></div>
+                  Coordenador de Produção
+                </td>
+
+                <td>
+                  <div class="linha-ass"></div>
+                  Qualidade
+                </td>
+              </tr>
+            </table>
+          </div>
+        </td>
+      </tr>
+    </table>
   </div>
 </body>
 </html>

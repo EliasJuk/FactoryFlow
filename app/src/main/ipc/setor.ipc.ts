@@ -26,4 +26,16 @@ export function registerSetorIpc() {
   ipcMain.handle("setores:contar-subsetores-ativos", async (_, id: number) => {
     return await setorService.contarSubsetoresAtivos(id)
   })
+
+  ipcMain.handle("setores:listar-inativos", async () => {
+    return await setorService.listarInativos()
+  })
+
+  ipcMain.handle("setores:restaurar", async (_, id: number) => {
+    return await setorService.restaurar(id)
+  })
+
+  ipcMain.handle("setores:excluir-permanente", async (_, id: number) => {
+    return await setorService.excluirPermanente(id)
+  })
 }

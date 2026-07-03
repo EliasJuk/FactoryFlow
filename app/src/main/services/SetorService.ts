@@ -22,4 +22,16 @@ export class SetorService {
   async contarSubsetoresAtivos(id: number) {
     return await this.repository.contarSubsetoresAtivos(id)
   }
+
+  async listarInativos() {
+    return await this.repository.listarInativos()
+  }
+
+  async restaurar(id: number) {
+    return await this.repository.restaurar(id)
+  }
+
+  async excluirPermanente(id: number) {
+    return await this.repository.excluirPermanente(id)
+  }
 }

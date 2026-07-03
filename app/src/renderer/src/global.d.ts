@@ -181,6 +181,9 @@ declare global {
         editar: (id: number, nome: string, sigla: string) => Promise<void>
         excluir: (id: number) => Promise<void>
         contarSubsetoresAtivos: (id: number) => Promise<number>
+        listarInativos: () => Promise<SetorApi[]>
+        restaurar: (id: number) => Promise<void>
+        excluirPermanente: (id: number) => Promise<void>
       },
 
       subsetores: {

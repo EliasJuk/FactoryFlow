@@ -50,6 +50,15 @@ contextBridge.exposeInMainWorld("api", {
 
     contarSubsetoresAtivos: (id: number) =>
       ipcRenderer.invoke("setores:contar-subsetores-ativos", id),
+
+    listarInativos: () =>
+      ipcRenderer.invoke("setores:listar-inativos"),
+
+    restaurar: (id: number) =>
+      ipcRenderer.invoke("setores:restaurar", id),
+
+    excluirPermanente: (id: number) =>
+      ipcRenderer.invoke("setores:excluir-permanente", id),
   },
 
   subsetores: {

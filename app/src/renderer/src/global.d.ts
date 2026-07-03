@@ -162,11 +162,19 @@ type ComponenteApi = {
   ativo: boolean
 }
 
-
-
 declare global {
   interface Window {
     api: {
+      app: {
+        isReady: () => Promise<boolean>
+        onStartupProgress: (
+          callback: (data: { message: string; progress: number }) => void
+        ) => void
+        onReady: (callback: () => void) => void
+        onStartupError: (
+          callback: (data: { message: string }) => void
+        ) => void
+      },
       setores: {
         listar: () => Promise<SetorApi[]>
         criar: (nome: string, sigla: string) => Promise<void>

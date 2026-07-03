@@ -18,6 +18,24 @@ type RefugoInput = {
 }
 
 contextBridge.exposeInMainWorld("api", {
+  app: {
+    isReady: () => ipcRenderer.invoke('app:is-ready'),
+
+    onStartupProgress: (
+      callback: (data: { message: string; progress: number }) => void
+    ) => {
+      ipcRenderer.on('app:startup-progress', (_, data) => callback(data))
+    },
+
+    onReady: (callback: () => void) => {
+      ipcRenderer.on('app:ready', () => callback())
+    },
+
+    onStartupError: (callback: (data: { message: string }) => void) => {
+      ipcRenderer.on('app:startup-error', (_, data) => callback(data))
+    }
+  },
+
   setores: {
     listar: () => ipcRenderer.invoke("setores:listar"),
 

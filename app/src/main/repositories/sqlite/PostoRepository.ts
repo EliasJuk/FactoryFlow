@@ -120,4 +120,55 @@ export class PostoRepository {
       WHERE id = ?
     `).run(id)
   }
+
+  listarInativos(): Posto[] {
+    const postos = db.prepare(`
+      SELECT
+        postos.id,
+        postos.nome,
+        postos.subsetor_id as subsetorId,
+        subsetores.nome as subsetorNome,
+        setores.nome as setorNome,
+        postos.ativo
+      FROM postos
+      INNER JOIN subsetores ON subsetores.id = postos.subsetor_id
+      INNER JOIN setores ON setores.id = subsetores.setor_id
+      WHERE postos.ativo = 0
+      ORDER BY setores.nome, subsetores.nome, postos.nome
+    `).all() as Array<{
+      id: number
+      nome: string
+      subsetorId: number
+      subsetorNome: string
+      setorNome: string
+      ativo: number
+    }>
+
+    return postos.map((posto) => ({
+      ...posto,
+      ativo: Boolean(posto.ativo)
+    }))
+  }
+
+  restaurar(id: number): void {
+    db.prepare(`
+      UPDATE postos
+      SET ativo = 1
+      WHERE id = ?
+    `).run(id)
+  }
+
+  excluirPermanente(id: number): void {
+    const total = this.contarRoteirosAtivos(id)
+
+    if (total > 0) {
+      throw new Error("POSTO_COM_VINCULOS")
+    }
+
+    db.prepare(`
+      DELETE FROM postos
+      WHERE id = ?
+        AND ativo = 0
+    `).run(id)
+  }
 }

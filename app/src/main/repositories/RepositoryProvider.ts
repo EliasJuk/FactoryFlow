@@ -6,6 +6,9 @@ import { SetorRepository as PostgresSetorRepository } from "./postgres/SetorRepo
 import { SubsetorRepository as SqliteSubsetorRepository } from "./sqlite/SubsetorRepository"
 import { SubsetorRepository as PostgresSubsetorRepository } from "./postgres/SubsetorRepository"
 
+import { PostoRepository as SqlitePostoRepository } from "./sqlite/PostoRepository"
+import { PostoRepository as PostgresPostoRepository } from "./postgres/PostoRepository"
+
 const configuracao = new ConfiguracaoService()
 
 export class RepositoryProvider {
@@ -27,5 +30,13 @@ export class RepositoryProvider {
     }
 
     return new SqliteSubsetorRepository()
+  }
+
+  static get postos() {
+    if (this.provider === "postgres") {
+      return new PostgresPostoRepository()
+    }
+
+    return new SqlitePostoRepository()
   }
 }

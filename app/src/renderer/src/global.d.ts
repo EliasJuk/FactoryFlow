@@ -242,10 +242,26 @@ declare global {
 
       postos: {
         listar: () => Promise<PostoApi[]>
-        criar: (nome: string, subsetorId: number) => Promise<void>
-        editar: (id: number, nome: string, subsetorId: number) => Promise<void>
+
+        criar: (
+          nome: string,
+          subsetorId: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
+
+        editar: (
+          id: number,
+          nome: string,
+          subsetorId: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
+
         contarRoteirosAtivos: (id: number) => Promise<number>
-        excluir: (id: number) => Promise<void>
+        excluir: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+        listarInativos: () => Promise<PostoApi[]>
+        restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+        
+        excluirPermanente: (
+          id: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
       },
 
       defeitos: {

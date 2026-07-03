@@ -105,4 +105,48 @@ export class PostoRepository {
       WHERE id = $1
     `, [id])
   }
+
+  async listarInativos(): Promise<Posto[]> {
+    const result = await pool.query<any>(`
+      SELECT
+        postos.id,
+        postos.nome,
+        postos.subsetor_id as "subsetorId",
+        subsetores.nome as "subsetorNome",
+        setores.nome as "setorNome",
+        postos.ativo
+      FROM postos
+      INNER JOIN subsetores ON subsetores.id = postos.subsetor_id
+      INNER JOIN setores ON setores.id = subsetores.setor_id
+      WHERE postos.ativo = false
+      ORDER BY setores.nome, subsetores.nome, postos.nome
+    `)
+
+    return result.rows.map((posto) => ({
+      ...posto,
+      ativo: Boolean(posto.ativo)
+    }))
+  }
+
+  async restaurar(id: number): Promise<void> {
+    await pool.query(`
+      UPDATE postos
+      SET ativo = true
+      WHERE id = $1
+    `, [id])
+  }
+
+  async excluirPermanente(id: number): Promise<void> {
+    const total = await this.contarRoteirosAtivos(id)
+
+    if (total > 0) {
+      throw new Error("POSTO_COM_VINCULOS")
+    }
+
+    await pool.query(`
+      DELETE FROM postos
+      WHERE id = $1
+        AND ativo = false
+    `, [id])
+  }
 }

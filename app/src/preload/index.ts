@@ -133,7 +133,14 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.invoke("postos:contar-roteiros-ativos", id),
 
     excluir: (id: number) =>
-      ipcRenderer.invoke("postos:excluir", id)
+      ipcRenderer.invoke("postos:excluir", id),
+
+    listarInativos: () => ipcRenderer.invoke("postos:listar-inativos"),
+
+    restaurar: (id: number) => ipcRenderer.invoke("postos:restaurar", id),
+
+    excluirPermanente: (id: number) =>
+      ipcRenderer.invoke("postos:excluir-permanente", id),
   },
 
   defeitos: {

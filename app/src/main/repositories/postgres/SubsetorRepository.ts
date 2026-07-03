@@ -54,19 +54,14 @@ export class SubsetorRepository {
       [nomeFormatado, setorId]
     )
 
-    if (existente.rows.length > 0) {
-      await pool.query(
-        `
-          UPDATE subsetores
-          SET nome = $1,
-              setor_id = $2,
-              ativo = true
-          WHERE id = $3
-        `,
-        [nomeFormatado, setorId, existente.rows[0].id]
-      )
+    if (existente.rows[0]?.ativo) {
+      throw new Error("Já existe um subsetor ativo com este nome neste setor.")
+    }
 
-      return
+    if (existente.rows[0] && !existente.rows[0].ativo) {
+      throw new Error(
+        "Já existe um subsetor inativo com este nome neste setor. Restaure o subsetor em vez de criar outro."
+      )
     }
     
     await pool.query(

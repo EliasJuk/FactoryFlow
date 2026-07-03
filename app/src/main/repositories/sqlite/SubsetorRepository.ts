@@ -51,14 +51,14 @@ export class SubsetorRepository {
       `)
       .get(nomeFormatado, setorId) as { id: number; ativo: number } | undefined
 
-    if (existente) {
-      db.prepare(`
-        UPDATE subsetores
-        SET nome = ?, setor_id = ?, ativo = 1
-        WHERE id = ?
-      `).run(nomeFormatado, setorId, existente.id)
+    if (existente?.ativo) {
+      throw new Error("Já existe um subsetor ativo com este nome neste setor.")
+    }
 
-      return
+    if (existente && !existente.ativo) {
+      throw new Error(
+        "Já existe um subsetor inativo com este nome neste setor. Restaure o subsetor em vez de criar outro."
+      )
     }
 
     db.prepare(`

@@ -68,7 +68,7 @@ export class SubsetorRepository {
 
       return
     }
-
+    
     await pool.query(
       `
         INSERT INTO subsetores (nome, setor_id, ativo)
@@ -118,6 +118,65 @@ export class SubsetorRepository {
         UPDATE subsetores
         SET ativo = false
         WHERE id = $1
+      `,
+      [id]
+    )
+  }
+
+  async listarInativos(): Promise<Subsetor[]> {
+    const resultado = await pool.query<{
+      id: number
+      nome: string
+      setorid: number
+      setornome: string
+      ativo: boolean
+    }>(`
+      SELECT 
+        subsetores.id,
+        subsetores.nome,
+        subsetores.setor_id AS "setorid",
+        setores.nome AS "setornome",
+        subsetores.ativo
+      FROM subsetores
+      INNER JOIN setores ON setores.id = subsetores.setor_id
+      WHERE subsetores.ativo = false
+      ORDER BY setores.nome, subsetores.nome
+    `)
+
+    return resultado.rows.map((subsetor) => ({
+      id: subsetor.id,
+      nome: subsetor.nome,
+      setorId: subsetor.setorid,
+      setorNome: subsetor.setornome,
+      ativo: Boolean(subsetor.ativo)
+    }))
+  }
+
+  async restaurar(id: number): Promise<void> {
+    await pool.query(
+      `
+        UPDATE subsetores
+        SET ativo = true
+        WHERE id = $1
+      `,
+      [id]
+    )
+  }
+
+  async excluirPermanente(id: number): Promise<void> {
+    const total = await this.contarPostosAtivos(id)
+
+    if (total > 0) {
+      throw new Error(
+        "Não é possível excluir permanentemente. Existem postos vinculados a este subsetor."
+      )
+    }
+
+    await pool.query(
+      `
+        DELETE FROM subsetores
+        WHERE id = $1
+          AND ativo = false
       `,
       [id]
     )

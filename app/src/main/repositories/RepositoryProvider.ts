@@ -3,6 +3,9 @@ import { ConfiguracaoService } from "../services/ConfiguracaoService"
 import { SetorRepository as SqliteSetorRepository } from "./sqlite/SetorRepository"
 import { SetorRepository as PostgresSetorRepository } from "./postgres/SetorRepository"
 
+import { SubsetorRepository as SqliteSubsetorRepository } from "./sqlite/SubsetorRepository"
+import { SubsetorRepository as PostgresSubsetorRepository } from "./postgres/SubsetorRepository"
+
 const configuracao = new ConfiguracaoService()
 
 export class RepositoryProvider {
@@ -11,19 +14,18 @@ export class RepositoryProvider {
   }
 
   static get setores() {
-    console.log("====================================")
-    console.log("RepositoryProvider")
-    console.log("Provider:", this.provider)
-
     if (this.provider === "postgres") {
-      console.log("Usando PostgreSQL")
-      console.log("====================================")
       return new PostgresSetorRepository()
     }
 
-    console.log("Usando SQLite")
-    console.log("====================================")
-
     return new SqliteSetorRepository()
+  }
+
+  static get subsetores() {
+    if (this.provider === "postgres") {
+      return new PostgresSubsetorRepository()
+    }
+
+    return new SqliteSubsetorRepository()
   }
 }

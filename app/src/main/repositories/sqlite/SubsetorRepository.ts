@@ -103,4 +103,56 @@ export class SubsetorRepository {
       WHERE id = ?
     `).run(id)
   }
+
+  listarInativos(): Subsetor[] {
+    const subsetores = db
+      .prepare(`
+        SELECT 
+          subsetores.id,
+          subsetores.nome,
+          subsetores.setor_id as setorId,
+          setores.nome as setorNome,
+          subsetores.ativo
+        FROM subsetores
+        INNER JOIN setores ON setores.id = subsetores.setor_id
+        WHERE subsetores.ativo = 0
+        ORDER BY setores.nome, subsetores.nome
+      `)
+      .all() as Array<{
+        id: number
+        nome: string
+        setorId: number
+        setorNome: string
+        ativo: number
+      }>
+
+    return subsetores.map((subsetor) => ({
+      ...subsetor,
+      ativo: Boolean(subsetor.ativo)
+    }))
+  }
+
+  restaurar(id: number): void {
+    db.prepare(`
+      UPDATE subsetores
+      SET ativo = 1
+      WHERE id = ?
+    `).run(id)
+  }
+
+  excluirPermanente(id: number): void {
+    const total = this.contarPostosAtivos(id)
+
+    if (total > 0) {
+      throw new Error(
+        "Não é possível excluir permanentemente. Existem postos vinculados a este subsetor."
+      )
+    }
+
+    db.prepare(`
+      DELETE FROM subsetores
+      WHERE id = ?
+        AND ativo = 0
+    `).run(id)
+  }
 }

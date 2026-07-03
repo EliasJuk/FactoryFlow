@@ -74,7 +74,14 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.invoke("subsetores:contar-postos-ativos", id),
 
     excluir: (id: number) =>
-      ipcRenderer.invoke("subsetores:excluir", id)
+      ipcRenderer.invoke("subsetores:excluir", id),
+
+    listarInativos: () => ipcRenderer.invoke("subsetores:listar-inativos"),
+
+    restaurar: (id: number) => ipcRenderer.invoke("subsetores:restaurar", id),
+
+    excluirPermanente: (id: number) =>
+      ipcRenderer.invoke("subsetores:excluir-permanente", id),
   },
 
   componentes: {

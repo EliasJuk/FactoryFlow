@@ -50,7 +50,22 @@ export function registerSetorIpc() {
   )
 
   ipcMain.handle("setores:excluir", async (_, id: number) => {
-    return await setorService.excluir(id)
+    try {
+      await setorService.excluir(id)
+
+      return {
+        sucesso: true,
+        mensagem: "Setor inativado com sucesso."
+      }
+    } catch (error) {
+      return {
+        sucesso: false,
+        mensagem:
+          error instanceof Error
+            ? error.message
+            : "Erro ao inativar setor."
+      }
+    }
   })
 
   ipcMain.handle("setores:contar-subsetores-ativos", async (_, id: number) => {
@@ -62,10 +77,40 @@ export function registerSetorIpc() {
   })
 
   ipcMain.handle("setores:restaurar", async (_, id: number) => {
-    return await setorService.restaurar(id)
+    try {
+      await setorService.restaurar(id)
+
+      return {
+        sucesso: true,
+        mensagem: "Setor restaurado com sucesso."
+      }
+    } catch (error) {
+      return {
+        sucesso: false,
+        mensagem:
+          error instanceof Error
+            ? error.message
+            : "Erro ao restaurar setor."
+      }
+    }
   })
 
   ipcMain.handle("setores:excluir-permanente", async (_, id: number) => {
-    return await setorService.excluirPermanente(id)
+    try {
+      await setorService.excluirPermanente(id)
+
+      return {
+        sucesso: true,
+        mensagem: "Setor excluído permanentemente."
+      }
+    } catch (error) {
+      return {
+        sucesso: false,
+        mensagem:
+          error instanceof Error
+            ? error.message
+            : "Erro ao excluir setor permanentemente."
+      }
+    }
   })
 }

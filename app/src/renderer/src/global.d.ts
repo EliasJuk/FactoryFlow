@@ -177,6 +177,7 @@ declare global {
       },
       setores: {
         listar: () => Promise<SetorApi[]>
+        
         criar: (
           nome: string,
           sigla: string
@@ -193,11 +194,23 @@ declare global {
           sucesso: boolean
           mensagem: string
         }>
-        excluir: (id: number) => Promise<void>
+
+        excluir: (id: number) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
         contarSubsetoresAtivos: (id: number) => Promise<number>
+
         listarInativos: () => Promise<SetorApi[]>
-        restaurar: (id: number) => Promise<void>
-        excluirPermanente: (id: number) => Promise<void>
+
+        restaurar: (id: number) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
+        excluirPermanente: (id: number) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
       },
 
       subsetores: {

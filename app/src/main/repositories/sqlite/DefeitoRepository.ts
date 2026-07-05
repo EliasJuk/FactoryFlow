@@ -29,6 +29,27 @@ export class DefeitoRepository {
     }))
   }
 
+  listarInativos(): Defeito[] {
+    const defeitos = db
+      .prepare(`
+        SELECT id, codigo, descricao, ativo
+        FROM defeitos
+        WHERE ativo = 0
+        ORDER BY codigo
+      `)
+      .all() as Array<{
+        id: number
+        codigo: string
+        descricao: string
+        ativo: number
+      }>
+
+    return defeitos.map((defeito) => ({
+      ...defeito,
+      ativo: Boolean(defeito.ativo)
+    }))
+  }
+
   criar(codigo: string, descricao: string): void {
     const codigoFormatado = codigo.trim().toUpperCase()
     const descricaoFormatada = descricao.trim()
@@ -82,6 +103,22 @@ export class DefeitoRepository {
       UPDATE defeitos
       SET ativo = 0
       WHERE id = ?
+    `).run(id)
+  }
+
+  restaurar(id: number): void {
+    db.prepare(`
+      UPDATE defeitos
+      SET ativo = 1
+      WHERE id = ?
+    `).run(id)
+  }
+
+  excluirPermanente(id: number): void {
+    db.prepare(`
+      DELETE FROM defeitos
+      WHERE id = ?
+        AND ativo = 0
     `).run(id)
   }
 }

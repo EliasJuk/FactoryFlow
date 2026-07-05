@@ -145,11 +145,21 @@ contextBridge.exposeInMainWorld("api", {
 
   defeitos: {
     listar: () => ipcRenderer.invoke("defeitos:listar"),
+
+    listarInativos: () => ipcRenderer.invoke("defeitos:listar-inativos"),
+
     criar: (codigo: string, descricao: string) =>
       ipcRenderer.invoke("defeitos:criar", codigo, descricao),
+
     editar: (id: number, codigo: string, descricao: string) =>
       ipcRenderer.invoke("defeitos:editar", id, codigo, descricao),
-    excluir: (id: number) => ipcRenderer.invoke("defeitos:excluir", id)
+
+    excluir: (id: number) => ipcRenderer.invoke("defeitos:excluir", id),
+
+    restaurar: (id: number) => ipcRenderer.invoke("defeitos:restaurar", id),
+
+    excluirPermanente: (id: number) =>
+      ipcRenderer.invoke("defeitos:excluir-permanente", id)
   },
 
   refugos: {

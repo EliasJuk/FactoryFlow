@@ -22,6 +22,20 @@ export class DefeitoRepository {
     }))
   }
 
+  async listarInativos(): Promise<Defeito[]> {
+    const result = await pool.query<Defeito>(`
+      SELECT id, codigo, descricao, ativo
+      FROM defeitos
+      WHERE ativo = false
+      ORDER BY codigo
+    `)
+
+    return result.rows.map((defeito) => ({
+      ...defeito,
+      ativo: Boolean(defeito.ativo)
+    }))
+  }
+
   async criar(codigo: string, descricao: string): Promise<void> {
     const codigoFormatado = codigo.trim().toUpperCase()
     const descricaoFormatada = descricao.trim()
@@ -73,6 +87,22 @@ export class DefeitoRepository {
       UPDATE defeitos
       SET ativo = false
       WHERE id = $1
+    `, [id])
+  }
+
+  async restaurar(id: number): Promise<void> {
+    await pool.query(`
+      UPDATE defeitos
+      SET ativo = true
+      WHERE id = $1
+    `, [id])
+  }
+
+  async excluirPermanente(id: number): Promise<void> {
+    await pool.query(`
+      DELETE FROM defeitos
+      WHERE id = $1
+        AND ativo = false
     `, [id])
   }
 }

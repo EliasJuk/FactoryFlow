@@ -16,13 +16,15 @@ export class ComponenteRepository {
           c.id,
           c.codigo,
           c.nome,
-          COALESCE(cp.valor_unitario, 0) as precoAtual,
+          COALESCE((
+            SELECT cp.valor_unitario
+            FROM componentes_precos cp
+            WHERE cp.componente_id = c.id
+            ORDER BY cp.id DESC
+            LIMIT 1
+          ), 0) as precoAtual,
           c.ativo
         FROM componentes c
-        LEFT JOIN componentes_precos cp
-          ON cp.componente_id = c.id
-          AND cp.ativo = 1
-          AND cp.vigencia_fim IS NULL
         WHERE c.ativo = 1
         ORDER BY c.codigo
       `)
@@ -36,6 +38,41 @@ export class ComponenteRepository {
 
     return componentes.map((componente) => ({
       ...componente,
+      precoAtual: Number(componente.precoAtual ?? 0),
+      ativo: Boolean(componente.ativo)
+    }))
+  }
+
+  listarInativos(): Componente[] {
+    const componentes = db
+      .prepare(`
+        SELECT
+          c.id,
+          c.codigo,
+          c.nome,
+          COALESCE((
+            SELECT cp.valor_unitario
+            FROM componentes_precos cp
+            WHERE cp.componente_id = c.id
+            ORDER BY cp.id DESC
+            LIMIT 1
+          ), 0) as precoAtual,
+          c.ativo
+        FROM componentes c
+        WHERE c.ativo = 0
+        ORDER BY c.codigo
+      `)
+      .all() as Array<{
+        id: number
+        codigo: string
+        nome: string
+        precoAtual: number
+        ativo: number
+      }>
+
+    return componentes.map((componente) => ({
+      ...componente,
+      precoAtual: Number(componente.precoAtual ?? 0),
       ativo: Boolean(componente.ativo)
     }))
   }
@@ -108,6 +145,7 @@ export class ComponenteRepository {
         WHERE componente_id = ?
           AND ativo = 1
           AND vigencia_fim IS NULL
+        ORDER BY id DESC
         LIMIT 1
       `)
       .get(componenteId) as
@@ -155,37 +193,6 @@ export class ComponenteRepository {
     `).run(id)
   }
 
-  listarInativos(): Componente[] {
-    const componentes = db
-      .prepare(`
-        SELECT
-          c.id,
-          c.codigo,
-          c.nome,
-          COALESCE(cp.valor_unitario, 0) as precoAtual,
-          c.ativo
-        FROM componentes c
-        LEFT JOIN componentes_precos cp
-          ON cp.componente_id = c.id
-          AND cp.ativo = 1
-          AND cp.vigencia_fim IS NULL
-        WHERE c.ativo = 0
-        ORDER BY c.codigo
-      `)
-      .all() as Array<{
-        id: number
-        codigo: string
-        nome: string
-        precoAtual: number
-        ativo: number
-      }>
-
-    return componentes.map((componente) => ({
-      ...componente,
-      ativo: Boolean(componente.ativo)
-    }))
-  }
-
   restaurar(id: number): void {
     db.prepare(`
       UPDATE componentes
@@ -195,6 +202,18 @@ export class ComponenteRepository {
   }
 
   excluirPermanente(id: number): void {
+    const emUso = db
+      .prepare(`
+        SELECT COUNT(*) as total
+        FROM circuito_componentes
+        WHERE componente_id = ?
+      `)
+      .get(id) as { total: number } | undefined
+
+    if (Number(emUso?.total ?? 0) > 0) {
+      throw new Error("COMPONENTE_EM_USO")
+    }
+
     db.prepare(`
       DELETE FROM componentes_precos
       WHERE componente_id = ?

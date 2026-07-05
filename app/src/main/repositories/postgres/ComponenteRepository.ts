@@ -18,11 +18,41 @@ export class ComponenteRepository {
         COALESCE(cp.valor_unitario, 0) as "precoAtual",
         c.ativo
       FROM componentes c
-      LEFT JOIN componentes_precos cp
-        ON cp.componente_id = c.id
-       AND cp.ativo = true
-       AND cp.vigencia_fim IS NULL
+      LEFT JOIN LATERAL (
+        SELECT valor_unitario
+        FROM componentes_precos
+        WHERE componente_id = c.id
+        ORDER BY id DESC
+        LIMIT 1
+      ) cp ON true
       WHERE c.ativo = true
+      ORDER BY c.codigo
+    `)
+
+    return result.rows.map((componente) => ({
+      ...componente,
+      precoAtual: Number(componente.precoAtual ?? 0),
+      ativo: Boolean(componente.ativo)
+    }))
+  }
+
+  async listarInativos(): Promise<Componente[]> {
+    const result = await pool.query<any>(`
+      SELECT
+        c.id,
+        c.codigo,
+        c.nome,
+        COALESCE(cp.valor_unitario, 0) as "precoAtual",
+        c.ativo
+      FROM componentes c
+      LEFT JOIN LATERAL (
+        SELECT valor_unitario
+        FROM componentes_precos
+        WHERE componente_id = c.id
+        ORDER BY id DESC
+        LIMIT 1
+      ) cp ON true
+      WHERE c.ativo = false
       ORDER BY c.codigo
     `)
 
@@ -37,23 +67,29 @@ export class ComponenteRepository {
     const codigoFormatado = codigo.trim().toUpperCase()
     const nomeFormatado = nome.trim()
 
-    const duplicado = await pool.query<{ id: number }>(`
+    const duplicado = await pool.query<{ id: number }>(
+      `
       SELECT id
       FROM componentes
       WHERE codigo = $1
         AND ativo = true
       LIMIT 1
-    `, [codigoFormatado])
+    `,
+      [codigoFormatado]
+    )
 
     if (duplicado.rows[0]) {
       throw new Error("COMPONENTE_DUPLICADO")
     }
 
-    const result = await pool.query<{ id: number }>(`
+    const result = await pool.query<{ id: number }>(
+      `
       INSERT INTO componentes (codigo, nome, ativo)
       VALUES ($1, $2, true)
       RETURNING id
-    `, [codigoFormatado, nomeFormatado])
+    `,
+      [codigoFormatado, nomeFormatado]
+    )
 
     const componenteId = result.rows[0].id
 
@@ -62,36 +98,54 @@ export class ComponenteRepository {
     }
   }
 
-  async editar(id: number, codigo: string, nome: string, precoAtual = 0): Promise<void> {
+  async editar(
+    id: number,
+    codigo: string,
+    nome: string,
+    precoAtual = 0
+  ): Promise<void> {
     const codigoFormatado = codigo.trim().toUpperCase()
     const nomeFormatado = nome.trim()
 
-    const duplicado = await pool.query<{ id: number }>(`
+    const duplicado = await pool.query<{ id: number }>(
+      `
       SELECT id
       FROM componentes
       WHERE codigo = $1
         AND ativo = true
         AND id <> $2
       LIMIT 1
-    `, [codigoFormatado, id])
+    `,
+      [codigoFormatado, id]
+    )
 
     if (duplicado.rows[0]) {
       throw new Error("COMPONENTE_DUPLICADO")
     }
 
-    await pool.query(`
+    await pool.query(
+      `
       UPDATE componentes
       SET codigo = $1, nome = $2
       WHERE id = $3
-    `, [codigoFormatado, nomeFormatado, id])
+    `,
+      [codigoFormatado, nomeFormatado, id]
+    )
 
     await this.atualizarPreco(id, precoAtual)
   }
 
-  async atualizarPreco(componenteId: number, valorUnitario: number): Promise<void> {
+  async atualizarPreco(
+    componenteId: number,
+    valorUnitario: number
+  ): Promise<void> {
     const valor = Number(valorUnitario) || 0
 
-    const precoAtual = await pool.query<{ id: number; valorUnitario: number }>(`
+    const precoAtual = await pool.query<{
+      id: number
+      valorUnitario: number
+    }>(
+      `
       SELECT id, valor_unitario as "valorUnitario"
       FROM componentes_precos
       WHERE componente_id = $1
@@ -99,7 +153,9 @@ export class ComponenteRepository {
         AND vigencia_fim IS NULL
       ORDER BY id DESC
       LIMIT 1
-    `, [componenteId])
+    `,
+      [componenteId]
+    )
 
     const atual = precoAtual.rows[0]
 
@@ -108,17 +164,21 @@ export class ComponenteRepository {
     }
 
     if (atual) {
-      await pool.query(`
+      await pool.query(
+        `
         UPDATE componentes_precos
         SET
           ativo = false,
           vigencia_fim = CURRENT_DATE
         WHERE id = $1
-      `, [atual.id])
+      `,
+        [atual.id]
+      )
     }
 
     if (valor > 0) {
-      await pool.query(`
+      await pool.query(
+        `
         INSERT INTO componentes_precos (
           componente_id,
           valor_unitario,
@@ -126,60 +186,63 @@ export class ComponenteRepository {
           vigencia_fim,
           ativo
         ) VALUES ($1, $2, CURRENT_DATE, NULL, true)
-      `, [componenteId, valor])
+      `,
+        [componenteId, valor]
+      )
     }
   }
 
   async excluir(id: number): Promise<void> {
-    await pool.query(`
+    await pool.query(
+      `
       UPDATE componentes
       SET ativo = false
       WHERE id = $1
-    `, [id])
-  }
-
-  async listarInativos(): Promise<Componente[]> {
-    const result = await pool.query<any>(`
-      SELECT
-        c.id,
-        c.codigo,
-        c.nome,
-        COALESCE(cp.valor_unitario, 0) as "precoAtual",
-        c.ativo
-      FROM componentes c
-      LEFT JOIN componentes_precos cp
-        ON cp.componente_id = c.id
-      AND cp.ativo = true
-      AND cp.vigencia_fim IS NULL
-      WHERE c.ativo = false
-      ORDER BY c.codigo
-    `)
-
-    return result.rows.map((componente) => ({
-      ...componente,
-      precoAtual: Number(componente.precoAtual ?? 0),
-      ativo: Boolean(componente.ativo)
-    }))
+    `,
+      [id]
+    )
   }
 
   async restaurar(id: number): Promise<void> {
-    await pool.query(`
+    await pool.query(
+      `
       UPDATE componentes
       SET ativo = true
       WHERE id = $1
-    `, [id])
+    `,
+      [id]
+    )
   }
 
   async excluirPermanente(id: number): Promise<void> {
-    await pool.query(`
+    const emUso = await pool.query<{ total: string }>(
+      `
+      SELECT COUNT(*) as total
+      FROM circuito_componentes
+      WHERE componente_id = $1
+    `,
+      [id]
+    )
+
+    if (Number(emUso.rows[0]?.total ?? 0) > 0) {
+      throw new Error("COMPONENTE_EM_USO")
+    }
+
+    await pool.query(
+      `
       DELETE FROM componentes_precos
       WHERE componente_id = $1
-    `, [id])
+    `,
+      [id]
+    )
 
-    await pool.query(`
+    await pool.query(
+      `
       DELETE FROM componentes
       WHERE id = $1
         AND ativo = false
-    `, [id])
+    `,
+      [id]
+    )
   }
 }

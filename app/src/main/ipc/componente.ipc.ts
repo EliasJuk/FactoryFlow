@@ -14,6 +14,11 @@ function falha(error: unknown, mensagemPadrao: string) {
     mensagem = "Já existe um componente ativo com este código."
   }
 
+  if (mensagem.includes("COMPONENTE_EM_USO")) {
+    mensagem =
+      "Não é possível excluir permanentemente este componente, pois ele está vinculado a um ou mais circuitos."
+  }
+
   return { sucesso: false, mensagem }
 }
 

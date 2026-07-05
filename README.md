@@ -1,9 +1,45 @@
 # FactoryFlow
 
-<h2 align="center">Diagrama do Banco de Dados</h2>
-<p align="center">
-  <img src="docs/database/schema.svg" width="900" alt="Diagrama do Banco">
-</p>
+----
+
+
+### ✨ Principais Funcionalidades
+- Login de Usuários
+- Cadastro de Setores
+- Cadastro de Subsetores
+- Cadastro de Componentes
+- Cadastro de Circuitos
+- Cadastro de Postos
+- Cadastro de Defeitos
+- Cadastro de Usuários
+- Cadastro de Roteiros
+- Lançamento de Refugos
+- Impressão da Ficha de Refugo (A6)
+- Importação de dados CSV
+- Exportação de dados
+- Configuração do Banco de Dados
+
+---
+
+# 🖥️ Tecnologias Utilizadas
+
+- Linguagem
+  - JavaScript
+  - TypeScript
+- Front-end
+  - React
+  - CSS (tailwind)
+  - HTML
+- Desktop
+  - Electron
+  - Electron Vite
+- Banco de Dados
+  - SQLite
+  - PostgreSQL
+- Ferramentas
+  - Node.js
+  - npm
+  - Git
 
 ---
 
@@ -122,6 +158,11 @@
 - ⬛️ Modo offline com sincronização posterior.
 
 
+---
+<h2 align="center">Diagrama do Banco de Dados</h2>
+<p align="center">
+  <img src="docs/database/schema.svg" width="900" alt="Diagrama do Banco">
+</p>
 ---
 
 # TREE ARCHIVES
@@ -378,4 +419,25 @@ FactoryFlow/
 │                                                                                           │
 │ Guarda todos os dados do FactoryFlow.                                                     │
 └───────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+# 🚀 Como Executar
+
+```bash
+## clonar projeto
+git clone https://github.com/#/factoryflow.git
+
+## Instalar dependências
+npm install
+
+## Executar
+npm run dev
+
+## Build
+npm run build
+
+## Gerar Executável
+npm run dist
 ```

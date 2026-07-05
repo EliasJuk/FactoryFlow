@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react"
-import { Pencil, Plus, Search, Trash2, X } from "lucide-react"
+import { Pencil, Plus, Search } from "lucide-react"
 
 import PageHeader from "../../components/PageHeader/PageHeader"
 import { Circuito } from "../../models/Circuito"
-import { Componente } from "../../models/Componente"
 import { Posto } from "../../models/Posto"
 import { Setor } from "../../models/Setor"
 import { ui } from "../../theme/ui"
+
+import { RoteiroModal } from "./components/RoteiroModal"
 
 type Subsetor = {
   id: number
@@ -37,6 +38,16 @@ type RoteiroComponente = {
   ativo: boolean
 }
 
+type CircuitoComponente = {
+  id: number
+  circuitoId: number
+  componenteId: number
+  codigoComponente: string
+  nomeComponente: string
+  quantidade: number
+  ativo: boolean
+}
+
 type ModalModo = "novo" | "editar"
 
 function RoteiroPage() {
@@ -44,7 +55,6 @@ function RoteiroPage() {
   const [subsetores, setSubsetores] = useState<Subsetor[]>([])
   const [postos, setPostos] = useState<Posto[]>([])
   const [circuitos, setCircuitos] = useState<Circuito[]>([])
-  const [componentes, setComponentes] = useState<Componente[]>([])
 
   const [setorId, setSetorId] = useState<number | "">("")
   const [subsetorId, setSubsetorId] = useState<number | "">("")
@@ -62,31 +72,25 @@ function RoteiroPage() {
   const [modalCircuitoId, setModalCircuitoId] = useState<number | "">("")
   const [modalItens, setModalItens] = useState<RoteiroComponente[]>([])
 
-  const [buscaComponente, setBuscaComponente] = useState("")
-  const [componenteSelecionado, setComponenteSelecionado] =
-    useState<Componente | null>(null)
+  const [componentesDoCircuito, setComponentesDoCircuito] = useState<
+    CircuitoComponente[]
+  >([])
+  const [componenteId, setComponenteId] = useState<number | "">("")
   const [quantidade, setQuantidade] = useState(1)
 
   async function carregarDados() {
-    const [
-      setoresLista,
-      subsetoresLista,
-      postosLista,
-      circuitosLista,
-      componentesLista
-    ] = await Promise.all([
-      window.api.setores.listar(),
-      window.api.subsetores.listar(),
-      window.api.postos.listar(),
-      window.api.circuitos.listar(),
-      window.api.componentes.listar()
-    ])
+    const [setoresLista, subsetoresLista, postosLista, circuitosLista] =
+      await Promise.all([
+        window.api.setores.listar(),
+        window.api.subsetores.listar(),
+        window.api.postos.listar(),
+        window.api.circuitos.listar()
+      ])
 
     setSetores(setoresLista)
     setSubsetores(subsetoresLista)
     setPostos(postosLista)
     setCircuitos(circuitosLista)
-    setComponentes(componentesLista)
   }
 
   async function carregarCircuitosPorPosto() {
@@ -117,13 +121,27 @@ function RoteiroPage() {
     setItens(lista)
   }
 
-  async function carregarModalItens(circuitoId: number, postoSelecionadoId: number) {
+  async function carregarModalItens(
+    circuitoId: number,
+    postoSelecionadoId: number
+  ) {
     const lista = await window.api.roteiro.listarPorCircuitoEPosto(
       circuitoId,
       postoSelecionadoId
     )
 
     setModalItens(lista)
+  }
+
+  async function carregarComponentesDoCircuito(circuitoId: number) {
+    const lista = await window.api.circuitoComponentes.listarPorCircuito(
+      circuitoId
+    )
+
+    setComponentesDoCircuito(lista)
+    setComponenteId(lista[0]?.componenteId ?? "")
+
+    return lista
   }
 
   useEffect(() => {
@@ -143,21 +161,6 @@ function RoteiroPage() {
     if (subsetorId === "") return []
     return postos.filter((posto) => posto.subsetorId === Number(subsetorId))
   }, [postos, subsetorId])
-
-  const componentesFiltrados = useMemo(() => {
-    const termo = buscaComponente.trim().toLowerCase()
-
-    if (termo.length < 2) return []
-
-    return componentes
-      .filter((componente) => {
-        const codigo = componente.codigo.toLowerCase()
-        const nome = componente.nome.toLowerCase()
-
-        return codigo.includes(termo) || nome.includes(termo)
-      })
-      .slice(0, 12)
-  }, [componentes, buscaComponente])
 
   const postoSelecionado = postos.find((posto) => posto.id === postoId)
 
@@ -204,8 +207,8 @@ function RoteiroPage() {
     setModalModo("novo")
     setModalCircuitoId("")
     setModalItens([])
-    setBuscaComponente("")
-    setComponenteSelecionado(null)
+    setComponentesDoCircuito([])
+    setComponenteId("")
     setQuantidade(1)
     setModalAberto(true)
   }
@@ -215,35 +218,58 @@ function RoteiroPage() {
 
     setModalModo("editar")
     setModalCircuitoId(circuitoSelecionado.circuitoId)
-    setBuscaComponente("")
-    setComponenteSelecionado(null)
+    setComponenteId("")
     setQuantidade(1)
     setModalAberto(true)
 
-    await carregarModalItens(circuitoSelecionado.circuitoId, Number(postoId))
+    await Promise.all([
+      carregarModalItens(circuitoSelecionado.circuitoId, Number(postoId)),
+      carregarComponentesDoCircuito(circuitoSelecionado.circuitoId)
+    ])
   }
 
   function fecharModal() {
     setModalAberto(false)
     setModalCircuitoId("")
     setModalItens([])
-    setBuscaComponente("")
-    setComponenteSelecionado(null)
+    setComponentesDoCircuito([])
+    setComponenteId("")
     setQuantidade(1)
   }
 
+  async function alterarCircuitoModal(valor: string) {
+    const novoCircuitoId = valor === "" ? "" : Number(valor)
+
+    setModalCircuitoId(novoCircuitoId)
+    setModalItens([])
+    setComponentesDoCircuito([])
+    setComponenteId("")
+    setQuantidade(1)
+
+    if (novoCircuitoId !== "" && postoId !== "") {
+      await Promise.all([
+        carregarModalItens(Number(novoCircuitoId), Number(postoId)),
+        carregarComponentesDoCircuito(Number(novoCircuitoId))
+      ])
+    }
+  }
+
+  function alterarComponenteModal(valor: string) {
+    setComponenteId(valor === "" ? "" : Number(valor))
+  }
+
   async function adicionarComponenteNoModal() {
-    if (postoId === "" || modalCircuitoId === "" || !componenteSelecionado) return
+    if (postoId === "" || modalCircuitoId === "" || componenteId === "") return
+    if (quantidade < 1) return
 
     await window.api.roteiro.adicionar(
       Number(modalCircuitoId),
       Number(postoId),
-      componenteSelecionado.id,
+      Number(componenteId),
       quantidade
     )
 
-    setBuscaComponente("")
-    setComponenteSelecionado(null)
+    setComponenteId("")
     setQuantidade(1)
 
     await carregarModalItens(Number(modalCircuitoId), Number(postoId))
@@ -268,13 +294,15 @@ function RoteiroPage() {
   }
 
   async function salvarAlteracoesModal() {
-    fecharModal()
+    const circuitoIdAtual = modalCircuitoId
+    const totalItens = modalItens.length
 
+    fecharModal()
     await carregarCircuitosPorPosto()
 
-    if (postoId !== "" && modalCircuitoId !== "") {
+    if (postoId !== "" && circuitoIdAtual !== "") {
       const circuitoAtualizado = circuitos.find(
-        (circuito) => circuito.id === Number(modalCircuitoId)
+        (circuito) => circuito.id === Number(circuitoIdAtual)
       )
 
       if (circuitoAtualizado) {
@@ -285,11 +313,11 @@ function RoteiroPage() {
           postoId: Number(postoId),
           postoNome: postoSelecionado?.nome ?? "",
           subsetorNome: postoSelecionado?.subsetorNome ?? "",
-          totalComponentes: modalItens.length
+          totalComponentes: totalItens
         }
 
         setCircuitoSelecionado(resumo)
-        await carregarComponentesDoRoteiro(Number(modalCircuitoId), Number(postoId))
+        await carregarComponentesDoRoteiro(Number(circuitoIdAtual), Number(postoId))
       }
     }
   }
@@ -375,50 +403,36 @@ function RoteiroPage() {
             </div>
           </div>
         </div>
-        {/*
-        {postoId === "" && (
-          <div className={ui.card}>
-            <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
-              <h2 className={ui.title}>Selecione um posto de trabalho</h2>
-              <p className={ui.subtitle}>
-                Escolha setor, subsetor e posto para visualizar os circuitos e componentes do roteiro.
-              </p>
-            </div>
-          </div>
-        )}*/}
 
         {postoId === "" && (
           <div className={ui.card}>
             <div className="rounded-lg border border-amber-300 bg-amber-50 p-8">
-
               <div className="flex items-start gap-4">
-
-                <div className="text-3xl">
-                  💡
-                </div>
+                <div className="text-3xl">💡</div>
 
                 <div className="flex-1">
-
                   <h2 className="text-lg font-semibold text-amber-900">
                     Antes de montar um roteiro
                   </h2>
 
                   <p className="mt-3 text-sm leading-6 text-amber-800">
-                    Certifique-se de que <strong>todos os componentes</strong> do circuito
-                    já foram cadastrados no menu <strong>Circuitos</strong>.
+                    Certifique-se de que <strong>todos os componentes</strong>{" "}
+                    do circuito já foram cadastrados no menu{" "}
+                    <strong>Circuitos</strong>.
                   </p>
 
                   <p className="mt-3 text-sm leading-6 text-amber-800">
-                    Nesta tela você irá definir <strong>em quais postos de trabalho</strong>
-                    cada componente poderá ser utilizado ou refugado.
+                    Nesta tela você irá definir{" "}
+                    <strong>em quais postos de trabalho</strong> cada componente
+                    poderá ser utilizado ou refugado.
                   </p>
 
                   <div className="mt-5 rounded-md border border-amber-200 bg-white px-4 py-3">
                     <p className="text-sm text-amber-900">
-                      <strong>⚠ Observação:</strong> Caso um componente não apareça durante
-                      a criação ou edição do roteiro, volte ao cadastro de
-                      <strong> Circuitos</strong>, adicione o componente ao circuito e
-                      retorne para esta tela.
+                      <strong>⚠ Observação:</strong> Caso um componente não
+                      apareça durante a criação ou edição do roteiro, volte ao
+                      cadastro de <strong> Circuitos</strong>, adicione o
+                      componente ao circuito e retorne para esta tela.
                     </p>
                   </div>
 
@@ -431,11 +445,8 @@ function RoteiroPage() {
                     <li>Selecione um subsetor.</li>
                     <li>Selecione um posto de trabalho.</li>
                   </ul>
-
                 </div>
-
               </div>
-
             </div>
           </div>
         )}
@@ -550,190 +561,24 @@ function RoteiroPage() {
         )}
 
         {modalAberto && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-lg bg-white p-5 shadow-xl">
-              <div className="mb-4 flex items-start justify-between gap-4">
-                <div>
-                  <h2 className={ui.title}>
-                    {modalModo === "novo" ? "Novo Roteiro" : "Editar Roteiro"}
-                  </h2>
-
-                  <p className={ui.subtitle}>
-                    Posto: {postoSelecionado?.nome ?? "Posto selecionado"}
-                  </p>
-                </div>
-
-                <button onClick={fecharModal} className={ui.buttonSecondary}>
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-[1fr_1fr_120px_auto]">
-                <div>
-                  <label className={ui.label}>Circuito</label>
-                  <select
-                    value={modalCircuitoId}
-                    onChange={(event) => {
-                      const valor =
-                        event.target.value === "" ? "" : Number(event.target.value)
-
-                      setModalCircuitoId(valor)
-                      setModalItens([])
-
-                      if (valor !== "" && postoId !== "") {
-                        carregarModalItens(Number(valor), Number(postoId))
-                      }
-                    }}
-                    disabled={modalModo === "editar"}
-                    className={ui.select}
-                  >
-                    <option value="">Selecione...</option>
-
-                    {circuitos.map((circuito) => (
-                      <option key={circuito.id} value={circuito.id}>
-                        {circuito.codigo} - {circuito.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="relative">
-                  <label className={ui.label}>Buscar componente</label>
-                  <input
-                    value={
-                      componenteSelecionado
-                        ? `${componenteSelecionado.codigo} - ${componenteSelecionado.nome}`
-                        : buscaComponente
-                    }
-                    onChange={(event) => {
-                      setComponenteSelecionado(null)
-                      setBuscaComponente(event.target.value)
-                    }}
-                    placeholder="Digite código ou nome..."
-                    className={ui.input}
-                  />
-
-                  {!componenteSelecionado && componentesFiltrados.length > 0 && (
-                    <div className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-slate-300 bg-white shadow-lg">
-                      {componentesFiltrados.map((componente) => (
-                        <button
-                          key={componente.id}
-                          type="button"
-                          onClick={() => {
-                            setComponenteSelecionado(componente)
-                            setBuscaComponente("")
-                          }}
-                          className="block w-full px-3 py-2 text-left text-sm hover:bg-orange-50"
-                        >
-                          <span className="font-bold">{componente.codigo}</span>
-                          {" - "}
-                          {componente.nome}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className={ui.label}>Qtde</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={quantidade}
-                    onChange={(event) => setQuantidade(Number(event.target.value))}
-                    className={ui.input}
-                  />
-                </div>
-
-                <div className="flex items-end">
-                  <button
-                    onClick={adicionarComponenteNoModal}
-                    disabled={
-                      postoId === "" ||
-                      modalCircuitoId === "" ||
-                      !componenteSelecionado
-                    }
-                    className={ui.buttonPrimary}
-                  >
-                    Adicionar
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-5 overflow-hidden rounded-lg border border-slate-200">
-                <table className={ui.table}>
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className={ui.tableHeader}>Código</th>
-                      <th className={ui.tableHeader}>Componente</th>
-                      <th className={ui.tableHeader}>Qtde</th>
-                      <th className={ui.tableHeaderRight}>Ações</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {modalItens.map((item) => (
-                      <tr key={item.id} className="border-t">
-                        <td className={ui.tableCellStrong}>
-                          {item.codigoComponente}
-                        </td>
-
-                        <td className={ui.tableCell}>{item.nomeComponente}</td>
-
-                        <td className={ui.tableCell}>
-                          <input
-                            type="number"
-                            min={1}
-                            value={item.quantidade}
-                            onChange={(event) =>
-                              alterarQuantidadeModal(
-                                item.id,
-                                Number(event.target.value)
-                              )
-                            }
-                            className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
-                          />
-                        </td>
-
-                        <td className={ui.tableCell}>
-                          <div className="flex justify-end">
-                            <button
-                              onClick={() => removerComponenteModal(item.id)}
-                              className={ui.buttonDanger}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-
-                    {modalItens.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className={ui.empty}>
-                          Nenhum componente vinculado a este roteiro.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="mt-5 flex justify-end gap-3">
-                <button onClick={fecharModal} className={ui.buttonSecondary}>
-                  Cancelar
-                </button>
-
-                <button
-                  onClick={salvarAlteracoesModal}
-                  disabled={modalCircuitoId === ""}
-                  className={ui.buttonPrimary}
-                >
-                  Salvar alterações
-                </button>
-              </div>
-            </div>
-          </div>
+          <RoteiroModal
+            modalModo={modalModo}
+            postoNome={postoSelecionado?.nome ?? "Posto selecionado"}
+            circuitos={circuitos}
+            modalCircuitoId={modalCircuitoId}
+            componentesDoCircuito={componentesDoCircuito}
+            componenteId={componenteId}
+            quantidade={quantidade}
+            modalItens={modalItens}
+            onFechar={fecharModal}
+            onAlterarCircuito={alterarCircuitoModal}
+            onAlterarComponente={alterarComponenteModal}
+            onAlterarQuantidade={setQuantidade}
+            onAdicionar={adicionarComponenteNoModal}
+            onAlterarQuantidadeItem={alterarQuantidadeModal}
+            onRemoverItem={removerComponenteModal}
+            onSalvar={salvarAlteracoesModal}
+          />
         )}
       </section>
     </main>

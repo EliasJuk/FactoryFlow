@@ -1,5 +1,8 @@
 # FactoryFlow
 
+<h2 align="center">Diagrama do Banco de Dados</h2>
+[![Diagrama do Banco de Dados](docs/database/schema.svg)](docs/database/schema.svg)
+
 ```
 FactoryFlow/
 ├── database/                  # Banco de dados utilizado pela aplicação

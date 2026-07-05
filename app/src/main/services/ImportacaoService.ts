@@ -1,7 +1,6 @@
-import crypto from "crypto"
 import { dialog } from "electron"
 import { existsSync, readFileSync, writeFileSync } from "fs"
-import db from "../database/database"
+import { RepositoryFactory } from "../repositories/factory/RepositoryFactory"
 
 type TipoImportacao =
   | "setores"
@@ -83,36 +82,26 @@ function normalizar(valor: unknown) {
   return String(valor ?? "").trim()
 }
 
-function normalizarPreco(valor: unknown) {
-  const texto = normalizar(valor)
-    .replace(/\./g, "")
-    .replace(",", ".")
-
-  const preco = Number(texto || 0)
-
-  return Number.isFinite(preco) ? preco : 0
+function normalizarCodigo(valor: unknown) {
+  return normalizar(valor).toUpperCase()
 }
 
+function normalizarNumero(valor: unknown, padrao = 1) {
+  const numero = Number(normalizar(valor).replace(",", "."))
+  return Number.isFinite(numero) && numero > 0 ? numero : padrao
+}
 
-function gerarHashSenha(senha: string) {
-  const salt = crypto.randomBytes(16).toString("hex")
-  const hash = crypto
-    .pbkdf2Sync(senha, salt, 100000, 64, "sha512")
-    .toString("hex")
-
-  return `${salt}:${hash}`
+function normalizarPreco(valor: unknown) {
+  const texto = normalizar(valor).replace(/\./g, "").replace(",", ".")
+  const preco = Number(texto || 0)
+  return Number.isFinite(preco) ? preco : 0
 }
 
 function detectarSeparador(conteudo: string) {
   const primeiraLinha = conteudo.split(/\r?\n/)[0] ?? ""
 
-  if (primeiraLinha.includes(",") && !primeiraLinha.includes(";")) {
-    return ","
-  }
-
-  if (primeiraLinha.includes(";") && !primeiraLinha.includes(",")) {
-    return ";"
-  }
+  if (primeiraLinha.includes(",") && !primeiraLinha.includes(";")) return ","
+  if (primeiraLinha.includes(";") && !primeiraLinha.includes(",")) return ";"
 
   const virgulas = (primeiraLinha.match(/,/g) ?? []).length
   const pontosVirgula = (primeiraLinha.match(/;/g) ?? []).length
@@ -157,9 +146,6 @@ function dividirLinhaCsv(linha: string, separador: string) {
 function limparLinhaCsv(linha: string) {
   const texto = linha.trim()
 
-  // Corrige linhas geradas assim:
-  // "nome,sigla"
-  // "SETOR-1,ST-01"
   if (texto.startsWith('"') && texto.endsWith('"')) {
     return texto.slice(1, -1).replaceAll('""', '"')
   }
@@ -262,41 +248,48 @@ export class ImportacaoService {
 
     const registros = lerCsv(resultado.filePaths[0])
 
-    const transaction = db.transaction(() => {
-      switch (tipo) {
-        case "setores":
-          return this.importarSetores(registros)
+    let resumo: Omit<ResultadoImportacao, "sucesso" | "mensagem">
 
-        case "subsetores":
-          return this.importarSubsetores(registros)
+    switch (tipo) {
+      case "setores":
+        resumo = await this.importarSetores(registros)
+        break
 
-        case "postos":
-          return this.importarPostos(registros)
+      case "subsetores":
+        resumo = await this.importarSubsetores(registros)
+        break
 
-        case "componentes":
-          return this.importarComponentes(registros)
+      case "postos":
+        resumo = await this.importarPostos(registros)
+        break
 
-        case "circuitos":
-          return this.importarCircuitos(registros)
+      case "componentes":
+        resumo = await this.importarComponentes(registros)
+        break
 
-        case "defeitos":
-          return this.importarDefeitos(registros)
+      case "circuitos":
+        resumo = await this.importarCircuitos(registros)
+        break
 
-        case "usuarios":
-          return this.importarUsuarios(registros)
+      case "defeitos":
+        resumo = await this.importarDefeitos(registros)
+        break
 
-        case "circuitoComponentes":
-          return this.importarCircuitoComponentes(registros)
+      case "usuarios":
+        resumo = await this.importarUsuarios(registros)
+        break
 
-        case "roteiros":
-          return this.importarRoteiros(registros)
+      case "circuitoComponentes":
+        resumo = await this.importarCircuitoComponentes(registros)
+        break
 
-        default:
-          throw new Error("Tipo de importação inválido.")
-      }
-    })
+      case "roteiros":
+        resumo = await this.importarRoteiros(registros)
+        break
 
-    const resumo = transaction()
+      default:
+        throw new Error("Tipo de importação inválido.")
+    }
 
     return {
       sucesso: true,
@@ -305,151 +298,197 @@ export class ImportacaoService {
     }
   }
 
-  private importarSetores(registros: Record<string, string>[]) {
+  private async importarSetores(registros: Record<string, string>[]) {
+    const repository = RepositoryFactory.setores()
+
     let inseridos = 0
     let atualizados = 0
     let ignorados = 0
 
     for (const item of registros) {
       const nome = normalizar(item.nome)
-      const sigla = normalizar(item.sigla).toUpperCase()
+      const sigla = normalizarCodigo(item.sigla)
 
       if (!nome || !sigla) {
         ignorados++
         continue
       }
 
-      const existente = db
-        .prepare(`SELECT id FROM setores WHERE sigla = ?`)
-        .get(sigla) as { id: number } | undefined
+      const ativos = await repository.listar()
+      const inativos = await repository.listarInativos()
 
-      if (existente) {
-        db.prepare(`
-          UPDATE setores
-          SET nome = ?, ativo = 1
-          WHERE id = ?
-        `).run(nome, existente.id)
+      const ativo = ativos.find((setor) => setor.sigla === sigla)
+      const inativo = inativos.find((setor) => setor.sigla === sigla)
 
+      if (ativo) {
+        await repository.editar(ativo.id, nome, sigla)
         atualizados++
-      } else {
-        db.prepare(`
-          INSERT INTO setores (nome, sigla, ativo)
-          VALUES (?, ?, 1)
-        `).run(nome, sigla)
-
-        inseridos++
+        continue
       }
+
+      if (inativo) {
+        await repository.restaurar(inativo.id)
+        await repository.editar(inativo.id, nome, sigla)
+        atualizados++
+        continue
+      }
+
+      await repository.criar(nome, sigla)
+      inseridos++
     }
 
     return { inseridos, atualizados, ignorados }
   }
 
-  private importarSubsetores(registros: Record<string, string>[]) {
+  private async importarSubsetores(registros: Record<string, string>[]) {
+    const setoresRepository = RepositoryFactory.setores()
+    const subsetoresRepository = RepositoryFactory.subsetores()
+
     let inseridos = 0
     let atualizados = 0
     let ignorados = 0
 
     for (const item of registros) {
-      const setorSigla = normalizar(item.setor_sigla).toUpperCase()
+      const setorSigla = normalizarCodigo(item.setor_sigla)
       const nome = normalizar(item.nome)
 
-      const setor = db
-        .prepare(`SELECT id FROM setores WHERE sigla = ?`)
-        .get(setorSigla) as { id: number } | undefined
-
-      if (!setor || !nome) {
+      if (!setorSigla || !nome) {
         ignorados++
         continue
       }
 
-      const existente = db
-        .prepare(`
-          SELECT id FROM subsetores
-          WHERE nome = ? AND setor_id = ?
-        `)
-        .get(nome, setor.id) as { id: number } | undefined
+      const setores = [
+        ...(await setoresRepository.listar()),
+        ...(await setoresRepository.listarInativos())
+      ]
+
+      const setor = setores.find((item) => item.sigla === setorSigla)
+
+      if (!setor) {
+        ignorados++
+        continue
+      }
+
+      if (!setor.ativo) {
+        await setoresRepository.restaurar(setor.id)
+      }
+
+      const subsetores = [
+        ...(await subsetoresRepository.listar()),
+        ...(await subsetoresRepository.listarInativos())
+      ]
+
+      const existente = subsetores.find(
+        (subsetor) =>
+          subsetor.nome.trim().toLowerCase() === nome.toLowerCase() &&
+          subsetor.setorId === setor.id
+      )
 
       if (existente) {
-        db.prepare(`
-          UPDATE subsetores
-          SET ativo = 1
-          WHERE id = ?
-        `).run(existente.id)
+        if (!existente.ativo) {
+          await subsetoresRepository.restaurar(existente.id)
+        }
 
+        await subsetoresRepository.editar(existente.id, nome, setor.id)
         atualizados++
-      } else {
-        db.prepare(`
-          INSERT INTO subsetores (nome, setor_id, ativo)
-          VALUES (?, ?, 1)
-        `).run(nome, setor.id)
-
-        inseridos++
+        continue
       }
+
+      await subsetoresRepository.criar(nome, setor.id)
+      inseridos++
     }
 
     return { inseridos, atualizados, ignorados }
   }
 
-  private importarPostos(registros: Record<string, string>[]) {
+  private async importarPostos(registros: Record<string, string>[]) {
+    const setoresRepository = RepositoryFactory.setores()
+    const subsetoresRepository = RepositoryFactory.subsetores()
+    const postosRepository = RepositoryFactory.postos()
+
     let inseridos = 0
     let atualizados = 0
     let ignorados = 0
 
     for (const item of registros) {
-      const setorSigla = normalizar(item.setor_sigla).toUpperCase()
+      const setorSigla = normalizarCodigo(item.setor_sigla)
       const subsetorNome = normalizar(item.subsetor_nome)
       const nome = normalizar(item.nome)
 
-      const subsetor = db
-        .prepare(`
-          SELECT sub.id
-          FROM subsetores sub
-          INNER JOIN setores s ON s.id = sub.setor_id
-          WHERE s.sigla = ?
-            AND sub.nome = ?
-        `)
-        .get(setorSigla, subsetorNome) as { id: number } | undefined
-
-      if (!subsetor || !nome) {
+      if (!setorSigla || !subsetorNome || !nome) {
         ignorados++
         continue
       }
 
-      const existente = db
-        .prepare(`
-          SELECT id FROM postos
-          WHERE nome = ? AND subsetor_id = ?
-        `)
-        .get(nome, subsetor.id) as { id: number } | undefined
+      const setores = [
+        ...(await setoresRepository.listar()),
+        ...(await setoresRepository.listarInativos())
+      ]
+
+      const setor = setores.find((item) => item.sigla === setorSigla)
+
+      if (!setor) {
+        ignorados++
+        continue
+      }
+
+      const subsetores = [
+        ...(await subsetoresRepository.listar()),
+        ...(await subsetoresRepository.listarInativos())
+      ]
+
+      const subsetor = subsetores.find(
+        (item) =>
+          item.setorId === setor.id &&
+          item.nome.trim().toLowerCase() === subsetorNome.toLowerCase()
+      )
+
+      if (!subsetor) {
+        ignorados++
+        continue
+      }
+
+      if (!subsetor.ativo) {
+        await subsetoresRepository.restaurar(subsetor.id)
+      }
+
+      const postos = [
+        ...(await postosRepository.listar()),
+        ...(await postosRepository.listarInativos())
+      ]
+
+      const existente = postos.find(
+        (posto) =>
+          posto.subsetorId === subsetor.id &&
+          posto.nome.trim().toLowerCase() === nome.toLowerCase()
+      )
 
       if (existente) {
-        db.prepare(`
-          UPDATE postos
-          SET ativo = 1
-          WHERE id = ?
-        `).run(existente.id)
+        if (!existente.ativo) {
+          await postosRepository.restaurar(existente.id)
+        }
 
+        await postosRepository.editar(existente.id, nome, subsetor.id)
         atualizados++
-      } else {
-        db.prepare(`
-          INSERT INTO postos (nome, subsetor_id, ativo)
-          VALUES (?, ?, 1)
-        `).run(nome, subsetor.id)
-
-        inseridos++
+        continue
       }
+
+      await postosRepository.criar(nome, subsetor.id)
+      inseridos++
     }
 
     return { inseridos, atualizados, ignorados }
   }
 
-  private importarComponentes(registros: Record<string, string>[]) {
+  private async importarComponentes(registros: Record<string, string>[]) {
+    const repository = RepositoryFactory.componentes()
+
     let inseridos = 0
     let atualizados = 0
     let ignorados = 0
 
     for (const item of registros) {
-      const codigo = normalizar(item.codigo)
+      const codigo = normalizarCodigo(item.codigo)
       const nome = normalizar(item.nome)
       const precoAtual = normalizarPreco(item.preco ?? item.preco_atual)
 
@@ -458,38 +497,41 @@ export class ImportacaoService {
         continue
       }
 
-      const existente = db
-        .prepare(`SELECT id FROM componentes WHERE codigo = ?`)
-        .get(codigo) as { id: number } | undefined
+      const componentes = [
+        ...(await repository.listar()),
+        ...(await repository.listarInativos())
+      ]
+
+      const existente = componentes.find(
+        (componente) => componente.codigo === codigo
+      )
 
       if (existente) {
-        db.prepare(`
-          UPDATE componentes
-          SET nome = ?, preco_atual = ?, ativo = 1
-          WHERE id = ?
-        `).run(nome, precoAtual, existente.id)
+        if (!existente.ativo) {
+          await repository.restaurar(existente.id)
+        }
 
+        await repository.editar(existente.id, codigo, nome, precoAtual)
         atualizados++
-      } else {
-        db.prepare(`
-          INSERT INTO componentes (codigo, nome, preco_atual, ativo)
-          VALUES (?, ?, ?, 1)
-        `).run(codigo, nome, precoAtual)
-
-        inseridos++
+        continue
       }
+
+      await repository.criar(codigo, nome, precoAtual)
+      inseridos++
     }
 
     return { inseridos, atualizados, ignorados }
   }
 
-  private importarCircuitos(registros: Record<string, string>[]) {
+  private async importarCircuitos(registros: Record<string, string>[]) {
+    const repository = RepositoryFactory.circuitos()
+
     let inseridos = 0
     let atualizados = 0
     let ignorados = 0
 
     for (const item of registros) {
-      const codigo = normalizar(item.codigo)
+      const codigo = normalizarCodigo(item.codigo)
       const nome = normalizar(item.nome)
 
       if (!codigo || !nome) {
@@ -497,38 +539,39 @@ export class ImportacaoService {
         continue
       }
 
-      const existente = db
-        .prepare(`SELECT id FROM circuitos WHERE codigo = ?`)
-        .get(codigo) as { id: number } | undefined
+      const circuitos = [
+        ...(await repository.listar()),
+        ...(await repository.listarInativos())
+      ]
+
+      const existente = circuitos.find((circuito) => circuito.codigo === codigo)
 
       if (existente) {
-        db.prepare(`
-          UPDATE circuitos
-          SET nome = ?, ativo = 1
-          WHERE id = ?
-        `).run(nome, existente.id)
+        if (!existente.ativo) {
+          await repository.restaurar(existente.id)
+        }
 
+        await repository.editar(existente.id, codigo, nome)
         atualizados++
-      } else {
-        db.prepare(`
-          INSERT INTO circuitos (codigo, nome, ativo)
-          VALUES (?, ?, 1)
-        `).run(codigo, nome)
-
-        inseridos++
+        continue
       }
+
+      await repository.criar(codigo, nome)
+      inseridos++
     }
 
     return { inseridos, atualizados, ignorados }
   }
 
-  private importarDefeitos(registros: Record<string, string>[]) {
+  private async importarDefeitos(registros: Record<string, string>[]) {
+    const repository = RepositoryFactory.defeitos()
+
     let inseridos = 0
     let atualizados = 0
     let ignorados = 0
 
     for (const item of registros) {
-      const codigo = normalizar(item.codigo)
+      const codigo = normalizarCodigo(item.codigo)
       const descricao = normalizar(item.descricao)
 
       if (!codigo || !descricao) {
@@ -536,32 +579,33 @@ export class ImportacaoService {
         continue
       }
 
-      const existente = db
-        .prepare(`SELECT id FROM defeitos WHERE codigo = ?`)
-        .get(codigo) as { id: number } | undefined
+      const defeitos = [
+        ...(await repository.listar()),
+        ...(await repository.listarInativos())
+      ]
+
+      const existente = defeitos.find((defeito) => defeito.codigo === codigo)
 
       if (existente) {
-        db.prepare(`
-          UPDATE defeitos
-          SET descricao = ?, ativo = 1
-          WHERE id = ?
-        `).run(descricao, existente.id)
+        if (!existente.ativo) {
+          await repository.restaurar(existente.id)
+        }
 
+        await repository.editar(existente.id, codigo, descricao)
         atualizados++
-      } else {
-        db.prepare(`
-          INSERT INTO defeitos (codigo, descricao, ativo)
-          VALUES (?, ?, 1)
-        `).run(codigo, descricao)
-
-        inseridos++
+        continue
       }
+
+      await repository.criar(codigo, descricao)
+      inseridos++
     }
 
     return { inseridos, atualizados, ignorados }
   }
 
-  private importarUsuarios(registros: Record<string, string>[]) {
+  private async importarUsuarios(registros: Record<string, string>[]) {
+    const repository = RepositoryFactory.usuarios()
+
     let inseridos = 0
     let atualizados = 0
     let ignorados = 0
@@ -577,153 +621,210 @@ export class ImportacaoService {
         continue
       }
 
-      const senhaHash = senha ? gerarHashSenha(senha) : null
+      const usuarios = await repository.listar()
 
-      const existente = db
-        .prepare(`SELECT id FROM usuarios WHERE matricula = ?`)
-        .get(matricula) as { id: number } | undefined
+      const existente = usuarios.find(
+        (usuario) => usuario.matricula === matricula
+      )
 
       if (existente) {
-        if (senhaHash) {
-          db.prepare(`
-            UPDATE usuarios
-            SET nome = ?, perfil = ?, senha_hash = ?, ativo = 1
-            WHERE id = ?
-          `).run(nome, perfil, senhaHash, existente.id)
-        } else {
-          db.prepare(`
-            UPDATE usuarios
-            SET nome = ?, perfil = ?, ativo = 1
-            WHERE id = ?
-          `).run(nome, perfil, existente.id)
+        if (!existente.ativo) {
+          await repository.ativar(existente.id)
         }
 
-        atualizados++
-      } else {
-        db.prepare(`
-          INSERT INTO usuarios (nome, matricula, perfil, senha_hash, ativo)
-          VALUES (?, ?, ?, ?, 1)
-        `).run(nome, matricula, perfil, senhaHash)
+        await repository.editar(existente.id, {
+          nome,
+          matricula,
+          perfil,
+          senha: senha || undefined
+        })
 
-        inseridos++
+        atualizados++
+        continue
       }
+
+      await repository.criar({
+        nome,
+        matricula,
+        perfil,
+        senha: senha || undefined
+      })
+
+      inseridos++
     }
 
     return { inseridos, atualizados, ignorados }
   }
 
-  private importarCircuitoComponentes(registros: Record<string, string>[]) {
+  private async importarCircuitoComponentes(
+    registros: Record<string, string>[]
+  ) {
+    const circuitosRepository = RepositoryFactory.circuitos()
+    const componentesRepository = RepositoryFactory.componentes()
+    const circuitoComponentesRepository =
+      RepositoryFactory.circuitoComponentes()
+
     let inseridos = 0
     let atualizados = 0
     let ignorados = 0
 
     for (const item of registros) {
-      const circuitoCodigo = normalizar(item.circuito_codigo)
-      const componenteCodigo = normalizar(item.componente_codigo)
-      const quantidade = Number(item.quantidade || 1)
+      const circuitoCodigo = normalizarCodigo(item.circuito_codigo)
+      const componenteCodigo = normalizarCodigo(item.componente_codigo)
+      const quantidade = normalizarNumero(item.quantidade, 1)
 
-      const circuito = db
-        .prepare(`SELECT id FROM circuitos WHERE codigo = ?`)
-        .get(circuitoCodigo) as { id: number } | undefined
+      if (!circuitoCodigo || !componenteCodigo) {
+        ignorados++
+        continue
+      }
 
-      const componente = db
-        .prepare(`SELECT id FROM componentes WHERE codigo = ?`)
-        .get(componenteCodigo) as { id: number } | undefined
+      const circuitos = [
+        ...(await circuitosRepository.listar()),
+        ...(await circuitosRepository.listarInativos())
+      ]
+
+      const componentes = [
+        ...(await componentesRepository.listar()),
+        ...(await componentesRepository.listarInativos())
+      ]
+
+      const circuito = circuitos.find(
+        (item) => item.codigo === circuitoCodigo
+      )
+
+      const componente = componentes.find(
+        (item) => item.codigo === componenteCodigo
+      )
 
       if (!circuito || !componente) {
         ignorados++
         continue
       }
 
-      const existente = db
-        .prepare(`
-          SELECT id FROM circuito_componentes
-          WHERE circuito_id = ?
-            AND componente_id = ?
-        `)
-        .get(circuito.id, componente.id) as { id: number } | undefined
+      if (!circuito.ativo) {
+        await circuitosRepository.restaurar(circuito.id)
+      }
+
+      if (!componente.ativo) {
+        await componentesRepository.restaurar(componente.id)
+      }
+
+      const atuais = await circuitoComponentesRepository.listarPorCircuito(
+        circuito.id
+      )
+
+      const existente = atuais.find(
+        (item) => item.componenteId === componente.id
+      )
 
       if (existente) {
-        db.prepare(`
-          UPDATE circuito_componentes
-          SET quantidade = ?, ativo = 1
-          WHERE id = ?
-        `).run(quantidade, existente.id)
+        await circuitoComponentesRepository.remover(existente.id)
+        await circuitoComponentesRepository.adicionar(
+          circuito.id,
+          componente.id,
+          quantidade
+        )
 
         atualizados++
-      } else {
-        db.prepare(`
-          INSERT INTO circuito_componentes (
-            circuito_id,
-            componente_id,
-            quantidade,
-            ativo
-          ) VALUES (?, ?, ?, 1)
-        `).run(circuito.id, componente.id, quantidade)
-
-        inseridos++
+        continue
       }
+
+      await circuitoComponentesRepository.adicionar(
+        circuito.id,
+        componente.id,
+        quantidade
+      )
+
+      inseridos++
     }
 
     return { inseridos, atualizados, ignorados }
   }
 
-  private importarRoteiros(registros: Record<string, string>[]) {
+  private async importarRoteiros(registros: Record<string, string>[]) {
+    const circuitosRepository = RepositoryFactory.circuitos()
+    const postosRepository = RepositoryFactory.postos()
+    const componentesRepository = RepositoryFactory.componentes()
+    const roteiroRepository = RepositoryFactory.roteiros()
+
     let inseridos = 0
     let atualizados = 0
     let ignorados = 0
 
     for (const item of registros) {
-      const circuitoCodigo = normalizar(item.circuito_codigo)
+      const circuitoCodigo = normalizarCodigo(item.circuito_codigo)
       const postoNome = normalizar(item.posto_nome)
-      const componenteCodigo = normalizar(item.componente_codigo)
-      const quantidade = Number(item.quantidade || 1)
+      const componenteCodigo = normalizarCodigo(item.componente_codigo)
+      const quantidade = normalizarNumero(item.quantidade, 1)
 
-      const circuito = db
-        .prepare(`SELECT id FROM circuitos WHERE codigo = ?`)
-        .get(circuitoCodigo) as { id: number } | undefined
+      if (!circuitoCodigo || !postoNome || !componenteCodigo) {
+        ignorados++
+        continue
+      }
 
-      const posto = db
-        .prepare(`SELECT id FROM postos WHERE nome = ?`)
-        .get(postoNome) as { id: number } | undefined
+      const circuitos = [
+        ...(await circuitosRepository.listar()),
+        ...(await circuitosRepository.listarInativos())
+      ]
 
-      const componente = db
-        .prepare(`SELECT id FROM componentes WHERE codigo = ?`)
-        .get(componenteCodigo) as { id: number } | undefined
+      const postos = [
+        ...(await postosRepository.listar()),
+        ...(await postosRepository.listarInativos())
+      ]
+
+      const componentes = [
+        ...(await componentesRepository.listar()),
+        ...(await componentesRepository.listarInativos())
+      ]
+
+      const circuito = circuitos.find(
+        (item) => item.codigo === circuitoCodigo
+      )
+
+      const posto = postos.find(
+        (item) => item.nome.trim().toLowerCase() === postoNome.toLowerCase()
+      )
+
+      const componente = componentes.find(
+        (item) => item.codigo === componenteCodigo
+      )
 
       if (!circuito || !posto || !componente) {
         ignorados++
         continue
       }
 
-      const existente = db
-        .prepare(`
-          SELECT id FROM circuito_posto_componentes
-          WHERE circuito_id = ?
-            AND posto_id = ?
-            AND componente_id = ?
-        `)
-        .get(circuito.id, posto.id, componente.id) as { id: number } | undefined
+      if (!circuito.ativo) {
+        await circuitosRepository.restaurar(circuito.id)
+      }
+
+      if (!posto.ativo) {
+        await postosRepository.restaurar(posto.id)
+      }
+
+      if (!componente.ativo) {
+        await componentesRepository.restaurar(componente.id)
+      }
+
+      const atuais = await roteiroRepository.listarPorCircuitoEPosto(
+        circuito.id,
+        posto.id
+      )
+
+      const existente = atuais.find(
+        (item) => item.componenteId === componente.id
+      )
+
+      await roteiroRepository.adicionar(
+        circuito.id,
+        posto.id,
+        componente.id,
+        quantidade
+      )
 
       if (existente) {
-        db.prepare(`
-          UPDATE circuito_posto_componentes
-          SET quantidade = ?, ativo = 1
-          WHERE id = ?
-        `).run(quantidade, existente.id)
-
         atualizados++
       } else {
-        db.prepare(`
-          INSERT INTO circuito_posto_componentes (
-            circuito_id,
-            posto_id,
-            componente_id,
-            quantidade,
-            ativo
-          ) VALUES (?, ?, ?, ?, 1)
-        `).run(circuito.id, posto.id, componente.id, quantidade)
-
         inseridos++
       }
     }

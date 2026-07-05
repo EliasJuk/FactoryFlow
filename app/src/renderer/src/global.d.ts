@@ -12,6 +12,7 @@ type CircuitoApi = {
   codigo: string
   nome: string
   ativo: boolean
+  totalComponentes: number
 }
 
 type CircuitoComponenteApi = {
@@ -250,9 +251,24 @@ declare global {
 
       circuitos: {
         listar: () => Promise<CircuitoApi[]>
-        criar: (codigo: string, nome: string) => Promise<void>
-        editar: (id: number, codigo: string, nome: string) => Promise<void>
-        excluir: (id: number) => Promise<void>
+        listarInativos: () => Promise<CircuitoApi[]>
+
+        criar: (
+          codigo: string,
+          nome: string
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
+
+        editar: (
+          id: number,
+          codigo: string,
+          nome: string
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
+
+        excluir: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+        restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+        excluirPermanente: (
+          id: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
       },
 
       circuitoComponentes: {

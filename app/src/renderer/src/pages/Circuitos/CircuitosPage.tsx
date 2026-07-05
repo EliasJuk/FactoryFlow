@@ -1,40 +1,101 @@
-import { useEffect, useState } from "react"
-import { Pencil, Trash2, Plus } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { Boxes, Pencil, RotateCcw, Trash2 } from "lucide-react"
 
 import PageHeader from "../../components/PageHeader/PageHeader"
-import { Circuito } from "../../models/Circuito"
-import { Componente } from "../../models/Componente"
-import { CircuitoComponente } from "../../models/CircuitoComponente"
+import { Pagination } from "../../components/Pagination/Pagination"
+import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog"
+import { CrudHeader } from "../../components/Crud/CrudHeader/CrudHeader"
+import { SearchBar } from "../../components/Crud/SearchBar/SearchBar"
+import { CrudModal } from "../../components/Crud/CrudModal/CrudModal"
+import { InativosCard } from "../../components/Crud/InativosCard/InativosCard"
+import { ui } from "../../theme/ui"
+
+import { CircuitoComponentesModal } from "./components/CircuitoComponentesModal"
+import { AdicionarComponenteModal } from "./components/AdicionarComponenteModal"
+
+type ModalModo = "novo" | "editar"
+
+type Circuito = {
+  id: number
+  codigo: string
+  nome: string
+  ativo: boolean
+  totalComponentes: number
+}
+
+type Componente = {
+  id: number
+  codigo: string
+  nome: string
+  precoAtual: number
+  ativo: boolean
+}
+
+type CircuitoComponente = {
+  id: number
+  circuitoId: number
+  componenteId: number
+  codigoComponente: string
+  nomeComponente: string
+  quantidade: number
+  ativo: boolean
+}
+
+const ITENS_POR_PAGINA = 10
 
 function CircuitosPage() {
   const [circuitos, setCircuitos] = useState<Circuito[]>([])
+  const [circuitosInativos, setCircuitosInativos] = useState<Circuito[]>([])
   const [componentes, setComponentes] = useState<Componente[]>([])
-  const [componentesDoCircuito, setComponentesDoCircuito] = useState<CircuitoComponente[]>([])
+  const [componentesDoCircuito, setComponentesDoCircuito] = useState<
+    CircuitoComponente[]
+  >([])
+
+  const [busca, setBusca] = useState("")
+  const [paginaAtual, setPaginaAtual] = useState(1)
+  const [mostrarInativos, setMostrarInativos] = useState(false)
+
+  const [modalAberto, setModalAberto] = useState(false)
+  const [modalModo, setModalModo] = useState<ModalModo>("novo")
+  const [circuitoEditando, setCircuitoEditando] = useState<Circuito | null>(null)
 
   const [codigo, setCodigo] = useState("")
   const [nome, setNome] = useState("")
-  const [circuitoEditando, setCircuitoEditando] = useState<Circuito | null>(null)
-  const [circuitoSelecionado, setCircuitoSelecionado] = useState<Circuito | null>(null)
+  const [mensagemErro, setMensagemErro] = useState("")
+  const [mensagemSucesso, setMensagemSucesso] = useState("")
+  const [processando, setProcessando] = useState(false)
 
-  const [componenteId, setComponenteId] = useState<number | "">("")
-  const [quantidade, setQuantidade] = useState(1)
+  const [circuitoParaInativar, setCircuitoParaInativar] =
+    useState<Circuito | null>(null)
+  const [circuitoParaRestaurar, setCircuitoParaRestaurar] =
+    useState<Circuito | null>(null)
+  const [circuitoParaExcluirPermanente, setCircuitoParaExcluirPermanente] =
+    useState<Circuito | null>(null)
+
+  const [circuitoSelecionado, setCircuitoSelecionado] =
+    useState<Circuito | null>(null)
+  const [modalAdicionarAberto, setModalAdicionarAberto] = useState(false)
 
   async function carregarCircuitos() {
-    const lista = await window.api.circuitos.listar()
-    setCircuitos(lista)
+    const [ativos, inativos] = await Promise.all([
+      window.api.circuitos.listar(),
+      window.api.circuitos.listarInativos()
+    ])
+
+    setCircuitos(ativos)
+    setCircuitosInativos(inativos)
   }
 
   async function carregarComponentes() {
     const lista = await window.api.componentes.listar()
     setComponentes(lista)
-
-    if (lista.length > 0) {
-      setComponenteId(lista[0].id)
-    }
   }
 
   async function carregarComponentesDoCircuito(circuitoId: number) {
-    const lista = await window.api.circuitoComponentes.listarPorCircuito(circuitoId)
+    const lista = await window.api.circuitoComponentes.listarPorCircuito(
+      circuitoId
+    )
+
     setComponentesDoCircuito(lista)
   }
 
@@ -43,164 +104,336 @@ function CircuitosPage() {
     carregarComponentes()
   }, [])
 
-  async function salvarCircuito() {
-    if (!codigo.trim() || !nome.trim()) return
+  const circuitosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase()
 
-    if (circuitoEditando) {
-      await window.api.circuitos.editar(circuitoEditando.id, codigo, nome)
-      setCircuitoEditando(null)
-    } else {
-      await window.api.circuitos.criar(codigo, nome)
+    if (!termo) return circuitos
+
+    return circuitos.filter((circuito) => {
+      return (
+        circuito.codigo.toLowerCase().includes(termo) ||
+        circuito.nome.toLowerCase().includes(termo)
+      )
+    })
+  }, [busca, circuitos])
+
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(circuitosFiltrados.length / ITENS_POR_PAGINA)
+  )
+
+  const circuitosPaginados = useMemo(() => {
+    const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA
+    return circuitosFiltrados.slice(inicio, inicio + ITENS_POR_PAGINA)
+  }, [paginaAtual, circuitosFiltrados])
+
+  useEffect(() => {
+    setPaginaAtual(1)
+  }, [busca])
+
+  useEffect(() => {
+    if (paginaAtual > totalPaginas) {
+      setPaginaAtual(totalPaginas)
     }
+  }, [paginaAtual, totalPaginas])
 
-    setCodigo("")
-    setNome("")
-    await carregarCircuitos()
+  function limparMensagens() {
+    setMensagemErro("")
+    setMensagemSucesso("")
   }
 
-  function editarCircuito(circuito: Circuito) {
+  function abrirNovoCircuito() {
+    if (processando) return
+
+    limparMensagens()
+    setModalModo("novo")
+    setCircuitoEditando(null)
+    setCodigo("")
+    setNome("")
+    setModalAberto(true)
+  }
+
+  function abrirEditarCircuito(circuito: Circuito) {
+    if (processando) return
+
+    limparMensagens()
+    setModalModo("editar")
     setCircuitoEditando(circuito)
     setCodigo(circuito.codigo)
     setNome(circuito.nome)
+    setModalAberto(true)
   }
 
-  async function excluirCircuito(id: number) {
-    await window.api.circuitos.excluir(id)
-    await carregarCircuitos()
+  function fecharModal() {
+    if (processando) return
+
+    setModalAberto(false)
+    setCircuitoEditando(null)
+    setCodigo("")
+    setNome("")
+    setMensagemErro("")
   }
 
-  async function selecionarCircuito(circuito: Circuito) {
+  async function salvarCircuito() {
+    if (processando) return
+
+    setMensagemErro("")
+
+    if (!codigo.trim() || !nome.trim()) {
+      setMensagemErro("Informe o código e o nome do circuito.")
+      return
+    }
+
+    setProcessando(true)
+
+    try {
+      if (modalModo === "editar" && circuitoEditando) {
+        const resultado = await window.api.circuitos.editar(
+          circuitoEditando.id,
+          codigo.trim().toUpperCase(),
+          nome.trim()
+        )
+
+        if (!resultado.sucesso) {
+          setMensagemErro(resultado.mensagem)
+          return
+        }
+
+        setMensagemSucesso("Circuito atualizado com sucesso.")
+      } else {
+        const resultado = await window.api.circuitos.criar(
+          codigo.trim().toUpperCase(),
+          nome.trim()
+        )
+
+        if (!resultado.sucesso) {
+          setMensagemErro(resultado.mensagem)
+          return
+        }
+
+        setMensagemSucesso("Circuito cadastrado com sucesso.")
+      }
+
+      fecharModal()
+      await carregarCircuitos()
+    } finally {
+      setProcessando(false)
+    }
+  }
+
+  async function confirmarInativacao() {
+    if (!circuitoParaInativar || processando) return
+
+    setProcessando(true)
+    limparMensagens()
+
+    try {
+      const resultado = await window.api.circuitos.excluir(
+        circuitoParaInativar.id
+      )
+
+      if (!resultado.sucesso) {
+        setMensagemErro(resultado.mensagem)
+        return
+      }
+
+      setCircuitoParaInativar(null)
+      setMensagemSucesso("Circuito inativado com sucesso.")
+      await carregarCircuitos()
+    } finally {
+      setProcessando(false)
+    }
+  }
+
+  async function confirmarRestauracao() {
+    if (!circuitoParaRestaurar || processando) return
+
+    setProcessando(true)
+    limparMensagens()
+
+    try {
+      const resultado = await window.api.circuitos.restaurar(
+        circuitoParaRestaurar.id
+      )
+
+      if (!resultado.sucesso) {
+        setMensagemErro(resultado.mensagem)
+        return
+      }
+
+      setCircuitoParaRestaurar(null)
+      setMensagemSucesso("Circuito restaurado com sucesso.")
+      await carregarCircuitos()
+    } finally {
+      setProcessando(false)
+    }
+  }
+
+  async function confirmarExclusaoPermanente() {
+    if (!circuitoParaExcluirPermanente || processando) return
+
+    setProcessando(true)
+    limparMensagens()
+
+    try {
+      const resultado = await window.api.circuitos.excluirPermanente(
+        circuitoParaExcluirPermanente.id
+      )
+
+      if (!resultado.sucesso) {
+        setMensagemErro(resultado.mensagem)
+        return
+      }
+
+      setCircuitoParaExcluirPermanente(null)
+      setMensagemSucesso("Circuito excluído permanentemente.")
+      await carregarCircuitos()
+    } finally {
+      setProcessando(false)
+    }
+  }
+
+  async function abrirMontagem(circuito: Circuito) {
+    if (processando) return
+
+    limparMensagens()
     setCircuitoSelecionado(circuito)
     await carregarComponentesDoCircuito(circuito.id)
   }
 
-  async function adicionarComponente() {
-    if (!circuitoSelecionado || componenteId === "") return
+  async function adicionarComponenteAoCircuito(
+    componenteId: number,
+    quantidade: number
+  ) {
+    if (!circuitoSelecionado || processando) return
 
-    await window.api.circuitoComponentes.adicionar(
-      circuitoSelecionado.id,
-      Number(componenteId),
-      quantidade
-    )
+    setProcessando(true)
 
-    setQuantidade(1)
-    await carregarComponentesDoCircuito(circuitoSelecionado.id)
+    try {
+      await window.api.circuitoComponentes.adicionar(
+        circuitoSelecionado.id,
+        componenteId,
+        quantidade
+      )
+
+      setModalAdicionarAberto(false)
+      await carregarComponentesDoCircuito(circuitoSelecionado.id)
+      await carregarCircuitos()
+    } finally {
+      setProcessando(false)
+    }
   }
 
-  async function removerComponente(id: number) {
-    if (!circuitoSelecionado) return
+  async function removerComponenteDoCircuito(id: number) {
+    if (!circuitoSelecionado || processando) return
 
-    await window.api.circuitoComponentes.remover(id)
-    await carregarComponentesDoCircuito(circuitoSelecionado.id)
+    setProcessando(true)
+
+    try {
+      await window.api.circuitoComponentes.remover(id)
+      await carregarComponentesDoCircuito(circuitoSelecionado.id)
+      await carregarCircuitos()
+    } finally {
+      setProcessando(false)
+    }
   }
+
+  const podeSalvar =
+    codigo.trim().length > 0 && nome.trim().length > 0 && !processando
 
   return (
-    <main className="min-h-screen bg-slate-100">
+    <main className={ui.page}>
       <PageHeader
         title="Cadastro de Circuitos"
-        subtitle="Cadastre circuitos e vincule componentes."
+        subtitle="Cadastre circuitos e monte os componentes de cada circuito."
       />
 
-      <section className="p-8">
-        <div className="rounded-xl bg-white p-6 shadow">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Código CTF
-              </label>
-
-              <input
-                value={codigo}
-                onChange={(event) => setCodigo(event.target.value)}
-                placeholder="Ex: 44-0000-0001"
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-600"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Nome do Circuito
-              </label>
-
-              <input
-                value={nome}
-                onChange={(event) => setNome(event.target.value)}
-                placeholder="Ex: Produto 0001"
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-600"
-              />
-            </div>
+      <section className={ui.section}>
+        {mensagemSucesso && (
+          <div className="rounded-md bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
+            {mensagemSucesso}
           </div>
+        )}
 
-          <button
-            onClick={salvarCircuito}
-            className="mt-5 rounded-lg bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-700"
-          >
-            {circuitoEditando ? "Atualizar" : "Salvar"}
-          </button>
-        </div>
+        {mensagemErro && !modalAberto && (
+          <div className="rounded-md bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {mensagemErro}
+          </div>
+        )}
 
-        <div className="mt-8 overflow-hidden rounded-xl bg-white shadow">
-          <table className="min-w-full">
-            <thead className="bg-slate-50">
+        <CrudHeader
+          titulo="Circuitos ativos"
+          descricao={`Exibindo ${circuitosFiltrados.length} circuito(s) ativo(s). Limite de ${ITENS_POR_PAGINA} por página.`}
+          textoBotao="Novo Circuito"
+          disabled={processando}
+          onNovo={abrirNovoCircuito}
+        >
+          <SearchBar
+            value={busca}
+            onChange={setBusca}
+            placeholder="Pesquisar por código ou nome do circuito..."
+          />
+        </CrudHeader>
+
+        <div className="overflow-hidden rounded-lg bg-white shadow-sm">
+          <table className={ui.table}>
+            <thead className="[background-color:var(--soft)]">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-600">
-                  Código CTF
-                </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-600">
-                  Circuito
-                </th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-slate-600">
-                  Ações
-                </th>
+                <th className={ui.tableHeader}>Código CTF</th>
+                <th className={ui.tableHeader}>Circuito</th>
+                <th className={ui.tableHeader}>Componentes</th>
+                <th className={ui.tableHeaderRight}>Ações</th>
               </tr>
             </thead>
 
             <tbody>
-              {circuitos.map((circuito) => (
-                <tr key={circuito.id} className="border-t">
-                  <td className="px-6 py-4 font-medium text-slate-700">
-                    {circuito.codigo}
-                  </td>
+              {circuitosPaginados.map((circuito) => (
+                <tr
+                  key={circuito.id}
+                  className="border-t border-[var(--border)]"
+                >
+                  <td className={ui.tableCellStrong}>{circuito.codigo}</td>
+                  <td className={ui.tableCell}>{circuito.nome}</td>
+                  <td className={ui.tableCell}>{circuito.totalComponentes}</td>
 
-                  <td className="px-6 py-4 text-slate-700">
-                    {circuito.nome}
-                  </td>
-
-                  <td className="px-6 py-4">
+                  <td className={ui.tableCell}>
                     <div className="flex justify-end gap-2">
                       <button
-                        onClick={() => selecionarCircuito(circuito)}
-                        className="rounded-lg bg-green-600 p-2 text-white hover:bg-green-700"
-                        title="Montar circuito"
+                        onClick={() => abrirMontagem(circuito)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Montar Circuito"
                       >
-                        <Plus size={18} />
+                        <Boxes size={15} />
+                        Montar Circuito
                       </button>
 
                       <button
-                        onClick={() => editarCircuito(circuito)}
-                        className="rounded-lg bg-blue-600 p-2 text-white hover:bg-blue-700"
+                        onClick={() => abrirEditarCircuito(circuito)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Editar"
                       >
-                        <Pencil size={18} />
+                        <Pencil size={15} />
                       </button>
 
                       <button
-                        onClick={() => excluirCircuito(circuito.id)}
-                        className="rounded-lg bg-red-600 p-2 text-white hover:bg-red-700"
+                        onClick={() => setCircuitoParaInativar(circuito)}
+                        disabled={processando}
+                        className={ui.buttonDanger}
+                        title="Inativar"
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   </td>
                 </tr>
               ))}
 
-              {circuitos.length === 0 && (
+              {circuitosPaginados.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={3}
-                    className="px-6 py-8 text-center text-sm text-slate-500"
-                  >
-                    Nenhum circuito cadastrado.
+                  <td colSpan={4} className={ui.empty}>
+                    Nenhum circuito ativo encontrado.
                   </td>
                 </tr>
               )}
@@ -208,120 +441,219 @@ function CircuitosPage() {
           </table>
         </div>
 
-        {circuitoSelecionado && (
-          <div className="mt-8 rounded-xl bg-white p-6 shadow">
-            <h2 className="text-xl font-bold text-slate-800">
-              Componentes do circuito
-            </h2>
+        <Pagination
+          paginaAtual={paginaAtual}
+          totalPaginas={totalPaginas}
+          onPaginaAnterior={() =>
+            setPaginaAtual((pagina) => Math.max(1, pagina - 1))
+          }
+          onProximaPagina={() =>
+            setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))
+          }
+        />
 
-            <p className="mt-1 text-sm text-slate-500">
-              {circuitoSelecionado.codigo} - {circuitoSelecionado.nome}
-            </p>
+        <InativosCard
+          titulo="Circuitos inativos"
+          descricao={`${circuitosInativos.length} circuito(s) inativo(s). Use esta área para restaurar ou excluir permanentemente.`}
+          aberto={mostrarInativos}
+          onToggle={() => setMostrarInativos(!mostrarInativos)}
+        >
+          <table className={ui.table}>
+            <thead className="[background-color:var(--soft)]">
+              <tr>
+                <th className={ui.tableHeader}>Código CTF</th>
+                <th className={ui.tableHeader}>Circuito</th>
+                <th className={ui.tableHeader}>Componentes</th>
+                <th className={ui.tableHeaderRight}>Ações</th>
+              </tr>
+            </thead>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-[1fr_120px_auto]">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Componente
-                </label>
-
-                <select
-                  value={componenteId}
-                  onChange={(event) => setComponenteId(Number(event.target.value))}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-600"
+            <tbody>
+              {circuitosInativos.map((circuito) => (
+                <tr
+                  key={circuito.id}
+                  className="border-t border-[var(--border)] bg-slate-50"
                 >
-                  {componentes.map((componente) => (
-                    <option key={componente.id} value={componente.id}>
-                      {componente.codigo} - {componente.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <td className={ui.tableCellStrong}>{circuito.codigo}</td>
+                  <td className={ui.tableCell}>{circuito.nome}</td>
+                  <td className={ui.tableCell}>{circuito.totalComponentes}</td>
 
+                  <td className={ui.tableCell}>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setCircuitoParaRestaurar(circuito)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Restaurar"
+                      >
+                        <RotateCcw size={15} />
+                        Restaurar
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          setCircuitoParaExcluirPermanente(circuito)
+                        }
+                        disabled={processando}
+                        className={ui.buttonDanger}
+                        title="Excluir permanentemente"
+                      >
+                        <Trash2 size={15} />
+                        Excluir permanente
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+
+              {circuitosInativos.length === 0 && (
+                <tr>
+                  <td colSpan={4} className={ui.empty}>
+                    Nenhum circuito inativo.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </InativosCard>
+
+        {modalAberto && (
+          <CrudModal
+            titulo={modalModo === "novo" ? "Novo Circuito" : "Editar Circuito"}
+            subtitulo="Informe o código CTF e o nome do circuito."
+            mensagemErro={mensagemErro}
+            processando={processando}
+            onFechar={fecharModal}
+            footer={
+              <>
+                <button
+                  onClick={fecharModal}
+                  disabled={processando}
+                  className={ui.buttonSecondary}
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  onClick={salvarCircuito}
+                  disabled={!podeSalvar}
+                  className={ui.buttonPrimary}
+                >
+                  {processando
+                    ? "Salvando..."
+                    : modalModo === "novo"
+                      ? "Salvar"
+                      : "Salvar Alterações"}
+                </button>
+              </>
+            }
+          >
+            <div className="grid gap-3 md:grid-cols-[180px_1fr]">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Qtde
-                </label>
-
+                <label className={ui.label}>Código CTF</label>
                 <input
-                  type="number"
-                  min={1}
-                  value={quantidade}
-                  onChange={(event) => setQuantidade(Number(event.target.value))}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-600"
+                  value={codigo}
+                  onChange={(event) =>
+                    setCodigo(event.target.value.toUpperCase())
+                  }
+                  disabled={processando}
+                  placeholder="Ex: 41-0000-0000"
+                  className={ui.input}
                 />
               </div>
 
-              <div className="flex items-end">
-                <button
-                  onClick={adicionarComponente}
-                  className="rounded-lg bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-700"
-                >
-                  Adicionar
-                </button>
+              <div>
+                <label className={ui.label}>Nome do Circuito</label>
+                <input
+                  value={nome}
+                  onChange={(event) => setNome(event.target.value)}
+                  disabled={processando}
+                  placeholder="Ex: Spin 2180"
+                  className={ui.input}
+                />
               </div>
             </div>
+          </CrudModal>
+        )}
 
-            <div className="mt-6 overflow-hidden rounded-xl border">
-              <table className="min-w-full">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-600">
-                      Código
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-600">
-                      Componente
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-600">
-                      Qtde
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-slate-600">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
+        {circuitoParaInativar && (
+          <ConfirmDialog
+            titulo="Inativar circuito"
+            descricao={
+              <>
+                O circuito{" "}
+                <strong>
+                  {circuitoParaInativar.codigo} - {circuitoParaInativar.nome}
+                </strong>{" "}
+                ficará inativo e não aparecerá nas listas principais.
+              </>
+            }
+            textoConfirmar="Confirmar inativação"
+            perigo
+            onCancelar={() => setCircuitoParaInativar(null)}
+            onConfirmar={confirmarInativacao}
+          />
+        )}
 
-                <tbody>
-                  {componentesDoCircuito.map((item) => (
-                    <tr key={item.id} className="border-t">
-                      <td className="px-6 py-4 font-medium text-slate-700">
-                        {item.codigoComponente}
-                      </td>
+        {circuitoParaRestaurar && (
+          <ConfirmDialog
+            titulo="Restaurar circuito"
+            descricao={
+              <>
+                O circuito{" "}
+                <strong>
+                  {circuitoParaRestaurar.codigo} - {circuitoParaRestaurar.nome}
+                </strong>{" "}
+                voltará a aparecer nas listas principais.
+              </>
+            }
+            textoConfirmar="Restaurar"
+            onCancelar={() => setCircuitoParaRestaurar(null)}
+            onConfirmar={confirmarRestauracao}
+          />
+        )}
 
-                      <td className="px-6 py-4 text-slate-700">
-                        {item.nomeComponente}
-                      </td>
+        {circuitoParaExcluirPermanente && (
+          <ConfirmDialog
+            titulo="Excluir permanentemente"
+            descricao={
+              <>
+                O circuito{" "}
+                <strong>
+                  {circuitoParaExcluirPermanente.codigo} -{" "}
+                  {circuitoParaExcluirPermanente.nome}
+                </strong>{" "}
+                será removido definitivamente. Esta ação não poderá ser desfeita.
+              </>
+            }
+            textoConfirmar="Excluir permanentemente"
+            perigo
+            onCancelar={() => setCircuitoParaExcluirPermanente(null)}
+            onConfirmar={confirmarExclusaoPermanente}
+          />
+        )}
 
-                      <td className="px-6 py-4 text-slate-700">
-                        {item.quantidade}
-                      </td>
+        {circuitoSelecionado && (
+          <CircuitoComponentesModal
+            circuito={circuitoSelecionado}
+            itens={componentesDoCircuito}
+            processando={processando}
+            onFechar={() => {
+              setCircuitoSelecionado(null)
+              setComponentesDoCircuito([])
+            }}
+            onAbrirAdicionar={() => setModalAdicionarAberto(true)}
+            onRemover={removerComponenteDoCircuito}
+          />
+        )}
 
-                      <td className="px-6 py-4">
-                        <div className="flex justify-end">
-                          <button
-                            onClick={() => removerComponente(item.id)}
-                            className="rounded-lg bg-red-600 p-2 text-white hover:bg-red-700"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-
-                  {componentesDoCircuito.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        className="px-6 py-8 text-center text-sm text-slate-500"
-                      >
-                        Nenhum componente vinculado a este circuito.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        {modalAdicionarAberto && (
+          <AdicionarComponenteModal
+            componentes={componentes}
+            processando={processando}
+            onFechar={() => setModalAdicionarAberto(false)}
+            onAdicionar={adicionarComponenteAoCircuito}
+          />
         )}
       </section>
     </main>

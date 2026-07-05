@@ -87,13 +87,20 @@ contextBridge.exposeInMainWorld("api", {
   componentes: {
     listar: () => ipcRenderer.invoke("componentes:listar"),
 
+    listarInativos: () => ipcRenderer.invoke("componentes:listar-inativos"),
+
     criar: (codigo: string, nome: string, precoAtual: number) =>
       ipcRenderer.invoke("componentes:criar", codigo, nome, precoAtual),
 
     editar: (id: number, codigo: string, nome: string, precoAtual: number) =>
       ipcRenderer.invoke("componentes:editar", id, codigo, nome, precoAtual),
 
-    excluir: (id: number) => ipcRenderer.invoke("componentes:excluir", id)
+    excluir: (id: number) => ipcRenderer.invoke("componentes:excluir", id),
+
+    restaurar: (id: number) => ipcRenderer.invoke("componentes:restaurar", id),
+
+    excluirPermanente: (id: number) =>
+      ipcRenderer.invoke("componentes:excluir-permanente", id)
   },
 
   circuitos: {

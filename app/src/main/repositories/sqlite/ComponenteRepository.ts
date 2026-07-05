@@ -154,4 +154,56 @@ export class ComponenteRepository {
       WHERE id = ?
     `).run(id)
   }
+
+  listarInativos(): Componente[] {
+    const componentes = db
+      .prepare(`
+        SELECT
+          c.id,
+          c.codigo,
+          c.nome,
+          COALESCE(cp.valor_unitario, 0) as precoAtual,
+          c.ativo
+        FROM componentes c
+        LEFT JOIN componentes_precos cp
+          ON cp.componente_id = c.id
+          AND cp.ativo = 1
+          AND cp.vigencia_fim IS NULL
+        WHERE c.ativo = 0
+        ORDER BY c.codigo
+      `)
+      .all() as Array<{
+        id: number
+        codigo: string
+        nome: string
+        precoAtual: number
+        ativo: number
+      }>
+
+    return componentes.map((componente) => ({
+      ...componente,
+      ativo: Boolean(componente.ativo)
+    }))
+  }
+
+  restaurar(id: number): void {
+    db.prepare(`
+      UPDATE componentes
+      SET ativo = 1
+      WHERE id = ?
+    `).run(id)
+  }
+
+  excluirPermanente(id: number): void {
+    db.prepare(`
+      DELETE FROM componentes_precos
+      WHERE componente_id = ?
+    `).run(id)
+
+    db.prepare(`
+      DELETE FROM componentes
+      WHERE id = ?
+        AND ativo = 0
+    `).run(id)
+  }
 }

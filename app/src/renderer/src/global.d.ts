@@ -226,14 +226,26 @@ declare global {
 
       componentes: {
         listar: () => Promise<ComponenteApi[]>
-        criar: (codigo: string, nome: string, precoAtual: number) => Promise<void>
+        listarInativos: () => Promise<ComponenteApi[]>
+
+        criar: (
+          codigo: string,
+          nome: string,
+          precoAtual: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
+
         editar: (
           id: number,
           codigo: string,
           nome: string,
           precoAtual: number
-        ) => Promise<void>
-        excluir: (id: number) => Promise<void>
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
+
+        excluir: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+        restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+        excluirPermanente: (
+          id: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
       },
 
       circuitos: {

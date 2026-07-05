@@ -137,4 +137,49 @@ export class ComponenteRepository {
       WHERE id = $1
     `, [id])
   }
+
+  async listarInativos(): Promise<Componente[]> {
+    const result = await pool.query<any>(`
+      SELECT
+        c.id,
+        c.codigo,
+        c.nome,
+        COALESCE(cp.valor_unitario, 0) as "precoAtual",
+        c.ativo
+      FROM componentes c
+      LEFT JOIN componentes_precos cp
+        ON cp.componente_id = c.id
+      AND cp.ativo = true
+      AND cp.vigencia_fim IS NULL
+      WHERE c.ativo = false
+      ORDER BY c.codigo
+    `)
+
+    return result.rows.map((componente) => ({
+      ...componente,
+      precoAtual: Number(componente.precoAtual ?? 0),
+      ativo: Boolean(componente.ativo)
+    }))
+  }
+
+  async restaurar(id: number): Promise<void> {
+    await pool.query(`
+      UPDATE componentes
+      SET ativo = true
+      WHERE id = $1
+    `, [id])
+  }
+
+  async excluirPermanente(id: number): Promise<void> {
+    await pool.query(`
+      DELETE FROM componentes_precos
+      WHERE componente_id = $1
+    `, [id])
+
+    await pool.query(`
+      DELETE FROM componentes
+      WHERE id = $1
+        AND ativo = false
+    `, [id])
+  }
 }

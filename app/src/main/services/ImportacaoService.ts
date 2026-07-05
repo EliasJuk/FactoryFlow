@@ -43,10 +43,10 @@ SA,Área de Inspeção,Inspeção Final
 SB,Área de Processo,Posto Processo 01
 `,
 
-  componentes: `codigo,nome
-COMP-0001,Componente A
-COMP-0002,Componente B
-COMP-0003,Componente C
+  componentes: `codigo,nome,preco
+COMP-0001,Componente A,10.50
+COMP-0002,Componente B,25.00
+COMP-0003,Componente C,0
 `,
 
   circuitos: `codigo,nome
@@ -82,6 +82,17 @@ PROD-0002,Posto Processo 01,COMP-0003,1
 function normalizar(valor: unknown) {
   return String(valor ?? "").trim()
 }
+
+function normalizarPreco(valor: unknown) {
+  const texto = normalizar(valor)
+    .replace(/\./g, "")
+    .replace(",", ".")
+
+  const preco = Number(texto || 0)
+
+  return Number.isFinite(preco) ? preco : 0
+}
+
 
 function gerarHashSenha(senha: string) {
   const salt = crypto.randomBytes(16).toString("hex")
@@ -440,6 +451,7 @@ export class ImportacaoService {
     for (const item of registros) {
       const codigo = normalizar(item.codigo)
       const nome = normalizar(item.nome)
+      const precoAtual = normalizarPreco(item.preco ?? item.preco_atual)
 
       if (!codigo || !nome) {
         ignorados++
@@ -453,16 +465,16 @@ export class ImportacaoService {
       if (existente) {
         db.prepare(`
           UPDATE componentes
-          SET nome = ?, ativo = 1
+          SET nome = ?, preco_atual = ?, ativo = 1
           WHERE id = ?
-        `).run(nome, existente.id)
+        `).run(nome, precoAtual, existente.id)
 
         atualizados++
       } else {
         db.prepare(`
-          INSERT INTO componentes (codigo, nome, ativo)
-          VALUES (?, ?, 1)
-        `).run(codigo, nome)
+          INSERT INTO componentes (codigo, nome, preco_atual, ativo)
+          VALUES (?, ?, ?, 1)
+        `).run(codigo, nome, precoAtual)
 
         inseridos++
       }

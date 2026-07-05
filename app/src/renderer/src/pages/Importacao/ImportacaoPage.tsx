@@ -45,7 +45,7 @@ const abas: AbaImportacao[] = [
     id: "componentes",
     titulo: "Componentes",
     descricao: "Importe componentes e peças.",
-    colunas: ["codigo", "nome"]
+    colunas: ["codigo", "nome", "preco"]
   },
   {
     id: "circuitos",

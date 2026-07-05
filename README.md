@@ -1,7 +1,10 @@
 # FactoryFlow
 
 <h2 align="center">Diagrama do Banco de Dados</h2>
-[![Diagrama do Banco de Dados](docs/database/schema.svg)](docs/database/schema.svg)
+<p align="center">
+  <img src="docs/database/schema.svg" width="900" alt="Diagrama do Banco">
+</p>
+
 
 ```
 FactoryFlow/

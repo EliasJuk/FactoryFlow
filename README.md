@@ -5,6 +5,126 @@
   <img src="docs/database/schema.svg" width="900" alt="Diagrama do Banco">
 </p>
 
+---
+
+## Checks e Futuras Implementações
+
+### Segurança e Usuários
+
+- ⬛️ Histórico de login dos usuários.
+- ⬛️ Controle de permissões mais detalhado por perfil.
+- ⬛️ Recuperação ou redefinição de senha.
+- ⬛️ Registro de usuário responsável por cada cadastro, edição, inativação e exclusão.
+- ⬛️ Bloqueio de ações críticas para usuários sem permissão.
+- ⬛️ Tela de auditoria para administradores.
+
+### Auditoria e Histórico
+
+- ⬛️ Histórico de modificações.
+- ⬛️ Registro de quem alterou, quando alterou e o que foi alterado.
+- ⬛️ Histórico de alterações em componentes, circuitos, roteiros e refugos.
+- ⬛️ Versionamento de circuitos.
+- ⬛️ Versionamento de roteiros.
+- ⬛️ Restauração de versões anteriores.
+- ⬛️ Log de erros da aplicação.
+
+### Banco de Dados e Backup
+
+- ⬛️ Backup automático do banco de dados.
+- ⬛️ Backup manual pela tela de configurações.
+- ⬛️ Restauração de backup.
+- ⬛️ Agendamento de backup diário/semanal.
+- ⬛️ Exportação completa dos dados.
+- ⬛️ Validação de integridade do banco.
+- ⬛️ Tela de status da conexão com o banco.
+
+### Cadastros e Regras de Negócio
+
+- ⬛️ Validação avançada para impedir cadastros duplicados.
+- ⬛️ Histórico completo de preços dos componentes.
+- ⬛️ Cadastro de turnos configurável.
+- ⬛️ Cadastro de máquinas ou equipamentos por posto.
+
+### Refugos
+
+- ⬛️  Melhorias na tela de lançamento de refugo.
+- ✅ Validação para permitir apenas componentes do roteiro selecionado.
+- ⬛️ Edição controlada de lançamentos.
+- ⬛️ Histórico de alterações em refugos.
+- ⬛️ Cancelamento com motivo obrigatório.
+- ⬛️ Impressão em diferentes modelos de ficha.
+- ✅ Reimpressão de ficha.
+- ⬛️ Geração de número único mais robusta.
+- ⬛️ Anexar evidências, como fotos ou observações técnicas.
+
+### Relatórios e Indicadores
+
+- ⬛️ Dashboard principal.
+- ⬛️ Gráficos de refugo por setor.
+- ⬛️ Gráficos de refugo por posto.
+- ⬛️ Gráficos de refugo por defeito.
+- ⬛️ Gráficos de custo por componente.
+- ⬛️ Ranking dos circuitos mais críticos.
+- ⬛️ Ranking dos defeitos mais recorrentes.
+- ⬛️ Comparativo por turno.
+- ⬛️ Comparativo por período.
+- ⬛️ Exportação para CSV, Excel e PDF.
+- ⬛️ Filtros avançados por data, setor, posto, circuito e defeito.
+
+### Interface e Experiência do Usuário
+
+- ⬛️ Tema claro/escuro.
+- ⬛️ Melhorias de responsividade.
+- ⬛️ Atalhos de teclado.
+- ⬛️ Paginação padronizada em todos os módulos.
+- ⬛️ Mensagens de erro mais amigáveis.
+- ⬛️ Confirmações para ações críticas.
+- ⬛️ Feedback visual durante carregamentos.
+- ⬛️ Tela de configurações do sistema.
+- ⬛️ Preferências do usuário.
+- ⬛️ Melhorias na navegação lateral.
+
+### Importação e Exportação
+
+- ⬛️ Importação de componentes por planilha.
+- ⬛️ Importação de circuitos por planilha.
+- ⬛️ Importação de roteiros por planilha.
+- ⬛️ Validação prévia antes da importação.
+- ⬛️ Relatório de erros da importação.
+- ⬛️ Exportação de cadastros.
+- ⬛️ Exportação de resultados filtrados.
+- ⬛️ Geração de modelos de planilha.
+
+### Arquitetura e Manutenção
+
+- ⬛️ Testes automatizados.
+- ⬛️ Testes de integração com banco.
+- ⬛️ Scripts de migração do banco.
+- ⬛️ Documentação da arquitetura.
+
+### Infraestrutura
+
+- ⬛️ Instalador final para Windows.
+- ⬛️ Configuração inicial guiada.
+- ✅ Tela para escolher SQLite ou PostgreSQL.
+- ⬛️ Atualizações automáticas.
+- ⬛️ Logs locais da aplicação.
+- ⬛️ Monitoramento básico de erros.
+
+### Futuras Integrações
+
+- ⬛️ Integração com sistemas ERP.
+- ⬛️ Integração com leitores de código de barras.
+- ⬛️ Integração com impressoras específicas.
+- ⬛️ Integração com BI externo.
+- ⬛️ API REST para consulta dos dados.
+- ⬛️ Sincronização com servidor central.
+- ⬛️ Modo offline com sincronização posterior.
+
+
+---
+
+# TREE ARCHIVES
 
 ```
 FactoryFlow/
@@ -50,6 +170,8 @@ FactoryFlow/
 ├── package-lock.json
 └── README.md
 ```
+
+## Responsabilidade
 
 
 | Pasta          | Responsabilidade                                                 |

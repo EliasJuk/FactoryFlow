@@ -3,6 +3,7 @@ import { Download, FileSpreadsheet, Upload } from "lucide-react"
 
 import PageHeader from "../../components/PageHeader/PageHeader"
 import { ui } from "../../theme/ui"
+import { ImportacaoPreviewModal } from "./components/ImportacaoPreviewModal"
 
 type TipoImportacao =
   | "setores"
@@ -20,6 +21,13 @@ type AbaImportacao = {
   titulo: string
   descricao: string
   colunas: string[]
+}
+
+type RegistroPreview = {
+  id: number
+  linha: number
+  selecionado: boolean
+  dados: Record<string, string>
 }
 
 const abas: AbaImportacao[] = [
@@ -83,6 +91,8 @@ function ImportacaoPage() {
   const [abaAtiva, setAbaAtiva] = useState<TipoImportacao>("setores")
   const [mensagem, setMensagem] = useState("")
   const [carregando, setCarregando] = useState(false)
+  const [modalAberto, setModalAberto] = useState(false)
+  const [registrosPreview, setRegistrosPreview] = useState<RegistroPreview[]>([])
 
   const aba = abas.find((item) => item.id === abaAtiva) ?? abas[0]
 
@@ -98,9 +108,49 @@ function ImportacaoPage() {
     }
   }
 
-  async function importarArquivo() {
+  async function selecionarArquivo() {
+    setCarregando(true)
+    setMensagem("")
+
+    try {
+      const resultado = await window.api.importacao.preVisualizar(aba.id)
+
+      if (!resultado.sucesso) {
+        setMensagem(resultado.mensagem)
+        return
+      }
+
+      setRegistrosPreview(resultado.registros)
+      setModalAberto(true)
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  function alternarTodos(selecionado: boolean) {
+    setRegistrosPreview((registros) =>
+      registros.map((registro) => ({
+        ...registro,
+        selecionado
+      }))
+    )
+  }
+
+  function alternarLinha(id: number) {
+    setRegistrosPreview((registros) =>
+      registros.map((registro) =>
+        registro.id === id
+          ? { ...registro, selecionado: !registro.selecionado }
+          : registro
+      )
+    )
+  }
+
+  async function importarSelecionados() {
+    const selecionados = registrosPreview.filter((registro) => registro.selecionado)
+
     const confirmar = confirm(
-      `Deseja importar dados de ${aba.titulo}?\n\nRegistros existentes poderão ser atualizados.`
+      `Deseja importar ${selecionados.length} registro(s) de ${aba.titulo}?`
     )
 
     if (!confirmar) return
@@ -109,11 +159,17 @@ function ImportacaoPage() {
     setMensagem("")
 
     try {
-      const resultado = await window.api.importacao.importar(aba.id)
+      const resultado = await window.api.importacao.importarRegistros(
+        aba.id,
+        selecionados.map((registro) => registro.dados)
+      )
 
       setMensagem(
         `${resultado.mensagem} Inseridos: ${resultado.inseridos} | Atualizados: ${resultado.atualizados} | Ignorados: ${resultado.ignorados}`
       )
+
+      setModalAberto(false)
+      setRegistrosPreview([])
     } finally {
       setCarregando(false)
     }
@@ -135,6 +191,7 @@ function ImportacaoPage() {
                 onClick={() => {
                   setAbaAtiva(item.id)
                   setMensagem("")
+                  setRegistrosPreview([])
                 }}
                 className={`border-r border-[var(--border)] px-4 py-3 text-sm font-semibold ${
                   abaAtiva === item.id
@@ -208,22 +265,22 @@ function ImportacaoPage() {
                 </h3>
 
                 <p className="mt-1 text-xs text-[var(--text-light)]">
-                  Selecione um arquivo CSV preenchido com base no modelo.
+                  Selecione um arquivo CSV para pré-visualizar antes de importar.
                 </p>
 
                 <div className="mt-3 rounded-md bg-[var(--soft)] p-3 text-xs text-[var(--text)]">
-                  O sistema irá inserir novos registros e atualizar registros já
-                  existentes quando encontrar a mesma chave, como sigla, código
-                  ou matrícula.
+                  O sistema irá carregar o arquivo em uma prévia. Você poderá
+                  selecionar todos os registros ou apenas algumas linhas antes de
+                  confirmar a importação.
                 </div>
 
                 <button
-                  onClick={importarArquivo}
+                  onClick={selecionarArquivo}
                   disabled={carregando}
                   className="mt-4 flex items-center gap-2 rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
                 >
                   <Upload size={16} />
-                  Importar CSV
+                  Selecionar CSV
                 </button>
               </div>
             </div>
@@ -236,6 +293,19 @@ function ImportacaoPage() {
           </div>
         </div>
       </section>
+
+      {modalAberto && (
+        <ImportacaoPreviewModal
+          titulo={aba.titulo}
+          colunas={aba.colunas}
+          registros={registrosPreview}
+          carregando={carregando}
+          onFechar={() => setModalAberto(false)}
+          onToggleTodos={alternarTodos}
+          onToggleLinha={alternarLinha}
+          onConfirmar={importarSelecionados}
+        />
+      )}
     </main>
   )
 }

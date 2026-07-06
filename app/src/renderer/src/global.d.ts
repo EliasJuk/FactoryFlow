@@ -412,6 +412,28 @@ declare global {
           atualizados: number
           ignorados: number
         }>
+
+        preVisualizar: (tipo: string) => Promise<{
+          sucesso: boolean
+          mensagem: string
+          registros: {
+            id: number
+            linha: number
+            selecionado: boolean
+            dados: Record<string, string>
+          }[]
+        }>
+
+        importarRegistros: (
+          tipo: string,
+          registros: Record<string, string>[]
+        ) => Promise<{
+          sucesso: boolean
+          mensagem: string
+          inseridos: number
+          atualizados: number
+          ignorados: number
+        }>
       },
 
       exportacaoDados: {

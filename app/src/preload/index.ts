@@ -277,6 +277,12 @@ contextBridge.exposeInMainWorld("api", {
     baixarModelo: (tipo: string) =>
       ipcRenderer.invoke("importacao:baixar-modelo", tipo),
 
+    preVisualizar: (tipo: string) =>
+      ipcRenderer.invoke("importacao:pre-visualizar", tipo),
+
+    importarRegistros: (tipo: string, registros: Record<string, string>[]) =>
+      ipcRenderer.invoke("importacao:importar-registros", tipo, registros),
+
     importar: (tipo: string) =>
       ipcRenderer.invoke("importacao:importar", tipo)
   },

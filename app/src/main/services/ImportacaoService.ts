@@ -21,6 +21,13 @@ type ResultadoImportacao = {
   ignorados: number
 }
 
+type RegistroPreview = {
+  id: number
+  linha: number
+  selecionado: boolean
+  dados: Record<string, string>
+}
+
 const modelos: Record<TipoImportacao, string> = {
   setores: `nome,sigla
 Setor A,SA
@@ -195,7 +202,7 @@ function lerCsv(caminho: string) {
   console.log("[IMPORTACAO] Separador:", separador)
   console.log("[IMPORTACAO] Cabeçalhos:", cabecalhos)
 
-  return linhas.slice(1).map((linha) => {
+  return linhas.slice(1).map((linha, index) => {
     const valores = dividirLinhaCsv(linha, separador)
     const registro: Record<string, string> = {}
 
@@ -203,11 +210,14 @@ function lerCsv(caminho: string) {
       registro[cabecalho] = normalizar(valores[index])
     })
 
+    registro.__linha = String(index + 2)
+
     return registro
   })
 }
 
 export class ImportacaoService {
+  
   async baixarModelo(tipo: TipoImportacao) {
     const modelo = modelos[tipo]
 
@@ -830,5 +840,85 @@ export class ImportacaoService {
     }
 
     return { inseridos, atualizados, ignorados }
+  }
+
+  async preVisualizar(_tipo: TipoImportacao) {
+    const resultado = await dialog.showOpenDialog({
+      title: "Selecionar arquivo CSV",
+      properties: ["openFile"],
+      filters: [{ name: "CSV", extensions: ["csv"] }]
+    })
+
+    if (resultado.canceled || resultado.filePaths.length === 0) {
+      return {
+        sucesso: false,
+        mensagem: "Operação cancelada.",
+        registros: [] as RegistroPreview[]
+      }
+    }
+
+    const registros = lerCsv(resultado.filePaths[0])
+
+    return {
+      sucesso: true,
+      mensagem: "Arquivo carregado com sucesso.",
+      registros: registros.map((registro, index) => ({
+        id: index + 1,
+        linha: Number(registro.__linha ?? index + 2),
+        selecionado: true,
+        dados: registro
+      }))
+    }
+  }
+
+  async importarRegistros(
+    tipo: TipoImportacao,
+    registros: Record<string, string>[]
+  ): Promise<ResultadoImportacao> {
+    const registrosLimpos = registros.map((registro) => {
+      const copia = { ...registro }
+      delete copia.__linha
+      return copia
+    })
+
+    let resumo: Omit<ResultadoImportacao, "sucesso" | "mensagem">
+
+    switch (tipo) {
+      case "setores":
+        resumo = await this.importarSetores(registrosLimpos)
+        break
+      case "subsetores":
+        resumo = await this.importarSubsetores(registrosLimpos)
+        break
+      case "postos":
+        resumo = await this.importarPostos(registrosLimpos)
+        break
+      case "componentes":
+        resumo = await this.importarComponentes(registrosLimpos)
+        break
+      case "circuitos":
+        resumo = await this.importarCircuitos(registrosLimpos)
+        break
+      case "defeitos":
+        resumo = await this.importarDefeitos(registrosLimpos)
+        break
+      case "usuarios":
+        resumo = await this.importarUsuarios(registrosLimpos)
+        break
+      case "circuitoComponentes":
+        resumo = await this.importarCircuitoComponentes(registrosLimpos)
+        break
+      case "roteiros":
+        resumo = await this.importarRoteiros(registrosLimpos)
+        break
+      default:
+        throw new Error("Tipo de importação inválido.")
+    }
+
+    return {
+      sucesso: true,
+      mensagem: "Importação concluída.",
+      ...resumo
+    }
   }
 }

@@ -1,6 +1,6 @@
 import { loadConfig } from "../config/appConfig"
 
-import { runMigrations as runSqliteMigrations } from "./migrations"
+import { runMigrations as runSqliteMigrations } from "./sqlite/migrations"
 import { runPostgresMigrations } from "./postgres/migrations"
 
 export class DatabaseManager {

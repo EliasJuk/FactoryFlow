@@ -139,6 +139,21 @@ export async function runPostgresMigrations() {
     await pool.query(`ALTER TABLE usuarios ADD COLUMN senha_hash TEXT;`)
   }
 
+  const colunasUsuarios = [
+  { nome: "created_at", sql: "ALTER TABLE usuarios ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;" },
+  { nome: "updated_at", sql: "ALTER TABLE usuarios ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;" },
+  { nome: "deleted_at", sql: "ALTER TABLE usuarios ADD COLUMN deleted_at TIMESTAMP NULL;" },
+  { nome: "created_by", sql: "ALTER TABLE usuarios ADD COLUMN created_by INTEGER NULL REFERENCES usuarios(id);" },
+  { nome: "updated_by", sql: "ALTER TABLE usuarios ADD COLUMN updated_by INTEGER NULL REFERENCES usuarios(id);" },
+  { nome: "deleted_by", sql: "ALTER TABLE usuarios ADD COLUMN deleted_by INTEGER NULL REFERENCES usuarios(id);" }
+    ]
+
+    for (const coluna of colunasUsuarios) {
+      if (!(await columnExists("usuarios", coluna.nome))) {
+        await pool.query(coluna.sql)
+      }
+    }
+
   if (!(await columnExists("refugos", "status"))) {
     await pool.query(`
       ALTER TABLE refugos
@@ -196,8 +211,16 @@ export async function runPostgresMigrations() {
   }
 
   await pool.query(`
-    INSERT INTO usuarios (id, nome, matricula, perfil, ativo)
-    VALUES (1, 'Sistema', '0000', 'ADMIN', true)
+    INSERT INTO usuarios (
+      id,
+      nome,
+      matricula,
+      perfil,
+      ativo,
+      created_at,
+      updated_at
+    )
+    VALUES (1, 'Sistema', '0000', 'ADMIN', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     ON CONFLICT (id) DO NOTHING;
   `)
 }

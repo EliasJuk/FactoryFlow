@@ -1,4 +1,4 @@
-import db from "./database"
+import db from "../database"
 
 function columnExists(table: string, column: string): boolean {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
@@ -133,6 +133,30 @@ export function runMigrations() {
     `)
   }
 
+  if (!columnExists("usuarios", "created_at")) {
+    db.exec(`ALTER TABLE usuarios ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP;`)
+  }
+
+  if (!columnExists("usuarios", "updated_at")) {
+    db.exec(`ALTER TABLE usuarios ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP;`)
+  }
+
+  if (!columnExists("usuarios", "deleted_at")) {
+    db.exec(`ALTER TABLE usuarios ADD COLUMN deleted_at TEXT;`)
+  }
+
+  if (!columnExists("usuarios", "created_by")) {
+    db.exec(`ALTER TABLE usuarios ADD COLUMN created_by INTEGER;`)
+  }
+
+  if (!columnExists("usuarios", "updated_by")) {
+    db.exec(`ALTER TABLE usuarios ADD COLUMN updated_by INTEGER;`)
+  }
+
+  if (!columnExists("usuarios", "deleted_by")) {
+    db.exec(`ALTER TABLE usuarios ADD COLUMN deleted_by INTEGER;`)
+  }
+
   if (!columnExists("setores", "sigla")) {
     db.exec(`ALTER TABLE setores ADD COLUMN sigla TEXT;`)
   }
@@ -179,7 +203,23 @@ export function runMigrations() {
   }
 
   db.prepare(`
-    INSERT OR IGNORE INTO usuarios (id, nome, matricula, perfil, ativo)
-    VALUES (1, 'Sistema', '0000', 'ADMIN', 1)
+    INSERT OR IGNORE INTO usuarios (
+      id,
+      nome,
+      matricula,
+      perfil,
+      ativo,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      1,
+      'Sistema',
+      '0000',
+      'ADMIN',
+      1,
+      datetime('now','localtime'),
+      datetime('now','localtime')
+    )
   `).run()
 }

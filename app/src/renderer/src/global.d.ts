@@ -189,6 +189,23 @@ declare global {
           callback: (data: { message: string }) => void
         ) => void
       },
+
+      auth: {
+        login: (
+          matricula: string,
+          senha: string
+        ) => Promise<{
+          sucesso: boolean
+          mensagem: string
+          usuario?: {
+            id: number
+            nome: string
+            matricula: string
+            perfil: string
+          }
+        }>
+      },
+      
       setores: {
         listar: () => Promise<SetorApi[]>
 

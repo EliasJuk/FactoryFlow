@@ -36,6 +36,11 @@ contextBridge.exposeInMainWorld("api", {
     }
   },
 
+  auth: {
+    login: (matricula: string, senha: string) =>
+    ipcRenderer.invoke("auth:login", matricula, senha)
+  },
+
   setores: {
     listar: () => ipcRenderer.invoke("setores:listar"),
 

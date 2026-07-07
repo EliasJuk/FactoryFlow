@@ -175,4 +175,5 @@ resources/app-update.yml
 *.temp
 
 # Database
-factoryflow/database/factoryflow.db
+factoryflow/database/*
+config/

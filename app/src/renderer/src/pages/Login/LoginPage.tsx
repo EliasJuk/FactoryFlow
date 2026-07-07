@@ -1,9 +1,23 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { Database, Settings } from "lucide-react"
 
 import { APP } from "../../config/app"
 import Button from "../../components/Button/Button"
 import Input from "../../components/Input/Input"
+
+type DatabaseProvider = "sqlite" | "postgres"
+
+type ConfigBanco = {
+  provider: DatabaseProvider
+  postgres: {
+    host: string
+    port: number
+    database: string
+    user: string
+    password: string
+  }
+}
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -11,9 +25,26 @@ function LoginPage() {
   const [isReady, setIsReady] = useState(false)
   const [message, setMessage] = useState("Inicializando sistema...")
   const [progress, setProgress] = useState(10)
-  const [error, setError] = useState("")
+  const [startupError, setStartupError] = useState("")
+
+  const [matricula, setMatricula] = useState("")
+  const [senha, setSenha] = useState("")
+  const [erroLogin, setErroLogin] = useState("")
+  const [carregandoLogin, setCarregandoLogin] = useState(false)
+
+  const [configBanco, setConfigBanco] = useState<ConfigBanco | null>(null)
+  const [mostrarBanco, setMostrarBanco] = useState(false)
+  const [salvandoBanco, setSalvandoBanco] = useState(false)
+  const [mensagemBanco, setMensagemBanco] = useState("")
+
+  async function carregarConfigBanco() {
+    const config = await window.api.configuracao.carregarBanco()
+    setConfigBanco(config)
+  }
 
   useEffect(() => {
+    carregarConfigBanco()
+
     window.api.app.onStartupProgress((data) => {
       setMessage(data.message)
       setProgress(data.progress)
@@ -21,12 +52,14 @@ function LoginPage() {
 
     window.api.app.onReady(() => {
       setIsReady(true)
+      setStartupError("")
       setMessage("Sistema pronto para uso")
       setProgress(100)
     })
 
     window.api.app.onStartupError((data) => {
-      setError(data.message)
+      setStartupError(data.message)
+      setIsReady(false)
     })
 
     window.api.app.isReady().then((ready) => {
@@ -39,45 +72,176 @@ function LoginPage() {
     })
   }, [])
 
+  async function salvarProvider(provider: DatabaseProvider) {
+    if (!configBanco) return
+
+    setSalvandoBanco(true)
+    setMensagemBanco("")
+
+    try {
+      const novaConfig = {
+        ...configBanco,
+        provider
+      }
+
+      const resultado = await window.api.configuracao.salvarBanco(novaConfig)
+
+      setConfigBanco(novaConfig)
+      setMensagemBanco(resultado.mensagem)
+    } finally {
+      setSalvandoBanco(false)
+    }
+  }
+
+  async function fazerLogin(event: React.FormEvent) {
+    event.preventDefault()
+
+    if (!isReady) return
+
+    setErroLogin("")
+
+    if (!matricula.trim() || !senha.trim()) {
+      setErroLogin("Informe matrícula e senha.")
+      return
+    }
+
+    setCarregandoLogin(true)
+
+    try {
+      const resultado = await window.api.auth.login(
+        matricula.trim(),
+        senha
+      )
+
+      if (!resultado.sucesso) {
+        setErroLogin(resultado.mensagem)
+        return
+      }
+
+      localStorage.setItem(
+        "factoryflow.usuario",
+        JSON.stringify(resultado.usuario)
+      )
+
+      navigate("/dashboard")
+    } finally {
+      setCarregandoLogin(false)
+    }
+  }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 p-6">
+    <main className="relative flex min-h-screen items-center justify-center bg-slate-950 p-6">
+      <div className="absolute right-6 top-6">
+        <button
+          type="button"
+          onClick={() => setMostrarBanco((valor) => !valor)}
+          className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+        >
+          <Database size={14} />
+          Banco: {configBanco?.provider === "postgres" ? "PostgreSQL" : "SQLite"}
+          <Settings size={14} />
+        </button>
+
+        {mostrarBanco && configBanco && (
+          <div className="mt-2 w-72 rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl">
+            <p className="text-xs font-bold text-slate-300">
+              Provider do banco
+            </p>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={salvandoBanco}
+                onClick={() => salvarProvider("sqlite")}
+                className={`rounded-lg px-3 py-2 text-xs font-bold ${
+                  configBanco.provider === "sqlite"
+                    ? "bg-orange-600 text-white"
+                    : "bg-slate-800 text-slate-300"
+                }`}
+              >
+                SQLite
+              </button>
+
+              <button
+                type="button"
+                disabled={salvandoBanco}
+                onClick={() => salvarProvider("postgres")}
+                className={`rounded-lg px-3 py-2 text-xs font-bold ${
+                  configBanco.provider === "postgres"
+                    ? "bg-orange-600 text-white"
+                    : "bg-slate-800 text-slate-300"
+                }`}
+              >
+                PostgreSQL
+              </button>
+            </div>
+
+            {mensagemBanco && (
+              <p className="mt-3 rounded-lg bg-orange-950/30 px-3 py-2 text-xs text-orange-300">
+                {mensagemBanco}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {startupError && (
+        <div className="absolute top-6 max-w-xl rounded-2xl border border-red-900/40 bg-red-950/40 px-5 py-3 text-center text-sm font-semibold text-red-300">
+          {startupError}
+        </div>
+      )}
+
       <div className="w-full max-w-sm">
-        {/* Logo Centralizado */}
         <div className="mb-10 flex flex-col items-center justify-center gap-4">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-600 text-3xl font-bold text-white shadow-lg shadow-orange-900/20">
             F
           </div>
+
           <div className="text-center">
-            <h1 className="text-3xl font-bold tracking-tight text-white">{APP.name}</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-white">
+              {APP.name}
+            </h1>
             <p className="text-slate-400">Sistema industrial de gestão</p>
           </div>
         </div>
 
-        {/* Card de Login */}
         <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
           <div className="mb-7">
-            <p className="text-sm font-medium text-orange-500">Acesso ao sistema</p>
+            <p className="text-sm font-medium text-orange-500">
+              Acesso ao sistema
+            </p>
             <h2 className="mt-2 text-3xl font-bold text-white">Entrar</h2>
-            <p className="mt-2 text-sm text-slate-400">Informe sua matrícula e senha.</p>
+            <p className="mt-2 text-sm text-slate-400">
+              Informe sua matrícula e senha.
+            </p>
           </div>
 
-          <form
-            className="space-y-5"
-            onSubmit={(event) => {
-              event.preventDefault()
-              if (!isReady) return
-              navigate("/dashboard")
-            }}
-          >
-            <Input label="Matrícula" placeholder="Digite sua matrícula" disabled={!isReady} />
-            <Input label="Senha" type="password" placeholder="Digite sua senha" disabled={!isReady} />
+          <form className="space-y-5" onSubmit={fazerLogin}>
+            <Input
+              label="Matrícula"
+              placeholder="Digite sua matrícula"
+              value={matricula}
+              onChange={(event) => setMatricula(event.target.value)}
+              disabled={!isReady || carregandoLogin}
+            />
+
+            <Input
+              label="Senha"
+              type="password"
+              placeholder="Digite sua senha"
+              value={senha}
+              onChange={(event) => setSenha(event.target.value)}
+              disabled={!isReady || carregandoLogin}
+            />
 
             <div className="space-y-2 rounded-2xl bg-slate-950 p-3">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-500">{message}</span>
-                <span className="font-semibold text-orange-500">{progress}%</span>
+                <span className="font-semibold text-orange-500">
+                  {progress}%
+                </span>
               </div>
+
               <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
                 <div
                   className="h-full rounded-full bg-orange-600 transition-all duration-300"
@@ -86,14 +250,14 @@ function LoginPage() {
               </div>
             </div>
 
-            {error && (
+            {erroLogin && (
               <p className="rounded-xl border border-red-900/30 bg-red-950/20 px-3 py-2 text-center text-sm text-red-400">
-                {error}
+                {erroLogin}
               </p>
             )}
 
-            <Button type="submit" disabled={!isReady}>
-              {isReady ? "Entrar" : "Aguarde..."}
+            <Button type="submit" disabled={!isReady || carregandoLogin}>
+              {carregandoLogin ? "Entrando..." : isReady ? "Entrar" : "Aguarde..."}
             </Button>
           </form>
 

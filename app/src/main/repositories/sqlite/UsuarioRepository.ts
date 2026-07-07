@@ -242,4 +242,33 @@ export class UsuarioRepository {
         AND deleted_at IS NULL
     `).run(usuarioId, usuarioId, id)
   }
+
+  buscarCredenciaisPorMatricula(matricula: string) {
+    return db
+      .prepare(`
+        SELECT
+          id,
+          nome,
+          matricula,
+          perfil,
+          senha_hash as senhaHash,
+          ativo,
+          deleted_at as deletedAt
+        FROM usuarios
+        WHERE matricula = ?
+          AND deleted_at IS NULL
+        LIMIT 1
+      `)
+      .get(matricula) as
+      | {
+          id: number
+          nome: string
+          matricula: string
+          perfil: string
+          senhaHash: string | null
+          ativo: number
+          deletedAt: string | null
+        }
+      | undefined
+  }
 }

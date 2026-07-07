@@ -240,4 +240,26 @@ export class UsuarioRepository {
       [id, usuarioId]
     )
   }
+
+  async buscarCredenciaisPorMatricula(matricula: string) {
+    const result = await pool.query<any>(
+      `
+        SELECT
+          id,
+          nome,
+          matricula,
+          perfil,
+          senha_hash as "senhaHash",
+          ativo,
+          deleted_at as "deletedAt"
+        FROM usuarios
+        WHERE matricula = $1
+          AND deleted_at IS NULL
+        LIMIT 1
+      `,
+      [matricula]
+    )
+    return result.rows[0] ?? null
+  }
+
 }

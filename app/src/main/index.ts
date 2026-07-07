@@ -17,6 +17,7 @@ import { registerUsuarioIpc } from './ipc/usuario.ipc'
 import { registerImportacaoIpc } from './ipc/importacao.ipc'
 import { registerExportacaoIpc } from './ipc/exportacao.ipc'
 import { registerConfiguracaoIpc } from './ipc/configuracao.ipc'
+import { registerAuthIpc } from './ipc/auth.ipc'
 
 let mainWindow: BrowserWindow | null = null
 let appReady = false
@@ -77,6 +78,7 @@ function registerIpcHandlers(): void {
   registerImportacaoIpc()
   registerExportacaoIpc()
   registerConfiguracaoIpc()
+  registerAuthIpc()
 
   ipcMain.handle('app:is-ready', () => {
     return appReady

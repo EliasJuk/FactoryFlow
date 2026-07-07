@@ -251,11 +251,14 @@ contextBridge.exposeInMainWorld("api", {
   usuarios: {
     listar: () => ipcRenderer.invoke("usuarios:listar"),
 
+    listarInativos: () => ipcRenderer.invoke("usuarios:listar-inativos"),
+
     criar: (input: {
       nome: string
       matricula: string
       perfil: string
       senha?: string
+      usuarioId?: number | null
     }) => ipcRenderer.invoke("usuarios:criar", input),
 
     editar: (
@@ -265,12 +268,18 @@ contextBridge.exposeInMainWorld("api", {
         matricula: string
         perfil: string
         senha?: string
+        usuarioId?: number | null
       }
     ) => ipcRenderer.invoke("usuarios:editar", id, input),
 
-    excluir: (id: number) => ipcRenderer.invoke("usuarios:excluir", id),
+    excluir: (id: number, usuarioId?: number | null) =>
+      ipcRenderer.invoke("usuarios:excluir", id, usuarioId),
 
-    ativar: (id: number) => ipcRenderer.invoke("usuarios:ativar", id)
+    ativar: (id: number, usuarioId?: number | null) =>
+      ipcRenderer.invoke("usuarios:ativar", id, usuarioId),
+
+    remover: (id: number, usuarioId?: number | null) =>
+      ipcRenderer.invoke("usuarios:remover", id, usuarioId)
   },
 
   importacao: {

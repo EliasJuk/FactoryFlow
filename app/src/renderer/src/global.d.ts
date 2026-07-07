@@ -101,10 +101,23 @@ type RefugoListagemApi = {
 
 type UsuarioApi = {
   id: number
+
   nome: string
   matricula: string
   perfil: string
   ativo: boolean
+
+  createdAt?: string | null
+  updatedAt?: string | null
+  deletedAt?: string | null
+
+  createdBy?: number | null
+  updatedBy?: number | null
+  deletedBy?: number | null
+
+  createdByNome?: string | null
+  updatedByNome?: string | null
+  deletedByNome?: string | null
 }
 
 type CircuitoPorPostoApi = {
@@ -378,12 +391,18 @@ declare global {
       usuarios: {
         listar: () => Promise<UsuarioApi[]>
 
+        listarInativos: () => Promise<UsuarioApi[]>
+
         criar: (input: {
           nome: string
           matricula: string
           perfil: string
           senha?: string
-        }) => Promise<void>
+          usuarioId?: number
+        }) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
 
         editar: (
           id: number,
@@ -392,11 +411,36 @@ declare global {
             matricula: string
             perfil: string
             senha?: string
+            usuarioId?: number
           }
-        ) => Promise<void>
+        ) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
 
-        excluir: (id: number) => Promise<void>
-        ativar: (id: number) => Promise<void>
+        excluir: (
+          id: number,
+          usuarioId?: number
+        ) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
+
+        ativar: (
+          id: number,
+          usuarioId?: number
+        ) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
+
+        remover: (
+          id: number,
+          usuarioId?: number
+        ) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
       },
 
       importacao: {

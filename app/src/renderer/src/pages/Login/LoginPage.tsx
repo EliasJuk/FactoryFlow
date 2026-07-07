@@ -262,7 +262,7 @@ function LoginPage() {
           </form>
 
           <div className="mt-6 text-center text-xs text-slate-600">
-            <p>Versão 1.4.0</p>
+            <p>Versão 1.5.0</p>
             <p>Desenvolvido por EliasJuk</p>
           </div>
         </div>

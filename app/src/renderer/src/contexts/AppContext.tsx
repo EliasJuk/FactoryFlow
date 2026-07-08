@@ -1,8 +1,15 @@
 import { createContext, ReactNode, useContext, useState } from "react"
 
-type PerfilUsuario = "OPERADOR" | "QUALIDADE" | "ADMIN"
+export type PerfilUsuario =
+  | "OPERADOR"
+  | "TECNICO"
+  | "LIDER"
+  | "SUPERVISOR"
+  | "QUALIDADE"
+  | "ADMIN"
 
-type Usuario = {
+export type Usuario = {
+  id?: number
   nome: string
   matricula: string
   perfil: PerfilUsuario
@@ -10,10 +17,18 @@ type Usuario = {
 
 type AppContextData = {
   usuario: Usuario
+  definirUsuario: (usuario: Usuario) => void
+  limparUsuario: () => void
   setorSelecionado: string
   subsetorSelecionado: string
   alterarSetor: (setor: string) => void
   alterarSubsetor: (subsetor: string) => void
+}
+
+const usuarioPadrao: Usuario = {
+  nome: "",
+  matricula: "",
+  perfil: "OPERADOR"
 }
 
 const AppContext = createContext<AppContextData | undefined>(undefined)
@@ -22,15 +37,33 @@ type AppProviderProps = {
   children: ReactNode
 }
 
+function carregarUsuarioSalvo(): Usuario {
+  try {
+    const salvo = localStorage.getItem("factoryflow.usuario")
+
+    if (!salvo) return usuarioPadrao
+
+    return JSON.parse(salvo) as Usuario
+  } catch {
+    return usuarioPadrao
+  }
+}
+
 export function AppProvider({ children }: AppProviderProps) {
-  const [usuario] = useState<Usuario>({
-    nome: "Usuário Teste",
-    matricula: "000000",
-    perfil: "ADMIN"
-  })
+  const [usuario, setUsuario] = useState<Usuario>(carregarUsuarioSalvo)
 
   const [setorSelecionado, setSetorSelecionado] = useState("SETOR-1")
   const [subsetorSelecionado, setSubsetorSelecionado] = useState("SUB-SETOR A")
+
+  function definirUsuario(usuario: Usuario) {
+    localStorage.setItem("factoryflow.usuario", JSON.stringify(usuario))
+    setUsuario(usuario)
+  }
+
+  function limparUsuario() {
+    localStorage.removeItem("factoryflow.usuario")
+    setUsuario(usuarioPadrao)
+  }
 
   function alterarSetor(setor: string) {
     setSetorSelecionado(setor)
@@ -44,6 +77,8 @@ export function AppProvider({ children }: AppProviderProps) {
     <AppContext.Provider
       value={{
         usuario,
+        definirUsuario,
+        limparUsuario,
         setorSelecionado,
         subsetorSelecionado,
         alterarSetor,

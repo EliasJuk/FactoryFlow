@@ -5,6 +5,7 @@ import { Database, Settings } from "lucide-react"
 import { APP } from "../../config/app"
 import Button from "../../components/Button/Button"
 import Input from "../../components/Input/Input"
+import { useApp, type Usuario } from "../../contexts/AppContext"
 
 type DatabaseProvider = "sqlite" | "postgres"
 
@@ -36,6 +37,7 @@ function LoginPage() {
   const [mostrarBanco, setMostrarBanco] = useState(false)
   const [salvandoBanco, setSalvandoBanco] = useState(false)
   const [mensagemBanco, setMensagemBanco] = useState("")
+  const { definirUsuario } = useApp()
 
   async function carregarConfigBanco() {
     const config = await window.api.configuracao.carregarBanco()
@@ -118,10 +120,12 @@ function LoginPage() {
         return
       }
 
-      localStorage.setItem(
-        "factoryflow.usuario",
-        JSON.stringify(resultado.usuario)
-      )
+      if (resultado.usuario) {
+        definirUsuario({
+          ...resultado.usuario,
+          perfil: resultado.usuario.perfil as Usuario["perfil"]
+        })
+      }
 
       navigate("/dashboard")
     } finally {

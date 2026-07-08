@@ -44,6 +44,8 @@ function DashboardCard({ title, description, icon, onClick }: DashboardCardProps
 function DashboardPage() {
   const navigate = useNavigate()
   const { usuario } = useApp()
+  const perfil = usuario.perfil?.toUpperCase()
+  const podeVerAdministracao = perfil !== "OPERADOR"
 
   return (
     <main className={ui.page}>
@@ -81,93 +83,96 @@ function DashboardPage() {
             />
           </div>
         </div>
+        {podeVerAdministracao && (
+          <>
+            {/* PROCESSO PRODUTIVO */}
+            <div className="mt-6 space-y-3">
+              <h2 className={ui.dashboardGroupTitle}>PROCESSO PRODUTIVO</h2>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <DashboardCard
+                  title="Defeitos"
+                  description="Códigos de defeito"
+                  icon={<AlertTriangle size={24} />}
+                    onClick={() => navigate("/defeitos")}
+                />
+                <DashboardCard
+                  title="Componentes"
+                  description="Cadastrar componentes"
+                  icon={<Package size={24} />}
+                  onClick={() => navigate("/componentes")}
+                />
+                <DashboardCard
+                  title="Circuitos"
+                  description="Cadastrar circuitos"
+                  icon={<Boxes size={24} />}
+                  onClick={() => navigate("/circuitos")}
+                />
+                <DashboardCard
+                  title="Roteiro"
+                  description="Roteiros dos postos de trabalho"
+                  icon={<Route size={24} />}
+                  onClick={() => navigate("/roteiro")}
+                />
+              </div>
+            </div>
 
-        {/* PROCESSO PRODUTIVO */}
-        <div className="mt-6 space-y-3">
-          <h2 className={ui.dashboardGroupTitle}>PROCESSO PRODUTIVO</h2>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <DashboardCard
-              title="Defeitos"
-              description="Códigos de defeito"
-              icon={<AlertTriangle size={24} />}
-                onClick={() => navigate("/defeitos")}
-            />
-            <DashboardCard
-              title="Componentes"
-              description="Cadastrar componentes"
-              icon={<Package size={24} />}
-              onClick={() => navigate("/componentes")}
-            />
-            <DashboardCard
-              title="Circuitos"
-              description="Cadastrar circuitos"
-              icon={<Boxes size={24} />}
-              onClick={() => navigate("/circuitos")}
-            />
-            <DashboardCard
-              title="Roteiro"
-              description="Roteiros dos postos de trabalho"
-              icon={<Route size={24} />}
-              onClick={() => navigate("/roteiro")}
-            />
-          </div>
-        </div>
+            {/*ESTRUTURA DA FABRICA*/}
+            <div className="mt-6 space-y-3">
+              <h2 className={ui.dashboardGroupTitle}>ESTRUTURA DA FABRICA</h2>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <DashboardCard
+                  title="Setores"
+                  description="Cadastrar setores"
+                  icon={<Building2 size={24} />}
+                  onClick={() => navigate("/setores")}
+                />
+                <DashboardCard
+                  title="Subsetores"
+                  description="Cadastrar subsetores"
+                  icon={<Layers3 size={24} />}
+                  onClick={() => navigate("/subsetores")}
+                />
+                <DashboardCard
+                    title="Postos de Trabalho"
+                    description="gerenciar Postos de trabalho"
+                    icon={<MapPinned size={24} />}
+                    onClick={() => navigate("/postos")}
+                />
+              </div>
+            </div>
 
-        {/*ESTRUTURA DA FABRICA*/}
-        <div className="mt-6 space-y-3">
-          <h2 className={ui.dashboardGroupTitle}>ESTRUTURA DA FABRICA</h2>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <DashboardCard
-              title="Setores"
-              description="Cadastrar setores"
-              icon={<Building2 size={24} />}
-              onClick={() => navigate("/setores")}
-            />
-            <DashboardCard
-              title="Subsetores"
-              description="Cadastrar subsetores"
-              icon={<Layers3 size={24} />}
-              onClick={() => navigate("/subsetores")}
-            />
-            <DashboardCard
-                title="Postos de Trabalho"
-                description="gerenciar Postos de trabalho"
-                icon={<MapPinned size={24} />}
-                onClick={() => navigate("/postos")}
-            />
-          </div>
-        </div>
-
-        {/**/}
-        <div className="mt-6 space-y-3">
-          <h2 className={ui.dashboardGroupTitle}>Demais cadastros</h2>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <DashboardCard
-              title="Usuários"
-              description="Perfis e acessos"
-              icon={<Users size={24} />}
-              onClick={() => navigate("/usuarios")}
-            />
-            <DashboardCard
-              title="Configurações"
-              description="Sistema e impressão"
-              icon={<Settings size={24} />}
-              onClick={() => navigate("/configuracoes")}
-            />
-            <DashboardCard
-              title="Importação de Dados"
-              description="Importar cadastros por modelos CSV."
-              icon={<Upload size={24} />}
-              onClick={() => navigate("/importacao")}
-            />
-            <DashboardCard
-              title="Exportação de Dados"
-              description="Gerar CSV para SAP e Power BI"
-              icon={<FileDown size={24} />}
-              onClick={() => navigate("/exportacao")}
-            />
-          </div>
-        </div>
+            {/**/}
+            <div className="mt-6 space-y-3">
+              <h2 className={ui.dashboardGroupTitle}>Demais cadastros</h2>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <DashboardCard
+                  title="Usuários"
+                  description="Perfis e acessos"
+                  icon={<Users size={24} />}
+                  onClick={() => navigate("/usuarios")}
+                />
+                <DashboardCard
+                  title="Configurações"
+                  description="Sistema e impressão"
+                  icon={<Settings size={24} />}
+                  onClick={() => navigate("/configuracoes")}
+                />
+                <DashboardCard
+                  title="Importação de Dados"
+                  description="Importar cadastros por modelos CSV."
+                  icon={<Upload size={24} />}
+                  onClick={() => navigate("/importacao")}
+                />
+                <DashboardCard
+                  title="Exportação de Dados"
+                  description="Gerar CSV para SAP e Power BI"
+                  icon={<FileDown size={24} />}
+                  onClick={() => navigate("/exportacao")}
+                />
+              </div>
+            </div>
+          </>
+        )}
       </section>
     </main>
   )

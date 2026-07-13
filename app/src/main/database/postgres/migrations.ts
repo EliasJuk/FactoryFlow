@@ -1,11 +1,14 @@
-import { pool } from "./connection"
+import { IdGenerator } from '../../shared/ids/IdGenerator'
+import { SYSTEM_IDS } from '../../shared/ids/systemIds'
+import { pool } from './connection'
 
 async function columnExists(table: string, column: string): Promise<boolean> {
   const result = await pool.query(
     `
       SELECT 1
       FROM information_schema.columns
-      WHERE table_name = $1
+      WHERE table_schema = current_schema()
+        AND table_name = $1
         AND column_name = $2
       LIMIT 1
     `,
@@ -19,6 +22,7 @@ export async function runPostgresMigrations() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id SERIAL PRIMARY KEY,
+      uuid UUID NOT NULL UNIQUE,
       nome TEXT NOT NULL,
       matricula TEXT,
       perfil TEXT NOT NULL DEFAULT 'OPERADOR',
@@ -135,92 +139,175 @@ export async function runPostgresMigrations() {
     );
   `)
 
-  if (!(await columnExists("usuarios", "senha_hash"))) {
+  if (!(await columnExists('usuarios', 'uuid'))) {
+    await pool.query(`
+      ALTER TABLE usuarios
+      ADD COLUMN uuid UUID;
+    `)
+  }
+
+  await pool.query(
+    `
+      UPDATE usuarios
+      SET uuid = $1
+      WHERE id = 1
+    `,
+    [SYSTEM_IDS.usuarioSistema]
+  )
+
+  const usuariosSemUuid = await pool.query<{ id: number }>(`
+    SELECT id
+    FROM usuarios
+    WHERE uuid IS NULL
+  `)
+
+  for (const usuario of usuariosSemUuid.rows) {
+    await pool.query(
+      `
+        UPDATE usuarios
+        SET uuid = $1
+        WHERE id = $2
+      `,
+      [IdGenerator.generate(), usuario.id]
+    )
+  }
+
+  await pool.query(`
+    ALTER TABLE usuarios
+    ALTER COLUMN uuid SET NOT NULL;
+  `)
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_uuid
+    ON usuarios(uuid);
+  `)
+
+  if (!(await columnExists('usuarios', 'senha_hash'))) {
     await pool.query(`ALTER TABLE usuarios ADD COLUMN senha_hash TEXT;`)
   }
 
   const colunasUsuarios = [
-  { nome: "created_at", sql: "ALTER TABLE usuarios ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;" },
-  { nome: "updated_at", sql: "ALTER TABLE usuarios ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;" },
-  { nome: "deleted_at", sql: "ALTER TABLE usuarios ADD COLUMN deleted_at TIMESTAMP NULL;" },
-  { nome: "created_by", sql: "ALTER TABLE usuarios ADD COLUMN created_by INTEGER NULL REFERENCES usuarios(id);" },
-  { nome: "updated_by", sql: "ALTER TABLE usuarios ADD COLUMN updated_by INTEGER NULL REFERENCES usuarios(id);" },
-  { nome: "deleted_by", sql: "ALTER TABLE usuarios ADD COLUMN deleted_by INTEGER NULL REFERENCES usuarios(id);" }
-    ]
-
-    for (const coluna of colunasUsuarios) {
-      if (!(await columnExists("usuarios", coluna.nome))) {
-        await pool.query(coluna.sql)
-      }
+    {
+      nome: 'created_at',
+      sql: 'ALTER TABLE usuarios ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+    },
+    {
+      nome: 'updated_at',
+      sql: 'ALTER TABLE usuarios ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+    },
+    {
+      nome: 'deleted_at',
+      sql: 'ALTER TABLE usuarios ADD COLUMN deleted_at TIMESTAMP NULL;'
+    },
+    {
+      nome: 'created_by',
+      sql: 'ALTER TABLE usuarios ADD COLUMN created_by INTEGER NULL REFERENCES usuarios(id);'
+    },
+    {
+      nome: 'updated_by',
+      sql: 'ALTER TABLE usuarios ADD COLUMN updated_by INTEGER NULL REFERENCES usuarios(id);'
+    },
+    {
+      nome: 'deleted_by',
+      sql: 'ALTER TABLE usuarios ADD COLUMN deleted_by INTEGER NULL REFERENCES usuarios(id);'
     }
+  ]
 
-  if (!(await columnExists("refugos", "status"))) {
+  for (const coluna of colunasUsuarios) {
+    if (!(await columnExists('usuarios', coluna.nome))) {
+      await pool.query(coluna.sql)
+    }
+  }
+
+  if (!(await columnExists('refugos', 'status'))) {
     await pool.query(`
       ALTER TABLE refugos
       ADD COLUMN status TEXT NOT NULL DEFAULT 'ATIVO';
     `)
   }
 
-  if (!(await columnExists("refugos", "motivo_cancelamento"))) {
+  if (!(await columnExists('refugos', 'motivo_cancelamento'))) {
     await pool.query(`
       ALTER TABLE refugos
       ADD COLUMN motivo_cancelamento TEXT;
     `)
   }
 
-  if (!(await columnExists("refugo_itens", "codigo_componente_snapshot"))) {
+  if (!(await columnExists('refugo_itens', 'codigo_componente_snapshot'))) {
     await pool.query(`
       ALTER TABLE refugo_itens
       ADD COLUMN codigo_componente_snapshot TEXT;
     `)
   }
 
-  if (!(await columnExists("refugo_itens", "nome_componente_snapshot"))) {
+  if (!(await columnExists('refugo_itens', 'nome_componente_snapshot'))) {
     await pool.query(`
       ALTER TABLE refugo_itens
       ADD COLUMN nome_componente_snapshot TEXT;
     `)
   }
 
-  if (!(await columnExists("refugo_itens", "codigo_defeito_snapshot"))) {
+  if (!(await columnExists('refugo_itens', 'codigo_defeito_snapshot'))) {
     await pool.query(`
       ALTER TABLE refugo_itens
       ADD COLUMN codigo_defeito_snapshot TEXT;
     `)
   }
 
-  if (!(await columnExists("refugo_itens", "descricao_defeito_snapshot"))) {
+  if (!(await columnExists('refugo_itens', 'descricao_defeito_snapshot'))) {
     await pool.query(`
       ALTER TABLE refugo_itens
       ADD COLUMN descricao_defeito_snapshot TEXT;
     `)
   }
 
-  if (!(await columnExists("refugo_itens", "preco_unitario_snapshot"))) {
+  if (!(await columnExists('refugo_itens', 'preco_unitario_snapshot'))) {
     await pool.query(`
       ALTER TABLE refugo_itens
       ADD COLUMN preco_unitario_snapshot NUMERIC(12, 4);
     `)
   }
 
-  if (!(await columnExists("refugo_itens", "custo_total_snapshot"))) {
+  if (!(await columnExists('refugo_itens', 'custo_total_snapshot'))) {
     await pool.query(`
       ALTER TABLE refugo_itens
       ADD COLUMN custo_total_snapshot NUMERIC(12, 4);
     `)
   }
 
+  await pool.query(
+    `
+      INSERT INTO usuarios (
+        id,
+        uuid,
+        nome,
+        matricula,
+        perfil,
+        ativo,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        1,
+        $1,
+        'Sistema',
+        '0000',
+        'ADMIN',
+        true,
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT (id) DO UPDATE
+      SET uuid = EXCLUDED.uuid;
+    `,
+    [SYSTEM_IDS.usuarioSistema]
+  )
+
   await pool.query(`
-    INSERT INTO usuarios (
-      id,
-      nome,
-      matricula,
-      perfil,
-      ativo,
-      created_at,
-      updated_at
-    )
-    VALUES (1, 'Sistema', '0000', 'ADMIN', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    ON CONFLICT (id) DO NOTHING;
+    SELECT setval(
+      pg_get_serial_sequence('usuarios', 'id'),
+      COALESCE((SELECT MAX(id) FROM usuarios), 1),
+      true
+    );
   `)
 }

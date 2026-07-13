@@ -1,4 +1,6 @@
-import db from "../database"
+import db from '../database'
+import { IdGenerator } from '../../shared/ids/IdGenerator'
+import { SYSTEM_IDS } from '../../shared/ids/systemIds'
 
 function columnExists(table: string, column: string): boolean {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
@@ -12,6 +14,7 @@ export function runMigrations() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT NOT NULL UNIQUE,
       nome TEXT NOT NULL,
       matricula TEXT,
       perfil TEXT NOT NULL DEFAULT 'OPERADOR',
@@ -126,85 +129,132 @@ export function runMigrations() {
     );
   `)
 
-  if (!columnExists("usuarios", "senha_hash")) {
+  if (!columnExists('usuarios', 'uuid')) {
     db.exec(`
-      ALTER TABLE usuarios 
+      ALTER TABLE usuarios
+      ADD COLUMN uuid TEXT;
+    `)
+  }
+
+  db.prepare(
+    `
+    UPDATE usuarios
+    SET uuid = ?
+    WHERE id = 1
+  `
+  ).run(SYSTEM_IDS.usuarioSistema)
+
+  const usuariosSemUuid = db
+    .prepare(
+      `
+      SELECT id
+      FROM usuarios
+      WHERE uuid IS NULL
+         OR TRIM(uuid) = ''
+    `
+    )
+    .all() as Array<{ id: number }>
+
+  const atualizarUuidUsuario = db.prepare(`
+    UPDATE usuarios
+    SET uuid = ?
+    WHERE id = ?
+  `)
+
+  const preencherUuidsUsuarios = db.transaction((usuarios: Array<{ id: number }>) => {
+    for (const usuario of usuarios) {
+      atualizarUuidUsuario.run(IdGenerator.generate(), usuario.id)
+    }
+  })
+
+  preencherUuidsUsuarios(usuariosSemUuid)
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_uuid
+    ON usuarios(uuid);
+  `)
+
+  if (!columnExists('usuarios', 'senha_hash')) {
+    db.exec(`
+      ALTER TABLE usuarios
       ADD COLUMN senha_hash TEXT;
     `)
   }
 
-  if (!columnExists("usuarios", "created_at")) {
+  if (!columnExists('usuarios', 'created_at')) {
     db.exec(`ALTER TABLE usuarios ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP;`)
   }
 
-  if (!columnExists("usuarios", "updated_at")) {
+  if (!columnExists('usuarios', 'updated_at')) {
     db.exec(`ALTER TABLE usuarios ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP;`)
   }
 
-  if (!columnExists("usuarios", "deleted_at")) {
+  if (!columnExists('usuarios', 'deleted_at')) {
     db.exec(`ALTER TABLE usuarios ADD COLUMN deleted_at TEXT;`)
   }
 
-  if (!columnExists("usuarios", "created_by")) {
+  if (!columnExists('usuarios', 'created_by')) {
     db.exec(`ALTER TABLE usuarios ADD COLUMN created_by INTEGER;`)
   }
 
-  if (!columnExists("usuarios", "updated_by")) {
+  if (!columnExists('usuarios', 'updated_by')) {
     db.exec(`ALTER TABLE usuarios ADD COLUMN updated_by INTEGER;`)
   }
 
-  if (!columnExists("usuarios", "deleted_by")) {
+  if (!columnExists('usuarios', 'deleted_by')) {
     db.exec(`ALTER TABLE usuarios ADD COLUMN deleted_by INTEGER;`)
   }
 
-  if (!columnExists("setores", "sigla")) {
+  if (!columnExists('setores', 'sigla')) {
     db.exec(`ALTER TABLE setores ADD COLUMN sigla TEXT;`)
   }
 
-  if (!columnExists("refugos", "numero_refugo")) {
+  if (!columnExists('refugos', 'numero_refugo')) {
     db.exec(`ALTER TABLE refugos ADD COLUMN numero_refugo TEXT;`)
   }
 
-  if (!columnExists("refugos", "sigla_setor")) {
+  if (!columnExists('refugos', 'sigla_setor')) {
     db.exec(`ALTER TABLE refugos ADD COLUMN sigla_setor TEXT;`)
   }
 
-  if (!columnExists("refugos", "ano")) {
+  if (!columnExists('refugos', 'ano')) {
     db.exec(`ALTER TABLE refugos ADD COLUMN ano INTEGER;`)
   }
 
-  if (!columnExists("refugos", "sequencia")) {
+  if (!columnExists('refugos', 'sequencia')) {
     db.exec(`ALTER TABLE refugos ADD COLUMN sequencia INTEGER;`)
   }
 
-  if (!columnExists("refugos", "turno")) {
+  if (!columnExists('refugos', 'turno')) {
     db.exec(`ALTER TABLE refugos ADD COLUMN turno TEXT NOT NULL DEFAULT 'A';`)
   }
 
-  if (!columnExists("refugos", "quantidade_produzida")) {
+  if (!columnExists('refugos', 'quantidade_produzida')) {
     db.exec(`
-      ALTER TABLE refugos 
+      ALTER TABLE refugos
       ADD COLUMN quantidade_produzida INTEGER NOT NULL DEFAULT 0;
     `)
   }
 
-  if (!columnExists("refugos", "status")) {
+  if (!columnExists('refugos', 'status')) {
     db.exec(`
-      ALTER TABLE refugos 
+      ALTER TABLE refugos
       ADD COLUMN status TEXT NOT NULL DEFAULT 'ATIVO';
     `)
   }
 
-  if (!columnExists("refugos", "motivo_cancelamento")) {
+  if (!columnExists('refugos', 'motivo_cancelamento')) {
     db.exec(`
-      ALTER TABLE refugos 
+      ALTER TABLE refugos
       ADD COLUMN motivo_cancelamento TEXT;
     `)
   }
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT OR IGNORE INTO usuarios (
       id,
+      uuid,
       nome,
       matricula,
       perfil,
@@ -214,6 +264,7 @@ export function runMigrations() {
     )
     VALUES (
       1,
+      ?,
       'Sistema',
       '0000',
       'ADMIN',
@@ -221,5 +272,6 @@ export function runMigrations() {
       datetime('now','localtime'),
       datetime('now','localtime')
     )
-  `).run()
+  `
+  ).run(SYSTEM_IDS.usuarioSistema)
 }

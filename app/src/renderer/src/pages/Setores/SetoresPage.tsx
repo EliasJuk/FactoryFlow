@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Pencil, RotateCcw, Trash2 } from 'lucide-react'
+import { Eye, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
 import type { Setor } from '../../models/Setor'
@@ -11,6 +11,7 @@ import { CrudHeader } from '../../components/Crud/CrudHeader/CrudHeader'
 import { SearchBar } from '../../components/Crud/SearchBar/SearchBar'
 import { CrudModal } from '../../components/Crud/CrudModal/CrudModal'
 import { InativosCard } from '../../components/Crud/InativosCard/InativosCard'
+import { SetorInfoModal } from './components/SetorInfoModal'
 
 type ModalModo = 'novo' | 'editar'
 
@@ -27,6 +28,7 @@ function SetoresPage() {
   const [modalAberto, setModalAberto] = useState(false)
   const [modalModo, setModalModo] = useState<ModalModo>('novo')
   const [setorEditando, setSetorEditando] = useState<Setor | null>(null)
+  const [setorVisualizando, setSetorVisualizando] = useState<Setor | null>(null)
 
   const [nome, setNome] = useState('')
   const [sigla, setSigla] = useState('')
@@ -304,6 +306,18 @@ function SetoresPage() {
                   <td className={ui.tableCell}>
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
+                        onClick={() => setSetorVisualizando(setor)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Informações"
+                        aria-label={`Ver informações do setor ${setor.nome}`}
+                      >
+                        <Eye size={15} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => abrirEditarSetor(setor)}
                         disabled={processando}
                         className={ui.buttonSecondary}
@@ -313,6 +327,7 @@ function SetoresPage() {
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => solicitarInativacao(setor)}
                         disabled={processando}
                         className={ui.buttonDanger}
@@ -367,6 +382,18 @@ function SetoresPage() {
                   <td className={ui.tableCell}>
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
+                        onClick={() => setSetorVisualizando(setor)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Informações"
+                        aria-label={`Ver informações do setor ${setor.nome}`}
+                      >
+                        <Eye size={15} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => setSetorParaRestaurar(setor)}
                         disabled={processando}
                         className={ui.buttonSecondary}
@@ -377,6 +404,7 @@ function SetoresPage() {
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => setSetorParaExcluirPermanente(setor)}
                         disabled={processando}
                         className={ui.buttonDanger}
@@ -400,6 +428,10 @@ function SetoresPage() {
             </tbody>
           </table>
         </InativosCard>
+
+        {setorVisualizando && (
+          <SetorInfoModal setor={setorVisualizando} onFechar={() => setSetorVisualizando(null)} />
+        )}
 
         {modalAberto && (
           <CrudModal

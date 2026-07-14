@@ -26,7 +26,16 @@ export function runMigrations() {
       uuid TEXT NOT NULL UNIQUE,
       nome TEXT NOT NULL,
       sigla TEXT,
-      ativo INTEGER NOT NULL DEFAULT 1
+      ativo INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TEXT,
+      created_by INTEGER,
+      updated_by INTEGER,
+      deleted_by INTEGER,
+      FOREIGN KEY (created_by) REFERENCES usuarios(id),
+      FOREIGN KEY (updated_by) REFERENCES usuarios(id),
+      FOREIGN KEY (deleted_by) REFERENCES usuarios(id)
     );
 
     CREATE TABLE IF NOT EXISTS subsetores (
@@ -210,6 +219,39 @@ export function runMigrations() {
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_setores_uuid
     ON setores(uuid);
+  `)
+
+  if (!columnExists('setores', 'created_at')) {
+    db.exec(`ALTER TABLE setores ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP;`)
+  }
+
+  if (!columnExists('setores', 'updated_at')) {
+    db.exec(`ALTER TABLE setores ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP;`)
+  }
+
+  if (!columnExists('setores', 'deleted_at')) {
+    db.exec(`ALTER TABLE setores ADD COLUMN deleted_at TEXT;`)
+  }
+
+  if (!columnExists('setores', 'created_by')) {
+    db.exec(`ALTER TABLE setores ADD COLUMN created_by INTEGER;`)
+  }
+
+  if (!columnExists('setores', 'updated_by')) {
+    db.exec(`ALTER TABLE setores ADD COLUMN updated_by INTEGER;`)
+  }
+
+  if (!columnExists('setores', 'deleted_by')) {
+    db.exec(`ALTER TABLE setores ADD COLUMN deleted_by INTEGER;`)
+  }
+
+  db.exec(`
+    UPDATE setores
+    SET
+      created_at = COALESCE(created_at, datetime('now','localtime')),
+      updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')),
+      created_by = COALESCE(created_by, 1),
+      updated_by = COALESCE(updated_by, created_by, 1)
   `)
 
   if (!columnExists('usuarios', 'senha_hash')) {

@@ -35,7 +35,13 @@ export async function runPostgresMigrations() {
       uuid UUID NOT NULL UNIQUE,
       nome TEXT NOT NULL,
       sigla TEXT,
-      ativo BOOLEAN NOT NULL DEFAULT true
+      ativo BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMP NULL,
+      created_by INTEGER NULL REFERENCES usuarios(id),
+      updated_by INTEGER NULL REFERENCES usuarios(id),
+      deleted_by INTEGER NULL REFERENCES usuarios(id)
     );
 
     CREATE TABLE IF NOT EXISTS subsetores (
@@ -215,6 +221,48 @@ export async function runPostgresMigrations() {
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_setores_uuid
     ON setores(uuid);
+  `)
+
+  const colunasSetores = [
+    {
+      nome: 'created_at',
+      sql: 'ALTER TABLE setores ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+    },
+    {
+      nome: 'updated_at',
+      sql: 'ALTER TABLE setores ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+    },
+    {
+      nome: 'deleted_at',
+      sql: 'ALTER TABLE setores ADD COLUMN deleted_at TIMESTAMP NULL;'
+    },
+    {
+      nome: 'created_by',
+      sql: 'ALTER TABLE setores ADD COLUMN created_by INTEGER NULL REFERENCES usuarios(id);'
+    },
+    {
+      nome: 'updated_by',
+      sql: 'ALTER TABLE setores ADD COLUMN updated_by INTEGER NULL REFERENCES usuarios(id);'
+    },
+    {
+      nome: 'deleted_by',
+      sql: 'ALTER TABLE setores ADD COLUMN deleted_by INTEGER NULL REFERENCES usuarios(id);'
+    }
+  ]
+
+  for (const coluna of colunasSetores) {
+    if (!(await columnExists('setores', coluna.nome))) {
+      await pool.query(coluna.sql)
+    }
+  }
+
+  await pool.query(`
+    UPDATE setores
+    SET
+      created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
+      updated_at = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP),
+      created_by = COALESCE(created_by, 1),
+      updated_by = COALESCE(updated_by, created_by, 1)
   `)
 
   if (!(await columnExists('usuarios', 'senha_hash'))) {

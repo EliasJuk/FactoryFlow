@@ -1,7 +1,10 @@
+import type { PerfilUsuario } from './models/Usuario'
+
 export {}
 
 type SetorApi = {
   id: number
+  uuid: string
   nome: string
   sigla: string
   ativo: boolean
@@ -101,10 +104,11 @@ type RefugoListagemApi = {
 
 type UsuarioApi = {
   id: number
+  uuid: string
 
   nome: string
   matricula: string
-  perfil: string
+  perfil: PerfilUsuario
   ativo: boolean
 
   createdAt?: string | null
@@ -181,14 +185,10 @@ declare global {
     api: {
       app: {
         isReady: () => Promise<boolean>
-        onStartupProgress: (
-          callback: (data: { message: string; progress: number }) => void
-        ) => void
+        onStartupProgress: (callback: (data: { message: string; progress: number }) => void) => void
         onReady: (callback: () => void) => void
-        onStartupError: (
-          callback: (data: { message: string }) => void
-        ) => void
-      },
+        onStartupError: (callback: (data: { message: string }) => void) => void
+      }
 
       auth: {
         login: (
@@ -204,8 +204,8 @@ declare global {
             perfil: string
           }
         }>
-      },
-      
+      }
+
       setores: {
         listar: () => Promise<SetorApi[]>
 
@@ -242,18 +242,22 @@ declare global {
           sucesso: boolean
           mensagem: string
         }>
-      },
+      }
 
       subsetores: {
         listar: () => Promise<SubsetorApi[]>
         criar: (nome: string, setorId: number) => Promise<{ sucesso: boolean; mensagem: string }>
-        editar: (id: number, nome: string, setorId: number) => Promise<{ sucesso: boolean; mensagem: string }>
+        editar: (
+          id: number,
+          nome: string,
+          setorId: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
         contarPostosAtivos: (id: number) => Promise<number>
         excluir: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
         listarInativos: () => Promise<SubsetorApi[]>
         restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
         excluirPermanente: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
-      },
+      }
 
       componentes: {
         listar: () => Promise<ComponenteApi[]>
@@ -274,19 +278,14 @@ declare global {
 
         excluir: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
         restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
-        excluirPermanente: (
-          id: number
-        ) => Promise<{ sucesso: boolean; mensagem: string }>
-      },
+        excluirPermanente: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+      }
 
       circuitos: {
         listar: () => Promise<CircuitoApi[]>
         listarInativos: () => Promise<CircuitoApi[]>
 
-        criar: (
-          codigo: string,
-          nome: string
-        ) => Promise<{ sucesso: boolean; mensagem: string }>
+        criar: (codigo: string, nome: string) => Promise<{ sucesso: boolean; mensagem: string }>
 
         editar: (
           id: number,
@@ -296,28 +295,19 @@ declare global {
 
         excluir: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
         restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
-        excluirPermanente: (
-          id: number
-        ) => Promise<{ sucesso: boolean; mensagem: string }>
-      },
+        excluirPermanente: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+      }
 
       circuitoComponentes: {
         listarPorCircuito: (circuitoId: number) => Promise<CircuitoComponenteApi[]>
-        adicionar: (
-          circuitoId: number,
-          componenteId: number,
-          quantidade: number
-        ) => Promise<void>
+        adicionar: (circuitoId: number, componenteId: number, quantidade: number) => Promise<void>
         remover: (id: number) => Promise<void>
-      },
+      }
 
       postos: {
         listar: () => Promise<PostoApi[]>
 
-        criar: (
-          nome: string,
-          subsetorId: number
-        ) => Promise<{ sucesso: boolean; mensagem: string }>
+        criar: (nome: string, subsetorId: number) => Promise<{ sucesso: boolean; mensagem: string }>
 
         editar: (
           id: number,
@@ -329,27 +319,32 @@ declare global {
         excluir: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
         listarInativos: () => Promise<PostoApi[]>
         restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
-        
-        excluirPermanente: (
-          id: number
-        ) => Promise<{ sucesso: boolean; mensagem: string }>
-      },
+
+        excluirPermanente: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+      }
 
       defeitos: {
         listar: () => Promise<DefeitoApi[]>
-        criar: (codigo: string, descricao: string) => Promise<{
+        criar: (
+          codigo: string,
+          descricao: string
+        ) => Promise<{
           sucesso: boolean
           mensagem: string
         }>
-        editar: (id: number, codigo: string, descricao: string) => Promise<{
+        editar: (
+          id: number,
+          codigo: string,
+          descricao: string
+        ) => Promise<{
           sucesso: boolean
           mensagem: string
         }>
-        excluir: (id: number) => Promise<{sucesso: boolean, mensagem: string }>
+        excluir: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
         listarInativos: () => Promise<DefeitoApi[]>
         restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
         excluirPermanente: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
-      },
+      }
 
       refugos: {
         criar: (input: RefugoInput) => Promise<string>
@@ -383,10 +378,7 @@ declare global {
       roteiro: {
         listarTodos: () => Promise<RoteiroComponenteApi[]>
 
-        listarCircuitosPorPosto: (
-          postoId: number,
-          busca: string
-        ) => Promise<CircuitoPorPostoApi[]>
+        listarCircuitosPorPosto: (postoId: number, busca: string) => Promise<CircuitoPorPostoApi[]>
 
         listarPorCircuitoEPosto: (
           circuitoId: number,
@@ -403,7 +395,7 @@ declare global {
         editarQuantidade: (id: number, quantidade: number) => Promise<void>
 
         remover: (id: number) => Promise<void>
-      },
+      }
 
       usuarios: {
         listar: () => Promise<UsuarioApi[]>
@@ -458,7 +450,7 @@ declare global {
           sucesso: boolean
           mensagem: string
         }>
-      },
+      }
 
       importacao: {
         baixarModelo: (tipo: string) => Promise<{
@@ -495,21 +487,18 @@ declare global {
           atualizados: number
           ignorados: number
         }>
-      },
+      }
 
       exportacaoDados: {
-        refugosCsv: (filtros: {
-          dataInicio: string
-          dataFim: string
-        }) => Promise<{
+        refugosCsv: (filtros: { dataInicio: string; dataFim: string }) => Promise<{
           sucesso: boolean
           mensagem: string
         }>
-      },
+      }
 
       configuracao: {
         carregarBanco: () => Promise<{
-          provider: "sqlite" | "postgres"
+          provider: 'sqlite' | 'postgres'
           postgres: {
             host: string
             port: number
@@ -520,7 +509,7 @@ declare global {
         }>
 
         salvarBanco: (config: {
-          provider: "sqlite" | "postgres"
+          provider: 'sqlite' | 'postgres'
           postgres: {
             host: string
             port: number
@@ -543,7 +532,7 @@ declare global {
           sucesso: boolean
           mensagem: string
         }>
-      },
+      }
     }
   }
 }

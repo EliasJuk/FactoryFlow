@@ -1,18 +1,18 @@
-import { useEffect, useMemo, useState } from "react"
-import { Pencil, RotateCcw, Trash2 } from "lucide-react"
+import { useEffect, useMemo, useState } from 'react'
+import { Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
-import PageHeader from "../../components/PageHeader/PageHeader"
-import { Setor } from "../../models/Setor"
-import { ui } from "../../theme/ui"
+import PageHeader from '../../components/PageHeader/PageHeader'
+import type { Setor } from '../../models/Setor'
+import { ui } from '../../theme/ui'
 
-import { Pagination } from "../../components/Pagination/Pagination"
-import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog"
-import { CrudHeader } from "../../components/Crud/CrudHeader/CrudHeader"
-import { SearchBar } from "../../components/Crud/SearchBar/SearchBar"
-import { CrudModal } from "../../components/Crud/CrudModal/CrudModal"
-import { InativosCard } from "../../components/Crud/InativosCard/InativosCard"
+import { Pagination } from '../../components/Pagination/Pagination'
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog'
+import { CrudHeader } from '../../components/Crud/CrudHeader/CrudHeader'
+import { SearchBar } from '../../components/Crud/SearchBar/SearchBar'
+import { CrudModal } from '../../components/Crud/CrudModal/CrudModal'
+import { InativosCard } from '../../components/Crud/InativosCard/InativosCard'
 
-type ModalModo = "novo" | "editar"
+type ModalModo = 'novo' | 'editar'
 
 const ITENS_POR_PAGINA = 10
 
@@ -20,24 +20,23 @@ function SetoresPage() {
   const [setores, setSetores] = useState<Setor[]>([])
   const [setoresInativos, setSetoresInativos] = useState<Setor[]>([])
 
-  const [busca, setBusca] = useState("")
+  const [busca, setBusca] = useState('')
   const [paginaAtual, setPaginaAtual] = useState(1)
   const [mostrarInativos, setMostrarInativos] = useState(false)
 
   const [modalAberto, setModalAberto] = useState(false)
-  const [modalModo, setModalModo] = useState<ModalModo>("novo")
+  const [modalModo, setModalModo] = useState<ModalModo>('novo')
   const [setorEditando, setSetorEditando] = useState<Setor | null>(null)
 
-  const [nome, setNome] = useState("")
-  const [sigla, setSigla] = useState("")
-  const [mensagemErro, setMensagemErro] = useState("")
-  const [mensagemSucesso, setMensagemSucesso] = useState("")
+  const [nome, setNome] = useState('')
+  const [sigla, setSigla] = useState('')
+  const [mensagemErro, setMensagemErro] = useState('')
+  const [mensagemSucesso, setMensagemSucesso] = useState('')
   const [processando, setProcessando] = useState(false)
 
   const [setorParaInativar, setSetorParaInativar] = useState<Setor | null>(null)
   const [setorParaRestaurar, setSetorParaRestaurar] = useState<Setor | null>(null)
-  const [setorParaExcluirPermanente, setSetorParaExcluirPermanente] =
-    useState<Setor | null>(null)
+  const [setorParaExcluirPermanente, setSetorParaExcluirPermanente] = useState<Setor | null>(null)
 
   const [setorBloqueado, setSetorBloqueado] = useState<{
     setor: Setor
@@ -64,17 +63,11 @@ function SetoresPage() {
     if (!termo) return setores
 
     return setores.filter((setor) => {
-      return (
-        setor.nome.toLowerCase().includes(termo) ||
-        setor.sigla.toLowerCase().includes(termo)
-      )
+      return setor.nome.toLowerCase().includes(termo) || setor.sigla.toLowerCase().includes(termo)
     })
   }, [busca, setores])
 
-  const totalPaginas = Math.max(
-    1,
-    Math.ceil(setoresFiltrados.length / ITENS_POR_PAGINA)
-  )
+  const totalPaginas = Math.max(1, Math.ceil(setoresFiltrados.length / ITENS_POR_PAGINA))
 
   const setoresPaginados = useMemo(() => {
     const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA
@@ -92,18 +85,18 @@ function SetoresPage() {
   }, [paginaAtual, totalPaginas])
 
   function limparMensagens() {
-    setMensagemErro("")
-    setMensagemSucesso("")
+    setMensagemErro('')
+    setMensagemSucesso('')
   }
 
   function abrirNovoSetor() {
     if (processando) return
 
     limparMensagens()
-    setModalModo("novo")
+    setModalModo('novo')
     setSetorEditando(null)
-    setNome("")
-    setSigla("")
+    setNome('')
+    setSigla('')
     setModalAberto(true)
   }
 
@@ -111,7 +104,7 @@ function SetoresPage() {
     if (processando) return
 
     limparMensagens()
-    setModalModo("editar")
+    setModalModo('editar')
     setSetorEditando(setor)
     setNome(setor.nome)
     setSigla(setor.sigla)
@@ -123,9 +116,9 @@ function SetoresPage() {
 
     setModalAberto(false)
     setSetorEditando(null)
-    setNome("")
-    setSigla("")
-    setMensagemErro("")
+    setNome('')
+    setSigla('')
+    setMensagemErro('')
   }
 
   async function salvarSetor() {
@@ -134,14 +127,14 @@ function SetoresPage() {
     limparMensagens()
 
     if (!nome.trim() || !sigla.trim()) {
-      setMensagemErro("Informe o nome e a sigla do setor.")
+      setMensagemErro('Informe o nome e a sigla do setor.')
       return
     }
 
     setProcessando(true)
 
     try {
-      if (modalModo === "editar" && setorEditando) {
+      if (modalModo === 'editar' && setorEditando) {
         const resultado = await window.api.setores.editar(
           setorEditando.id,
           nome.trim(),
@@ -153,19 +146,16 @@ function SetoresPage() {
           return
         }
 
-        setMensagemSucesso("Setor atualizado com sucesso.")
+        setMensagemSucesso('Setor atualizado com sucesso.')
       } else {
-        const resultado = await window.api.setores.criar(
-          nome.trim(),
-          sigla.trim().toUpperCase()
-        )
+        const resultado = await window.api.setores.criar(nome.trim(), sigla.trim().toUpperCase())
 
         if (!resultado.sucesso) {
           setMensagemErro(resultado.mensagem)
           return
         }
 
-        setMensagemSucesso("Setor cadastrado com sucesso.")
+        setMensagemSucesso('Setor cadastrado com sucesso.')
       }
 
       fecharModal()
@@ -180,9 +170,7 @@ function SetoresPage() {
 
     limparMensagens()
 
-    const totalSubsetores = await window.api.setores.contarSubsetoresAtivos(
-      setor.id
-    )
+    const totalSubsetores = await window.api.setores.contarSubsetoresAtivos(setor.id)
 
     if (totalSubsetores > 0) {
       setSetorBloqueado({
@@ -210,7 +198,7 @@ function SetoresPage() {
       }
 
       setSetorParaInativar(null)
-      setMensagemSucesso("Setor inativado com sucesso.")
+      setMensagemSucesso('Setor inativado com sucesso.')
       await atualizarListas()
     } finally {
       setProcessando(false)
@@ -232,7 +220,7 @@ function SetoresPage() {
       }
 
       setSetorParaRestaurar(null)
-      setMensagemSucesso("Setor restaurado com sucesso.")
+      setMensagemSucesso('Setor restaurado com sucesso.')
       await atualizarListas()
     } finally {
       setProcessando(false)
@@ -246,9 +234,7 @@ function SetoresPage() {
     limparMensagens()
 
     try {
-      const resultado = await window.api.setores.excluirPermanente(
-        setorParaExcluirPermanente.id
-      )
+      const resultado = await window.api.setores.excluirPermanente(setorParaExcluirPermanente.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -256,7 +242,7 @@ function SetoresPage() {
       }
 
       setSetorParaExcluirPermanente(null)
-      setMensagemSucesso("Setor excluído permanentemente.")
+      setMensagemSucesso('Setor excluído permanentemente.')
       await atualizarListas()
     } finally {
       setProcessando(false)
@@ -311,7 +297,7 @@ function SetoresPage() {
 
             <tbody>
               {setoresPaginados.map((setor) => (
-                <tr key={setor.id} className="border-t border-[var(--border)]">
+                <tr key={setor.uuid} className="border-t border-[var(--border)]">
                   <td className={ui.tableCellStrong}>{setor.nome}</td>
                   <td className={ui.tableCell}>{setor.sigla}</td>
 
@@ -353,12 +339,8 @@ function SetoresPage() {
         <Pagination
           paginaAtual={paginaAtual}
           totalPaginas={totalPaginas}
-          onPaginaAnterior={() =>
-            setPaginaAtual((pagina) => Math.max(1, pagina - 1))
-          }
-          onProximaPagina={() =>
-            setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))
-          }
+          onPaginaAnterior={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
+          onProximaPagina={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
         />
 
         <InativosCard
@@ -378,10 +360,7 @@ function SetoresPage() {
 
             <tbody>
               {setoresInativos.map((setor) => (
-                <tr
-                  key={setor.id}
-                  className="border-t border-[var(--border)] bg-slate-50"
-                >
+                <tr key={setor.uuid} className="border-t border-[var(--border)] bg-slate-50">
                   <td className={ui.tableCellStrong}>{setor.nome}</td>
                   <td className={ui.tableCell}>{setor.sigla}</td>
 
@@ -424,18 +403,14 @@ function SetoresPage() {
 
         {modalAberto && (
           <CrudModal
-            titulo={modalModo === "novo" ? "Novo Setor" : "Editar Setor"}
+            titulo={modalModo === 'novo' ? 'Novo Setor' : 'Editar Setor'}
             subtitulo="Informe o nome e a sigla que serão utilizados no sistema."
             mensagemErro={mensagemErro}
             processando={processando}
             onFechar={fecharModal}
             footer={
               <>
-                <button
-                  onClick={fecharModal}
-                  disabled={processando}
-                  className={ui.buttonSecondary}
-                >
+                <button onClick={fecharModal} disabled={processando} className={ui.buttonSecondary}>
                   Cancelar
                 </button>
 
@@ -445,10 +420,10 @@ function SetoresPage() {
                   className={ui.buttonPrimary}
                 >
                   {processando
-                    ? "Salvando..."
-                    : modalModo === "novo"
-                      ? "Salvar"
-                      : "Salvar Alterações"}
+                    ? 'Salvando...'
+                    : modalModo === 'novo'
+                      ? 'Salvar'
+                      : 'Salvar Alterações'}
                 </button>
               </>
             }
@@ -469,9 +444,7 @@ function SetoresPage() {
                 <label className={ui.label}>Sigla</label>
                 <input
                   value={sigla}
-                  onChange={(event) =>
-                    setSigla(event.target.value.toUpperCase())
-                  }
+                  onChange={(event) => setSigla(event.target.value.toUpperCase())}
                   disabled={processando}
                   placeholder="Ex: AC"
                   className={ui.input}
@@ -486,8 +459,8 @@ function SetoresPage() {
             titulo="Inativar setor"
             descricao={
               <>
-                O setor <strong>{setorParaInativar.nome}</strong> ficará inativo
-                e não aparecerá nas listas principais.
+                O setor <strong>{setorParaInativar.nome}</strong> ficará inativo e não aparecerá nas
+                listas principais.
               </>
             }
             textoConfirmar="Confirmar inativação"
@@ -502,8 +475,8 @@ function SetoresPage() {
             titulo="Restaurar setor"
             descricao={
               <>
-                O setor <strong>{setorParaRestaurar.nome}</strong> voltará a
-                aparecer nas listas principais.
+                O setor <strong>{setorParaRestaurar.nome}</strong> voltará a aparecer nas listas
+                principais.
               </>
             }
             textoConfirmar="Restaurar"
@@ -517,8 +490,8 @@ function SetoresPage() {
             titulo="Excluir permanentemente"
             descricao={
               <>
-                O setor <strong>{setorParaExcluirPermanente.nome}</strong> será
-                removido definitivamente. Esta ação não poderá ser desfeita.
+                O setor <strong>{setorParaExcluirPermanente.nome}</strong> será removido
+                definitivamente. Esta ação não poderá ser desfeita.
               </>
             }
             textoConfirmar="Excluir permanentemente"
@@ -533,14 +506,13 @@ function SetoresPage() {
             titulo="Setor possui vínculos"
             descricao={
               <>
-                Não é possível inativar o setor{" "}
-                <strong>{setorBloqueado.setor.nome}</strong>, pois existem{" "}
-                <strong>{setorBloqueado.totalSubsetores}</strong> subsetor(es)
-                vinculado(s) a ele.
+                Não é possível inativar o setor <strong>{setorBloqueado.setor.nome}</strong>, pois
+                existem <strong>{setorBloqueado.totalSubsetores}</strong> subsetor(es) vinculado(s)
+                a ele.
                 <br />
                 <br />
-                Primeiro inative ou remova os subsetores vinculados e os
-                cadastros dependentes deles, como postos de trabalho.
+                Primeiro inative ou remova os subsetores vinculados e os cadastros dependentes
+                deles, como postos de trabalho.
               </>
             }
             textoConfirmar="Voltar"

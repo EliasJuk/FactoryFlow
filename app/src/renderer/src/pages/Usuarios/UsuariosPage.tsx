@@ -1,48 +1,27 @@
-import { useEffect, useMemo, useState } from "react"
-import {
-  Eye,
-  Pencil,
-  RotateCcw,
-  Trash2,
-  UserX
-} from "lucide-react"
+import { useEffect, useMemo, useState } from 'react'
+import { Eye, Pencil, RotateCcw, Trash2, UserX } from 'lucide-react'
 
-import PageHeader from "../../components/PageHeader/PageHeader"
-import { Pagination } from "../../components/Pagination/Pagination"
-import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog"
-import { CrudHeader } from "../../components/Crud/CrudHeader/CrudHeader"
-import { SearchBar } from "../../components/Crud/SearchBar/SearchBar"
-import { InativosCard } from "../../components/Crud/InativosCard/InativosCard"
-import { ui } from "../../theme/ui"
+import PageHeader from '../../components/PageHeader/PageHeader'
+import { Pagination } from '../../components/Pagination/Pagination'
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog'
+import { CrudHeader } from '../../components/Crud/CrudHeader/CrudHeader'
+import { SearchBar } from '../../components/Crud/SearchBar/SearchBar'
+import { InativosCard } from '../../components/Crud/InativosCard/InativosCard'
+import { ui } from '../../theme/ui'
 
-import { UsuarioFormModal } from "./components/UsuarioFormModal"
-import { UsuarioInfoModal } from "./components/UsuarioInfoModal"
+import { UsuarioFormModal } from './components/UsuarioFormModal'
+import { UsuarioInfoModal } from './components/UsuarioInfoModal'
 
-type ModalModo = "novo" | "editar"
+import type { PerfilUsuario, Usuario } from '../../models/Usuario'
 
-type Usuario = {
-  id: number
-  nome: string
-  matricula: string
-  perfil: string
-  ativo: boolean
-  createdAt?: string | null
-  updatedAt?: string | null
-  deletedAt?: string | null
-  createdBy?: number | null
-  updatedBy?: number | null
-  deletedBy?: number | null
-  createdByNome?: string | null
-  updatedByNome?: string | null
-  deletedByNome?: string | null
-}
+type ModalModo = 'novo' | 'editar'
 
 type ResultadoAcao = {
   sucesso: boolean
   mensagem: string
 }
 
-const perfis = ["OPERADOR", "TECNICO", "LIDER", "SUPERVISOR", "QUALIDADE", "ADMIN"]
+const perfis: PerfilUsuario[] = ['OPERADOR', 'TECNICO', 'LIDER', 'SUPERVISOR', 'QUALIDADE', 'ADMIN']
 
 const ITENS_POR_PAGINA = 10
 
@@ -50,31 +29,28 @@ function UsuariosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [usuariosInativos, setUsuariosInativos] = useState<Usuario[]>([])
 
-  const [busca, setBusca] = useState("")
+  const [busca, setBusca] = useState('')
   const [paginaAtual, setPaginaAtual] = useState(1)
   const [mostrarInativos, setMostrarInativos] = useState(false)
 
   const [modalAberto, setModalAberto] = useState(false)
-  const [modalModo, setModalModo] = useState<ModalModo>("novo")
+  const [modalModo, setModalModo] = useState<ModalModo>('novo')
   const [usuarioEditando, setUsuarioEditando] = useState<Usuario | null>(null)
   const [usuarioInfo, setUsuarioInfo] = useState<Usuario | null>(null)
 
-  const [nome, setNome] = useState("")
-  const [matricula, setMatricula] = useState("")
-  const [perfil, setPerfil] = useState("OPERADOR")
-  const [senha, setSenha] = useState("")
+  const [nome, setNome] = useState('')
+  const [matricula, setMatricula] = useState('')
+  const [perfil, setPerfil] = useState<PerfilUsuario>('OPERADOR')
+  const [senha, setSenha] = useState('')
   const [alterarSenha, setAlterarSenha] = useState(false)
 
-  const [mensagemErro, setMensagemErro] = useState("")
-  const [mensagemSucesso, setMensagemSucesso] = useState("")
+  const [mensagemErro, setMensagemErro] = useState('')
+  const [mensagemSucesso, setMensagemSucesso] = useState('')
   const [processando, setProcessando] = useState(false)
 
-  const [usuarioParaInativar, setUsuarioParaInativar] =
-    useState<Usuario | null>(null)
-  const [usuarioParaRestaurar, setUsuarioParaRestaurar] =
-    useState<Usuario | null>(null)
-  const [usuarioParaRemover, setUsuarioParaRemover] =
-    useState<Usuario | null>(null)
+  const [usuarioParaInativar, setUsuarioParaInativar] = useState<Usuario | null>(null)
+  const [usuarioParaRestaurar, setUsuarioParaRestaurar] = useState<Usuario | null>(null)
+  const [usuarioParaRemover, setUsuarioParaRemover] = useState<Usuario | null>(null)
 
   async function carregarUsuarios() {
     const [ativos, inativos] = await Promise.all([
@@ -104,10 +80,7 @@ function UsuariosPage() {
     })
   }, [usuarios, busca])
 
-  const totalPaginas = Math.max(
-    1,
-    Math.ceil(usuariosFiltrados.length / ITENS_POR_PAGINA)
-  )
+  const totalPaginas = Math.max(1, Math.ceil(usuariosFiltrados.length / ITENS_POR_PAGINA))
 
   const usuariosPaginados = useMemo(() => {
     const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA
@@ -125,18 +98,18 @@ function UsuariosPage() {
   }, [paginaAtual, totalPaginas])
 
   function limparMensagens() {
-    setMensagemErro("")
-    setMensagemSucesso("")
+    setMensagemErro('')
+    setMensagemSucesso('')
   }
 
   function limparFormulario() {
-    setNome("")
-    setMatricula("")
-    setPerfil("OPERADOR")
-    setSenha("")
+    setNome('')
+    setMatricula('')
+    setPerfil('OPERADOR')
+    setSenha('')
     setAlterarSenha(false)
     setUsuarioEditando(null)
-    setMensagemErro("")
+    setMensagemErro('')
   }
 
   function abrirNovoUsuario() {
@@ -144,7 +117,7 @@ function UsuariosPage() {
 
     limparMensagens()
     limparFormulario()
-    setModalModo("novo")
+    setModalModo('novo')
     setModalAberto(true)
   }
 
@@ -152,12 +125,12 @@ function UsuariosPage() {
     if (processando) return
 
     limparMensagens()
-    setModalModo("editar")
+    setModalModo('editar')
     setUsuarioEditando(usuario)
     setNome(usuario.nome)
     setMatricula(usuario.matricula)
     setPerfil(usuario.perfil)
-    setSenha("")
+    setSenha('')
     setAlterarSenha(false)
     setModalAberto(true)
   }
@@ -172,20 +145,20 @@ function UsuariosPage() {
   async function salvarUsuario() {
     if (processando) return
 
-    setMensagemErro("")
+    setMensagemErro('')
 
     if (!nome.trim() || !matricula.trim()) {
-      setMensagemErro("Informe o nome e a matrícula do usuário.")
+      setMensagemErro('Informe o nome e a matrícula do usuário.')
       return
     }
 
-    if (modalModo === "novo" && !senha.trim()) {
-      setMensagemErro("Informe uma senha inicial para o usuário.")
+    if (modalModo === 'novo' && !senha.trim()) {
+      setMensagemErro('Informe uma senha inicial para o usuário.')
       return
     }
 
-    if (modalModo === "editar" && alterarSenha && !senha.trim()) {
-      setMensagemErro("Informe a nova senha do usuário.")
+    if (modalModo === 'editar' && alterarSenha && !senha.trim()) {
+      setMensagemErro('Informe a nova senha do usuário.')
       return
     }
 
@@ -193,10 +166,7 @@ function UsuariosPage() {
       nome: nome.trim(),
       matricula: matricula.trim(),
       perfil,
-      senha:
-        modalModo === "novo" || alterarSenha
-          ? senha.trim() || undefined
-          : undefined,
+      senha: modalModo === 'novo' || alterarSenha ? senha.trim() || undefined : undefined,
       usuarioId: 1
     }
 
@@ -205,7 +175,7 @@ function UsuariosPage() {
     try {
       let resultado: ResultadoAcao
 
-      if (modalModo === "editar" && usuarioEditando) {
+      if (modalModo === 'editar' && usuarioEditando) {
         resultado = await window.api.usuarios.editar(usuarioEditando.id, input)
       } else {
         resultado = await window.api.usuarios.criar(input)
@@ -231,10 +201,7 @@ function UsuariosPage() {
     limparMensagens()
 
     try {
-      const resultado = await window.api.usuarios.excluir(
-        usuarioParaInativar.id,
-        1
-      )
+      const resultado = await window.api.usuarios.excluir(usuarioParaInativar.id, 1)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -256,10 +223,7 @@ function UsuariosPage() {
     limparMensagens()
 
     try {
-      const resultado = await window.api.usuarios.ativar(
-        usuarioParaRestaurar.id,
-        1
-      )
+      const resultado = await window.api.usuarios.ativar(usuarioParaRestaurar.id, 1)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -281,10 +245,7 @@ function UsuariosPage() {
     limparMensagens()
 
     try {
-      const resultado = await window.api.usuarios.remover(
-        usuarioParaRemover.id,
-        1
-      )
+      const resultado = await window.api.usuarios.remover(usuarioParaRemover.id, 1)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -303,12 +264,10 @@ function UsuariosPage() {
     return (
       <span
         className={`rounded px-2 py-1 text-xs font-bold ${
-          usuario.ativo
-            ? "bg-green-100 text-green-700"
-            : "bg-red-100 text-red-700"
+          usuario.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
         }`}
       >
-        {usuario.ativo ? "ATIVO" : "INATIVO"}
+        {usuario.ativo ? 'ATIVO' : 'INATIVO'}
       </span>
     )
   }
@@ -361,10 +320,7 @@ function UsuariosPage() {
 
             <tbody>
               {usuariosPaginados.map((usuario) => (
-                <tr
-                  key={usuario.id}
-                  className="border-t border-[var(--border)]"
-                >
+                <tr key={usuario.id} className="border-t border-[var(--border)]">
                   <td className={ui.tableCellStrong}>{usuario.matricula}</td>
                   <td className={ui.tableCell}>{usuario.nome}</td>
                   <td className={ui.tableCell}>{usuario.perfil}</td>
@@ -417,12 +373,8 @@ function UsuariosPage() {
         <Pagination
           paginaAtual={paginaAtual}
           totalPaginas={totalPaginas}
-          onPaginaAnterior={() =>
-            setPaginaAtual((pagina) => Math.max(1, pagina - 1))
-          }
-          onProximaPagina={() =>
-            setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))
-          }
+          onPaginaAnterior={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
+          onProximaPagina={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
         />
 
         <InativosCard
@@ -444,10 +396,7 @@ function UsuariosPage() {
 
             <tbody>
               {usuariosInativos.map((usuario) => (
-                <tr
-                  key={usuario.id}
-                  className="border-t border-[var(--border)] bg-slate-50"
-                >
+                <tr key={usuario.id} className="border-t border-[var(--border)] bg-slate-50">
                   <td className={ui.tableCellStrong}>{usuario.matricula}</td>
                   <td className={ui.tableCell}>{usuario.nome}</td>
                   <td className={ui.tableCell}>{usuario.perfil}</td>
@@ -540,10 +489,7 @@ function UsuariosPage() {
         )}
 
         {usuarioInfo && (
-          <UsuarioInfoModal
-            usuario={usuarioInfo}
-            onFechar={() => setUsuarioInfo(null)}
-          />
+          <UsuarioInfoModal usuario={usuarioInfo} onFechar={() => setUsuarioInfo(null)} />
         )}
 
         {usuarioParaInativar && (
@@ -551,10 +497,10 @@ function UsuariosPage() {
             titulo="Inativar usuário"
             descricao={
               <>
-                O usuário{" "}
+                O usuário{' '}
                 <strong>
                   {usuarioParaInativar.matricula} - {usuarioParaInativar.nome}
-                </strong>{" "}
+                </strong>{' '}
                 ficará inativo e não poderá ser utilizado normalmente.
               </>
             }
@@ -570,10 +516,10 @@ function UsuariosPage() {
             titulo="Restaurar usuário"
             descricao={
               <>
-                O usuário{" "}
+                O usuário{' '}
                 <strong>
                   {usuarioParaRestaurar.matricula} - {usuarioParaRestaurar.nome}
-                </strong>{" "}
+                </strong>{' '}
                 voltará a ficar ativo.
               </>
             }
@@ -588,12 +534,12 @@ function UsuariosPage() {
             titulo="Remover usuário"
             descricao={
               <>
-                O usuário{" "}
+                O usuário{' '}
                 <strong>
                   {usuarioParaRemover.matricula} - {usuarioParaRemover.nome}
-                </strong>{" "}
-                será removido da aplicação. Ele não aparecerá mais nas listas de
-                usuários ativos ou inativos.
+                </strong>{' '}
+                será removido da aplicação. Ele não aparecerá mais nas listas de usuários ativos ou
+                inativos.
               </>
             }
             textoConfirmar="Remover"

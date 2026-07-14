@@ -1,31 +1,24 @@
-import { X } from "lucide-react"
+import { X } from 'lucide-react'
 
-import { ui } from "../../../theme/ui"
+import type { PerfilUsuario, Usuario } from '../../../models/Usuario'
+import { ui } from '../../../theme/ui'
 
-type ModalModo = "novo" | "editar"
-
-type Usuario = {
-  id: number
-  nome: string
-  matricula: string
-  perfil: string
-  ativo: boolean
-}
+type ModalModo = 'novo' | 'editar'
 
 type Props = {
   modo: ModalModo
   usuarioEditando: Usuario | null
   nome: string
   matricula: string
-  perfil: string
+  perfil: PerfilUsuario
   senha: string
   alterarSenha: boolean
   mensagemErro: string
   processando: boolean
-  perfis: string[]
+  perfis: PerfilUsuario[]
   onNomeChange: (valor: string) => void
   onMatriculaChange: (valor: string) => void
-  onPerfilChange: (valor: string) => void
+  onPerfilChange: (valor: PerfilUsuario) => void
   onSenhaChange: (valor: string) => void
   onAlterarSenhaChange: (valor: boolean) => void
   onFechar: () => void
@@ -51,29 +44,23 @@ export function UsuarioFormModal({
   onFechar,
   onSalvar
 }: Props) {
-  const editando = modo === "editar"
+  const editando = modo === 'editar'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-3xl rounded-lg bg-white p-5 shadow-xl">
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className={ui.title}>
-              {editando ? "Editar Usuário" : "Novo Usuário"}
-            </h2>
+            <h2 className={ui.title}>{editando ? 'Editar Usuário' : 'Novo Usuário'}</h2>
 
             <p className={ui.subtitle}>
               {editando && usuarioEditando
                 ? `${usuarioEditando.matricula} - ${usuarioEditando.nome}`
-                : "Cadastre um novo usuário do sistema."}
+                : 'Cadastre um novo usuário do sistema.'}
             </p>
           </div>
 
-          <button
-            onClick={onFechar}
-            disabled={processando}
-            className={ui.buttonSecondary}
-          >
+          <button onClick={onFechar} disabled={processando} className={ui.buttonSecondary}>
             <X size={16} />
           </button>
         </div>
@@ -111,7 +98,7 @@ export function UsuarioFormModal({
             <label className={ui.label}>Perfil</label>
             <select
               value={perfil}
-              onChange={(event) => onPerfilChange(event.target.value)}
+              onChange={(event) => onPerfilChange(event.target.value as PerfilUsuario)}
               disabled={processando}
               className={ui.select}
             >
@@ -167,24 +154,12 @@ export function UsuarioFormModal({
         )}
 
         <div className="mt-5 flex justify-end gap-3">
-          <button
-            onClick={onFechar}
-            disabled={processando}
-            className={ui.buttonSecondary}
-          >
+          <button onClick={onFechar} disabled={processando} className={ui.buttonSecondary}>
             Cancelar
           </button>
 
-          <button
-            onClick={onSalvar}
-            disabled={processando}
-            className={ui.buttonPrimary}
-          >
-            {processando
-              ? "Salvando..."
-              : editando
-                ? "Salvar alterações"
-                : "Salvar"}
+          <button onClick={onSalvar} disabled={processando} className={ui.buttonPrimary}>
+            {processando ? 'Salvando...' : editando ? 'Salvar alterações' : 'Salvar'}
           </button>
         </div>
       </div>

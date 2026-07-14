@@ -1,5 +1,6 @@
-import crypto from "crypto"
-import { pool } from "../../database/postgres/connection"
+import crypto from 'crypto'
+import { pool } from '../../database/postgres/connection'
+import { IdGenerator } from '../../shared/ids/IdGenerator'
 
 export interface UsuarioInput {
   nome: string
@@ -11,6 +12,7 @@ export interface UsuarioInput {
 
 export interface Usuario {
   id: number
+  uuid: string
   nome: string
   matricula: string
   perfil: string
@@ -26,30 +28,42 @@ export interface Usuario {
   deletedByNome: string | null
 }
 
-function gerarHashSenha(senha: string) {
-  const salt = crypto.randomBytes(16).toString("hex")
-  const hash = crypto.pbkdf2Sync(senha, salt, 100000, 64, "sha512").toString("hex")
+interface UsuarioCredenciais {
+  id: number
+  uuid: string
+  nome: string
+  matricula: string
+  perfil: string
+  senhaHash: string | null
+  ativo: boolean
+  deletedAt: string | null
+}
+
+function gerarHashSenha(senha: string): string {
+  const salt = crypto.randomBytes(16).toString('hex')
+  const hash = crypto.pbkdf2Sync(senha, salt, 100000, 64, 'sha512').toString('hex')
   return `${salt}:${hash}`
 }
 
 export class UsuarioRepository {
   async listar(): Promise<Usuario[]> {
-    const result = await pool.query<any>(`
+    const result = await pool.query<Usuario>(`
       SELECT
         u.id,
+        u.uuid,
         u.nome,
         u.matricula,
         u.perfil,
         u.ativo,
-        u.created_at as "createdAt",
-        u.updated_at as "updatedAt",
-        u.deleted_at as "deletedAt",
-        u.created_by as "createdBy",
-        u.updated_by as "updatedBy",
-        u.deleted_by as "deletedBy",
-        cb.nome as "createdByNome",
-        ub.nome as "updatedByNome",
-        db.nome as "deletedByNome"
+        u.created_at AS "createdAt",
+        u.updated_at AS "updatedAt",
+        u.deleted_at AS "deletedAt",
+        u.created_by AS "createdBy",
+        u.updated_by AS "updatedBy",
+        u.deleted_by AS "deletedBy",
+        cb.nome AS "createdByNome",
+        ub.nome AS "updatedByNome",
+        db.nome AS "deletedByNome"
       FROM usuarios u
       LEFT JOIN usuarios cb ON cb.id = u.created_by
       LEFT JOIN usuarios ub ON ub.id = u.updated_by
@@ -66,22 +80,23 @@ export class UsuarioRepository {
   }
 
   async listarInativos(): Promise<Usuario[]> {
-    const result = await pool.query<any>(`
+    const result = await pool.query<Usuario>(`
       SELECT
         u.id,
+        u.uuid,
         u.nome,
         u.matricula,
         u.perfil,
         u.ativo,
-        u.created_at as "createdAt",
-        u.updated_at as "updatedAt",
-        u.deleted_at as "deletedAt",
-        u.created_by as "createdBy",
-        u.updated_by as "updatedBy",
-        u.deleted_by as "deletedBy",
-        cb.nome as "createdByNome",
-        ub.nome as "updatedByNome",
-        db.nome as "deletedByNome"
+        u.created_at AS "createdAt",
+        u.updated_at AS "updatedAt",
+        u.deleted_at AS "deletedAt",
+        u.created_by AS "createdBy",
+        u.updated_by AS "updatedBy",
+        u.deleted_by AS "deletedBy",
+        cb.nome AS "createdByNome",
+        ub.nome AS "updatedByNome",
+        db.nome AS "deletedByNome"
       FROM usuarios u
       LEFT JOIN usuarios cb ON cb.id = u.created_by
       LEFT JOIN usuarios ub ON ub.id = u.updated_by
@@ -100,6 +115,7 @@ export class UsuarioRepository {
   async criar(input: UsuarioInput): Promise<void> {
     const matricula = input.matricula.trim()
     const usuarioId = input.usuarioId ?? null
+    const uuid = IdGenerator.generate()
 
     const duplicado = await pool.query<{ id: number }>(
       `
@@ -113,7 +129,7 @@ export class UsuarioRepository {
     )
 
     if (duplicado.rows[0]) {
-      throw new Error("USUARIO_DUPLICADO")
+      throw new Error('USUARIO_DUPLICADO')
     }
 
     const senhaHash = input.senha?.trim() ? gerarHashSenha(input.senha) : null
@@ -121,6 +137,7 @@ export class UsuarioRepository {
     await pool.query(
       `
         INSERT INTO usuarios (
+          uuid,
           nome,
           matricula,
           perfil,
@@ -130,9 +147,20 @@ export class UsuarioRepository {
           updated_at,
           created_by,
           updated_by
-        ) VALUES ($1, $2, $3, $4, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $5, $5)
+        ) VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          true,
+          CURRENT_TIMESTAMP,
+          CURRENT_TIMESTAMP,
+          $6,
+          $6
+        )
       `,
-      [input.nome.trim(), matricula, input.perfil, senhaHash, usuarioId]
+      [uuid, input.nome.trim(), matricula, input.perfil, senhaHash, usuarioId]
     )
   }
 
@@ -153,7 +181,7 @@ export class UsuarioRepository {
     )
 
     if (duplicado.rows[0]) {
-      throw new Error("USUARIO_DUPLICADO")
+      throw new Error('USUARIO_DUPLICADO')
     }
 
     if (input.senha?.trim()) {
@@ -241,17 +269,18 @@ export class UsuarioRepository {
     )
   }
 
-  async buscarCredenciaisPorMatricula(matricula: string) {
-    const result = await pool.query<any>(
+  async buscarCredenciaisPorMatricula(matricula: string): Promise<UsuarioCredenciais | null> {
+    const result = await pool.query<UsuarioCredenciais>(
       `
         SELECT
           id,
+          uuid,
           nome,
           matricula,
           perfil,
-          senha_hash as "senhaHash",
+          senha_hash AS "senhaHash",
           ativo,
-          deleted_at as "deletedAt"
+          deleted_at AS "deletedAt"
         FROM usuarios
         WHERE matricula = $1
           AND deleted_at IS NULL
@@ -259,7 +288,7 @@ export class UsuarioRepository {
       `,
       [matricula]
     )
+
     return result.rows[0] ?? null
   }
-
 }

@@ -2,6 +2,7 @@ import { getDatabase } from '../../database/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
 
 const db = getDatabase()
+const USUARIO_SISTEMA_ID = 1
 
 export interface Setor {
   id: number
@@ -9,6 +10,15 @@ export interface Setor {
   nome: string
   sigla: string
   ativo: boolean
+  createdAt: string | null
+  updatedAt: string | null
+  deletedAt: string | null
+  createdBy: number | null
+  updatedBy: number | null
+  deletedBy: number | null
+  createdByNome: string | null
+  updatedByNome: string | null
+  deletedByNome: string | null
 }
 
 type SetorRow = {
@@ -17,6 +27,15 @@ type SetorRow = {
   nome: string
   sigla: string | null
   ativo: number
+  created_at: string | null
+  updated_at: string | null
+  deleted_at: string | null
+  created_by: number | null
+  updated_by: number | null
+  deleted_by: number | null
+  created_by_nome: string | null
+  updated_by_nome: string | null
+  deleted_by_nome: string | null
 }
 
 export class SetorRepository {
@@ -26,18 +45,50 @@ export class SetorRepository {
       uuid: setor.uuid,
       nome: setor.nome,
       sigla: setor.sigla ?? '',
-      ativo: Boolean(setor.ativo)
+      ativo: Boolean(setor.ativo),
+      createdAt: setor.created_at,
+      updatedAt: setor.updated_at,
+      deletedAt: setor.deleted_at,
+      createdBy: setor.created_by,
+      updatedBy: setor.updated_by,
+      deletedBy: setor.deleted_by,
+      createdByNome: setor.created_by_nome,
+      updatedByNome: setor.updated_by_nome,
+      deletedByNome: setor.deleted_by_nome
     }
+  }
+
+  private consultaBase(): string {
+    return `
+      SELECT
+        s.id,
+        s.uuid,
+        s.nome,
+        s.sigla,
+        s.ativo,
+        s.created_at,
+        s.updated_at,
+        s.deleted_at,
+        s.created_by,
+        s.updated_by,
+        s.deleted_by,
+        criado.nome AS created_by_nome,
+        atualizado.nome AS updated_by_nome,
+        removido.nome AS deleted_by_nome
+      FROM setores s
+      LEFT JOIN usuarios criado ON criado.id = s.created_by
+      LEFT JOIN usuarios atualizado ON atualizado.id = s.updated_by
+      LEFT JOIN usuarios removido ON removido.id = s.deleted_by
+    `
   }
 
   listar(): Setor[] {
     const setores = db
       .prepare(
         `
-        SELECT id, uuid, nome, sigla, ativo
-        FROM setores
-        WHERE ativo = 1
-        ORDER BY nome
+        ${this.consultaBase()}
+        WHERE s.ativo = 1
+        ORDER BY s.nome
       `
       )
       .all() as SetorRow[]
@@ -49,10 +100,9 @@ export class SetorRepository {
     const setores = db
       .prepare(
         `
-        SELECT id, uuid, nome, sigla, ativo
-        FROM setores
-        WHERE ativo = 0
-        ORDER BY nome
+        ${this.consultaBase()}
+        WHERE s.ativo = 0
+        ORDER BY s.nome
       `
       )
       .all() as SetorRow[]
@@ -60,7 +110,7 @@ export class SetorRepository {
     return setores.map((setor) => this.mapear(setor))
   }
 
-  criar(nome: string, sigla: string): void {
+  criar(nome: string, sigla: string, usuarioId: number = USUARIO_SISTEMA_ID): void {
     const nomeFormatado = nome.trim()
     const siglaFormatada = sigla.trim().toUpperCase()
     const uuid = IdGenerator.generate()
@@ -88,13 +138,22 @@ export class SetorRepository {
 
     db.prepare(
       `
-      INSERT INTO setores (uuid, nome, sigla, ativo)
-      VALUES (?, ?, ?, 1)
+      INSERT INTO setores (
+        uuid,
+        nome,
+        sigla,
+        ativo,
+        created_at,
+        updated_at,
+        created_by,
+        updated_by
+      )
+      VALUES (?, ?, ?, 1, datetime('now','localtime'), datetime('now','localtime'), ?, ?)
     `
-    ).run(uuid, nomeFormatado, siglaFormatada)
+    ).run(uuid, nomeFormatado, siglaFormatada, usuarioId, usuarioId)
   }
 
-  editar(id: number, nome: string, sigla: string): void {
+  editar(id: number, nome: string, sigla: string, usuarioId: number = USUARIO_SISTEMA_ID): void {
     const nomeFormatado = nome.trim()
     const siglaFormatada = sigla.trim().toUpperCase()
 
@@ -123,13 +182,17 @@ export class SetorRepository {
     db.prepare(
       `
       UPDATE setores
-      SET nome = ?, sigla = ?
+      SET
+        nome = ?,
+        sigla = ?,
+        updated_at = datetime('now','localtime'),
+        updated_by = ?
       WHERE id = ?
     `
-    ).run(nomeFormatado, siglaFormatada, id)
+    ).run(nomeFormatado, siglaFormatada, usuarioId, id)
   }
 
-  excluir(id: number): void {
+  excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
     const vinculos = this.contarSubsetoresAtivos(id)
 
     if (vinculos > 0) {
@@ -141,20 +204,30 @@ export class SetorRepository {
     db.prepare(
       `
       UPDATE setores
-      SET ativo = 0
+      SET
+        ativo = 0,
+        updated_at = datetime('now','localtime'),
+        updated_by = ?,
+        deleted_at = datetime('now','localtime'),
+        deleted_by = ?
       WHERE id = ?
     `
-    ).run(id)
+    ).run(usuarioId, usuarioId, id)
   }
 
-  restaurar(id: number): void {
+  restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
     db.prepare(
       `
       UPDATE setores
-      SET ativo = 1
+      SET
+        ativo = 1,
+        updated_at = datetime('now','localtime'),
+        updated_by = ?,
+        deleted_at = NULL,
+        deleted_by = NULL
       WHERE id = ?
     `
-    ).run(id)
+    ).run(usuarioId, id)
   }
 
   excluirPermanente(id: number): void {

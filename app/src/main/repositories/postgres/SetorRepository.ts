@@ -1,7 +1,9 @@
-import { pool } from "../../database/postgres/connection"
+import { pool } from '../../database/postgres/connection'
+import { IdGenerator } from '../../shared/ids/IdGenerator'
 
 export interface Setor {
   id: number
+  uuid: string
   nome: string
   sigla: string
   ativo: boolean
@@ -9,6 +11,7 @@ export interface Setor {
 
 type SetorRow = {
   id: number
+  uuid: string
   nome: string
   sigla: string | null
   ativo: boolean
@@ -18,15 +21,16 @@ export class SetorRepository {
   private mapear(setor: SetorRow): Setor {
     return {
       id: setor.id,
+      uuid: setor.uuid,
       nome: setor.nome,
-      sigla: setor.sigla ?? "",
+      sigla: setor.sigla ?? '',
       ativo: Boolean(setor.ativo)
     }
   }
 
   async listar(): Promise<Setor[]> {
     const result = await pool.query<SetorRow>(`
-      SELECT id, nome, sigla, ativo
+      SELECT id, uuid, nome, sigla, ativo
       FROM setores
       WHERE ativo = true
       ORDER BY nome
@@ -37,7 +41,7 @@ export class SetorRepository {
 
   async listarInativos(): Promise<Setor[]> {
     const result = await pool.query<SetorRow>(`
-      SELECT id, nome, sigla, ativo
+      SELECT id, uuid, nome, sigla, ativo
       FROM setores
       WHERE ativo = false
       ORDER BY nome
@@ -49,6 +53,7 @@ export class SetorRepository {
   async criar(nome: string, sigla: string): Promise<void> {
     const nomeFormatado = nome.trim()
     const siglaFormatada = sigla.trim().toUpperCase()
+    const uuid = IdGenerator.generate()
 
     const existente = await pool.query<{ id: number; ativo: boolean }>(
       `
@@ -61,21 +66,21 @@ export class SetorRepository {
     )
 
     if (existente.rows[0]?.ativo) {
-      throw new Error("Já existe um setor ativo cadastrado com esta sigla.")
+      throw new Error('Já existe um setor ativo cadastrado com esta sigla.')
     }
 
     if (existente.rows[0] && !existente.rows[0].ativo) {
       throw new Error(
-        "Já existe um setor inativo com esta sigla. Restaure o setor inativo em vez de criar outro."
+        'Já existe um setor inativo com esta sigla. Restaure o setor inativo em vez de criar outro.'
       )
     }
 
     await pool.query(
       `
-        INSERT INTO setores (nome, sigla, ativo)
-        VALUES ($1, $2, true)
+        INSERT INTO setores (uuid, nome, sigla, ativo)
+        VALUES ($1, $2, $3, true)
       `,
-      [nomeFormatado, siglaFormatada]
+      [uuid, nomeFormatado, siglaFormatada]
     )
   }
 
@@ -95,12 +100,12 @@ export class SetorRepository {
     )
 
     if (existente.rows[0]?.ativo) {
-      throw new Error("Já existe outro setor ativo cadastrado com esta sigla.")
+      throw new Error('Já existe outro setor ativo cadastrado com esta sigla.')
     }
 
     if (existente.rows[0] && !existente.rows[0].ativo) {
       throw new Error(
-        "Já existe um setor inativo com esta sigla. Altere a sigla ou restaure o setor inativo."
+        'Já existe um setor inativo com esta sigla. Altere a sigla ou restaure o setor inativo.'
       )
     }
 
@@ -119,7 +124,7 @@ export class SetorRepository {
 
     if (vinculos > 0) {
       throw new Error(
-        "Há subsetores vinculados a este setor. Para inativar este setor, primeiro remova ou inative os subsetores vinculados."
+        'Há subsetores vinculados a este setor. Para inativar este setor, primeiro remova ou inative os subsetores vinculados.'
       )
     }
 
@@ -147,7 +152,7 @@ export class SetorRepository {
   async excluirPermanente(id: number): Promise<void> {
     const vinculos = await pool.query<{ total: string }>(
       `
-        SELECT COUNT(*) as total
+        SELECT COUNT(*) AS total
         FROM subsetores
         WHERE setor_id = $1
       `,
@@ -156,7 +161,7 @@ export class SetorRepository {
 
     if (Number(vinculos.rows[0]?.total ?? 0) > 0) {
       throw new Error(
-        "Não é possível excluir permanentemente. Existem subsetores vinculados a este setor."
+        'Não é possível excluir permanentemente. Existem subsetores vinculados a este setor.'
       )
     }
 
@@ -173,7 +178,7 @@ export class SetorRepository {
   async contarSubsetoresAtivos(id: number): Promise<number> {
     const result = await pool.query<{ total: string }>(
       `
-        SELECT COUNT(*) as total
+        SELECT COUNT(*) AS total
         FROM subsetores
         WHERE setor_id = $1
           AND ativo = true

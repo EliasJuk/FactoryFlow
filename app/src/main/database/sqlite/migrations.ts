@@ -23,6 +23,7 @@ export function runMigrations() {
 
     CREATE TABLE IF NOT EXISTS setores (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT NOT NULL UNIQUE,
       nome TEXT NOT NULL,
       sigla TEXT,
       ativo INTEGER NOT NULL DEFAULT 1
@@ -172,6 +173,43 @@ export function runMigrations() {
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_uuid
     ON usuarios(uuid);
+  `)
+
+  if (!columnExists('setores', 'uuid')) {
+    db.exec(`
+      ALTER TABLE setores
+      ADD COLUMN uuid TEXT;
+    `)
+  }
+
+  const setoresSemUuid = db
+    .prepare(
+      `
+      SELECT id
+      FROM setores
+      WHERE uuid IS NULL
+         OR TRIM(uuid) = ''
+    `
+    )
+    .all() as Array<{ id: number }>
+
+  const atualizarUuidSetor = db.prepare(`
+    UPDATE setores
+    SET uuid = ?
+    WHERE id = ?
+  `)
+
+  const preencherUuidsSetores = db.transaction((setores: Array<{ id: number }>) => {
+    for (const setor of setores) {
+      atualizarUuidSetor.run(IdGenerator.generate(), setor.id)
+    }
+  })
+
+  preencherUuidsSetores(setoresSemUuid)
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_setores_uuid
+    ON setores(uuid);
   `)
 
   if (!columnExists('usuarios', 'senha_hash')) {

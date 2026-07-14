@@ -32,6 +32,7 @@ export async function runPostgresMigrations() {
 
     CREATE TABLE IF NOT EXISTS setores (
       id SERIAL PRIMARY KEY,
+      uuid UUID NOT NULL UNIQUE,
       nome TEXT NOT NULL,
       sigla TEXT,
       ativo BOOLEAN NOT NULL DEFAULT true
@@ -180,6 +181,40 @@ export async function runPostgresMigrations() {
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_uuid
     ON usuarios(uuid);
+  `)
+
+  if (!(await columnExists('setores', 'uuid'))) {
+    await pool.query(`
+      ALTER TABLE setores
+      ADD COLUMN uuid UUID;
+    `)
+  }
+
+  const setoresSemUuid = await pool.query<{ id: number }>(`
+    SELECT id
+    FROM setores
+    WHERE uuid IS NULL
+  `)
+
+  for (const setor of setoresSemUuid.rows) {
+    await pool.query(
+      `
+        UPDATE setores
+        SET uuid = $1
+        WHERE id = $2
+      `,
+      [IdGenerator.generate(), setor.id]
+    )
+  }
+
+  await pool.query(`
+    ALTER TABLE setores
+    ALTER COLUMN uuid SET NOT NULL;
+  `)
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_setores_uuid
+    ON setores(uuid);
   `)
 
   if (!(await columnExists('usuarios', 'senha_hash'))) {

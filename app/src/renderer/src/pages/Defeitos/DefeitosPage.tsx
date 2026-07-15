@@ -1,24 +1,19 @@
-import { useEffect, useMemo, useState } from "react"
-import { Pencil, RotateCcw, Trash2 } from "lucide-react"
+import { useEffect, useMemo, useState } from 'react'
+import { Eye, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
-import PageHeader from "../../components/PageHeader/PageHeader"
-import { ui } from "../../theme/ui"
+import PageHeader from '../../components/PageHeader/PageHeader'
+import type { Defeito } from '../../models/Defeitos'
+import { ui } from '../../theme/ui'
 
-import { Pagination } from "../../components/Pagination/Pagination"
-import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog"
-import { CrudHeader } from "../../components/Crud/CrudHeader/CrudHeader"
-import { SearchBar } from "../../components/Crud/SearchBar/SearchBar"
-import { CrudModal } from "../../components/Crud/CrudModal/CrudModal"
-import { InativosCard } from "../../components/Crud/InativosCard/InativosCard"
+import { Pagination } from '../../components/Pagination/Pagination'
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog'
+import { CrudHeader } from '../../components/Crud/CrudHeader/CrudHeader'
+import { SearchBar } from '../../components/Crud/SearchBar/SearchBar'
+import { CrudModal } from '../../components/Crud/CrudModal/CrudModal'
+import { InativosCard } from '../../components/Crud/InativosCard/InativosCard'
+import { DefeitoInfoModal } from './components/DefeitoInfoModal'
 
-type ModalModo = "novo" | "editar"
-
-type Defeito = {
-  id: number
-  codigo: string
-  descricao: string
-  ativo: boolean
-}
+type ModalModo = 'novo' | 'editar'
 
 const ITENS_POR_PAGINA = 10
 
@@ -26,28 +21,28 @@ function DefeitosPage() {
   const [defeitos, setDefeitos] = useState<Defeito[]>([])
   const [defeitosInativos, setDefeitosInativos] = useState<Defeito[]>([])
 
-  const [busca, setBusca] = useState("")
+  const [busca, setBusca] = useState('')
   const [paginaAtual, setPaginaAtual] = useState(1)
   const [mostrarInativos, setMostrarInativos] = useState(false)
 
   const [modalAberto, setModalAberto] = useState(false)
-  const [modalModo, setModalModo] = useState<ModalModo>("novo")
+  const [modalModo, setModalModo] = useState<ModalModo>('novo')
   const [defeitoEditando, setDefeitoEditando] = useState<Defeito | null>(null)
+  const [defeitoVisualizando, setDefeitoVisualizando] = useState<Defeito | null>(null)
 
-  const [codigo, setCodigo] = useState("")
-  const [descricao, setDescricao] = useState("")
-  const [mensagemErro, setMensagemErro] = useState("")
-  const [mensagemSucesso, setMensagemSucesso] = useState("")
+  const [codigo, setCodigo] = useState('')
+  const [descricao, setDescricao] = useState('')
+  const [mensagemErro, setMensagemErro] = useState('')
+  const [mensagemSucesso, setMensagemSucesso] = useState('')
   const [processando, setProcessando] = useState(false)
 
-  const [defeitoParaInativar, setDefeitoParaInativar] =
-    useState<Defeito | null>(null)
+  const [defeitoParaInativar, setDefeitoParaInativar] = useState<Defeito | null>(null)
 
-  const [defeitoParaRestaurar, setDefeitoParaRestaurar] =
-    useState<Defeito | null>(null)
+  const [defeitoParaRestaurar, setDefeitoParaRestaurar] = useState<Defeito | null>(null)
 
-  const [defeitoParaExcluirPermanente, setDefeitoParaExcluirPermanente] =
-    useState<Defeito | null>(null)
+  const [defeitoParaExcluirPermanente, setDefeitoParaExcluirPermanente] = useState<Defeito | null>(
+    null
+  )
 
   async function carregarDefeitos() {
     const [ativos, inativos] = await Promise.all([
@@ -76,10 +71,7 @@ function DefeitosPage() {
     })
   }, [busca, defeitos])
 
-  const totalPaginas = Math.max(
-    1,
-    Math.ceil(defeitosFiltrados.length / ITENS_POR_PAGINA)
-  )
+  const totalPaginas = Math.max(1, Math.ceil(defeitosFiltrados.length / ITENS_POR_PAGINA))
 
   const defeitosPaginados = useMemo(() => {
     const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA
@@ -97,18 +89,18 @@ function DefeitosPage() {
   }, [paginaAtual, totalPaginas])
 
   function limparMensagens() {
-    setMensagemErro("")
-    setMensagemSucesso("")
+    setMensagemErro('')
+    setMensagemSucesso('')
   }
 
   function abrirNovoDefeito() {
     if (processando) return
 
     limparMensagens()
-    setModalModo("novo")
+    setModalModo('novo')
     setDefeitoEditando(null)
-    setCodigo("")
-    setDescricao("")
+    setCodigo('')
+    setDescricao('')
     setModalAberto(true)
   }
 
@@ -116,7 +108,7 @@ function DefeitosPage() {
     if (processando) return
 
     limparMensagens()
-    setModalModo("editar")
+    setModalModo('editar')
     setDefeitoEditando(defeito)
     setCodigo(defeito.codigo)
     setDescricao(defeito.descricao)
@@ -128,25 +120,25 @@ function DefeitosPage() {
 
     setModalAberto(false)
     setDefeitoEditando(null)
-    setCodigo("")
-    setDescricao("")
-    setMensagemErro("")
+    setCodigo('')
+    setDescricao('')
+    setMensagemErro('')
   }
 
   async function salvarDefeito() {
     if (processando) return
 
-    setMensagemErro("")
+    setMensagemErro('')
 
     if (!codigo.trim() || !descricao.trim()) {
-      setMensagemErro("Informe o código e a descrição do defeito.")
+      setMensagemErro('Informe o código e a descrição do defeito.')
       return
     }
 
     setProcessando(true)
 
     try {
-      if (modalModo === "editar" && defeitoEditando) {
+      if (modalModo === 'editar' && defeitoEditando) {
         const resultado = await window.api.defeitos.editar(
           defeitoEditando.id,
           codigo.trim().toUpperCase(),
@@ -158,7 +150,7 @@ function DefeitosPage() {
           return
         }
 
-        setMensagemSucesso("Defeito atualizado com sucesso.")
+        setMensagemSucesso('Defeito atualizado com sucesso.')
       } else {
         const resultado = await window.api.defeitos.criar(
           codigo.trim().toUpperCase(),
@@ -170,7 +162,7 @@ function DefeitosPage() {
           return
         }
 
-        setMensagemSucesso("Defeito cadastrado com sucesso.")
+        setMensagemSucesso('Defeito cadastrado com sucesso.')
       }
 
       fecharModal()
@@ -195,7 +187,7 @@ function DefeitosPage() {
       }
 
       setDefeitoParaInativar(null)
-      setMensagemSucesso("Defeito inativado com sucesso.")
+      setMensagemSucesso('Defeito inativado com sucesso.')
       await carregarDefeitos()
     } finally {
       setProcessando(false)
@@ -209,9 +201,7 @@ function DefeitosPage() {
     limparMensagens()
 
     try {
-      const resultado = await window.api.defeitos.restaurar(
-        defeitoParaRestaurar.id
-      )
+      const resultado = await window.api.defeitos.restaurar(defeitoParaRestaurar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -219,7 +209,7 @@ function DefeitosPage() {
       }
 
       setDefeitoParaRestaurar(null)
-      setMensagemSucesso("Defeito restaurado com sucesso.")
+      setMensagemSucesso('Defeito restaurado com sucesso.')
       await carregarDefeitos()
     } finally {
       setProcessando(false)
@@ -233,9 +223,7 @@ function DefeitosPage() {
     limparMensagens()
 
     try {
-      const resultado = await window.api.defeitos.excluirPermanente(
-        defeitoParaExcluirPermanente.id
-      )
+      const resultado = await window.api.defeitos.excluirPermanente(defeitoParaExcluirPermanente.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -243,17 +231,14 @@ function DefeitosPage() {
       }
 
       setDefeitoParaExcluirPermanente(null)
-      setMensagemSucesso("Defeito excluído permanentemente.")
+      setMensagemSucesso('Defeito excluído permanentemente.')
       await carregarDefeitos()
     } finally {
       setProcessando(false)
     }
   }
 
-  const podeSalvar =
-    codigo.trim().length > 0 &&
-    descricao.trim().length > 0 &&
-    !processando
+  const podeSalvar = codigo.trim().length > 0 && descricao.trim().length > 0 && !processando
 
   return (
     <main className={ui.page}>
@@ -301,16 +286,25 @@ function DefeitosPage() {
 
             <tbody>
               {defeitosPaginados.map((defeito) => (
-                <tr
-                  key={defeito.id}
-                  className="border-t border-[var(--border)]"
-                >
+                <tr key={defeito.uuid} className="border-t border-[var(--border)]">
                   <td className={ui.tableCellStrong}>{defeito.codigo}</td>
                   <td className={ui.tableCell}>{defeito.descricao}</td>
 
                   <td className={ui.tableCell}>
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
+                        onClick={() => setDefeitoVisualizando(defeito)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Informações"
+                        aria-label={`Ver informações do defeito ${defeito.codigo}`}
+                      >
+                        <Eye size={15} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => abrirEditarDefeito(defeito)}
                         disabled={processando}
                         className={ui.buttonSecondary}
@@ -346,12 +340,8 @@ function DefeitosPage() {
         <Pagination
           paginaAtual={paginaAtual}
           totalPaginas={totalPaginas}
-          onPaginaAnterior={() =>
-            setPaginaAtual((pagina) => Math.max(1, pagina - 1))
-          }
-          onProximaPagina={() =>
-            setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))
-          }
+          onPaginaAnterior={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
+          onProximaPagina={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
         />
 
         <InativosCard
@@ -371,16 +361,25 @@ function DefeitosPage() {
 
             <tbody>
               {defeitosInativos.map((defeito) => (
-                <tr
-                  key={defeito.id}
-                  className="border-t border-[var(--border)] bg-slate-50"
-                >
+                <tr key={defeito.uuid} className="border-t border-[var(--border)] bg-slate-50">
                   <td className={ui.tableCellStrong}>{defeito.codigo}</td>
                   <td className={ui.tableCell}>{defeito.descricao}</td>
 
                   <td className={ui.tableCell}>
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
+                        onClick={() => setDefeitoVisualizando(defeito)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Informações"
+                        aria-label={`Ver informações do defeito ${defeito.codigo}`}
+                      >
+                        <Eye size={15} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => setDefeitoParaRestaurar(defeito)}
                         disabled={processando}
                         className={ui.buttonSecondary}
@@ -391,9 +390,7 @@ function DefeitosPage() {
                       </button>
 
                       <button
-                        onClick={() =>
-                          setDefeitoParaExcluirPermanente(defeito)
-                        }
+                        onClick={() => setDefeitoParaExcluirPermanente(defeito)}
                         disabled={processando}
                         className={ui.buttonDanger}
                         title="Excluir permanentemente"
@@ -417,33 +414,32 @@ function DefeitosPage() {
           </table>
         </InativosCard>
 
+        {defeitoVisualizando && (
+          <DefeitoInfoModal
+            defeito={defeitoVisualizando}
+            onFechar={() => setDefeitoVisualizando(null)}
+          />
+        )}
+
         {modalAberto && (
           <CrudModal
-            titulo={modalModo === "novo" ? "Novo Defeito" : "Editar Defeito"}
+            titulo={modalModo === 'novo' ? 'Novo Defeito' : 'Editar Defeito'}
             subtitulo="Informe o código e a descrição do defeito."
             mensagemErro={mensagemErro}
             processando={processando}
             onFechar={fecharModal}
             footer={
               <>
-                <button
-                  onClick={fecharModal}
-                  disabled={processando}
-                  className={ui.buttonSecondary}
-                >
+                <button onClick={fecharModal} disabled={processando} className={ui.buttonSecondary}>
                   Cancelar
                 </button>
 
-                <button
-                  onClick={salvarDefeito}
-                  disabled={!podeSalvar}
-                  className={ui.buttonPrimary}
-                >
+                <button onClick={salvarDefeito} disabled={!podeSalvar} className={ui.buttonPrimary}>
                   {processando
-                    ? "Salvando..."
-                    : modalModo === "novo"
-                      ? "Salvar"
-                      : "Salvar Alterações"}
+                    ? 'Salvando...'
+                    : modalModo === 'novo'
+                      ? 'Salvar'
+                      : 'Salvar Alterações'}
                 </button>
               </>
             }
@@ -453,9 +449,7 @@ function DefeitosPage() {
                 <label className={ui.label}>Código do Defeito</label>
                 <input
                   value={codigo}
-                  onChange={(event) =>
-                    setCodigo(event.target.value.toUpperCase())
-                  }
+                  onChange={(event) => setCodigo(event.target.value.toUpperCase())}
                   disabled={processando}
                   placeholder="Ex: 100"
                   className={ui.input}
@@ -481,16 +475,15 @@ function DefeitosPage() {
             titulo="Inativar defeito"
             descricao={
               <>
-                O defeito{" "}
+                O defeito{' '}
                 <strong>
-                  {defeitoParaInativar.codigo} -{" "}
-                  {defeitoParaInativar.descricao}
-                </strong>{" "}
+                  {defeitoParaInativar.codigo} - {defeitoParaInativar.descricao}
+                </strong>{' '}
                 ficará inativo e não aparecerá nas listas principais.
                 <br />
                 <br />
-                Os refugos antigos continuarão preservados com o código e a
-                descrição utilizados no momento do lançamento.
+                Os refugos antigos continuarão preservados com o código e a descrição utilizados no
+                momento do lançamento.
               </>
             }
             textoConfirmar="Confirmar inativação"
@@ -505,11 +498,10 @@ function DefeitosPage() {
             titulo="Restaurar defeito"
             descricao={
               <>
-                O defeito{" "}
+                O defeito{' '}
                 <strong>
-                  {defeitoParaRestaurar.codigo} -{" "}
-                  {defeitoParaRestaurar.descricao}
-                </strong>{" "}
+                  {defeitoParaRestaurar.codigo} - {defeitoParaRestaurar.descricao}
+                </strong>{' '}
                 voltará a aparecer nas listas principais.
               </>
             }
@@ -524,11 +516,10 @@ function DefeitosPage() {
             titulo="Excluir permanentemente"
             descricao={
               <>
-                O defeito{" "}
+                O defeito{' '}
                 <strong>
-                  {defeitoParaExcluirPermanente.codigo} -{" "}
-                  {defeitoParaExcluirPermanente.descricao}
-                </strong>{" "}
+                  {defeitoParaExcluirPermanente.codigo} - {defeitoParaExcluirPermanente.descricao}
+                </strong>{' '}
                 será removido definitivamente. Esta ação não poderá ser desfeita.
               </>
             }

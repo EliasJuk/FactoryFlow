@@ -123,9 +123,19 @@ export function runMigrations() {
 
     CREATE TABLE IF NOT EXISTS defeitos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT NOT NULL UNIQUE,
       codigo TEXT NOT NULL,
       descricao TEXT NOT NULL,
-      ativo INTEGER NOT NULL DEFAULT 1
+      ativo INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TEXT,
+      created_by INTEGER,
+      updated_by INTEGER,
+      deleted_by INTEGER,
+      FOREIGN KEY (created_by) REFERENCES usuarios(id),
+      FOREIGN KEY (updated_by) REFERENCES usuarios(id),
+      FOREIGN KEY (deleted_by) REFERENCES usuarios(id)
     );
 
     CREATE TABLE IF NOT EXISTS refugos (
@@ -505,6 +515,94 @@ export function runMigrations() {
 
   db.exec(`
     UPDATE componentes
+    SET
+      created_at = COALESCE(created_at, datetime('now','localtime')),
+      updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')),
+      created_by = COALESCE(created_by, 1),
+      updated_by = COALESCE(updated_by, created_by, 1)
+  `)
+
+  if (!columnExists('defeitos', 'uuid')) {
+    db.exec(`
+      ALTER TABLE defeitos
+      ADD COLUMN uuid TEXT;
+    `)
+  }
+
+  const defeitosSemUuid = db
+    .prepare(
+      `
+      SELECT id
+      FROM defeitos
+      WHERE uuid IS NULL
+         OR TRIM(uuid) = ''
+    `
+    )
+    .all() as Array<{ id: number }>
+
+  const atualizarUuidDefeito = db.prepare(`
+    UPDATE defeitos
+    SET uuid = ?
+    WHERE id = ?
+  `)
+
+  const preencherUuidsDefeitos = db.transaction((defeitos: Array<{ id: number }>) => {
+    for (const defeito of defeitos) {
+      atualizarUuidDefeito.run(IdGenerator.generate(), defeito.id)
+    }
+  })
+
+  preencherUuidsDefeitos(defeitosSemUuid)
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_defeitos_uuid
+    ON defeitos(uuid);
+  `)
+
+  if (!columnExists('defeitos', 'created_at')) {
+    db.exec(`
+      ALTER TABLE defeitos
+      ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP;
+    `)
+  }
+
+  if (!columnExists('defeitos', 'updated_at')) {
+    db.exec(`
+      ALTER TABLE defeitos
+      ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP;
+    `)
+  }
+
+  if (!columnExists('defeitos', 'deleted_at')) {
+    db.exec(`
+      ALTER TABLE defeitos
+      ADD COLUMN deleted_at TEXT;
+    `)
+  }
+
+  if (!columnExists('defeitos', 'created_by')) {
+    db.exec(`
+      ALTER TABLE defeitos
+      ADD COLUMN created_by INTEGER;
+    `)
+  }
+
+  if (!columnExists('defeitos', 'updated_by')) {
+    db.exec(`
+      ALTER TABLE defeitos
+      ADD COLUMN updated_by INTEGER;
+    `)
+  }
+
+  if (!columnExists('defeitos', 'deleted_by')) {
+    db.exec(`
+      ALTER TABLE defeitos
+      ADD COLUMN deleted_by INTEGER;
+    `)
+  }
+
+  db.exec(`
+    UPDATE defeitos
     SET
       created_at = COALESCE(created_at, datetime('now','localtime')),
       updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')),

@@ -121,9 +121,16 @@ export async function runPostgresMigrations() {
 
     CREATE TABLE IF NOT EXISTS defeitos (
       id SERIAL PRIMARY KEY,
+      uuid UUID NOT NULL UNIQUE,
       codigo TEXT NOT NULL,
       descricao TEXT NOT NULL,
-      ativo BOOLEAN NOT NULL DEFAULT true
+      ativo BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMP NULL,
+      created_by INTEGER NULL REFERENCES usuarios(id),
+      updated_by INTEGER NULL REFERENCES usuarios(id),
+      deleted_by INTEGER NULL REFERENCES usuarios(id)
     );
 
     CREATE TABLE IF NOT EXISTS refugos (
@@ -507,6 +514,82 @@ export async function runPostgresMigrations() {
 
   await pool.query(`
     UPDATE componentes
+    SET
+      created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
+      updated_at = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP),
+      created_by = COALESCE(created_by, 1),
+      updated_by = COALESCE(updated_by, created_by, 1)
+  `)
+
+  if (!(await columnExists('defeitos', 'uuid'))) {
+    await pool.query(`
+      ALTER TABLE defeitos
+      ADD COLUMN uuid UUID;
+    `)
+  }
+
+  const defeitosSemUuid = await pool.query<{ id: number }>(`
+    SELECT id
+    FROM defeitos
+    WHERE uuid IS NULL
+  `)
+
+  for (const defeito of defeitosSemUuid.rows) {
+    await pool.query(
+      `
+        UPDATE defeitos
+        SET uuid = $1
+        WHERE id = $2
+      `,
+      [IdGenerator.generate(), defeito.id]
+    )
+  }
+
+  await pool.query(`
+    ALTER TABLE defeitos
+    ALTER COLUMN uuid SET NOT NULL;
+  `)
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_defeitos_uuid
+    ON defeitos(uuid);
+  `)
+
+  const colunasDefeitos = [
+    {
+      nome: 'created_at',
+      sql: 'ALTER TABLE defeitos ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+    },
+    {
+      nome: 'updated_at',
+      sql: 'ALTER TABLE defeitos ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+    },
+    {
+      nome: 'deleted_at',
+      sql: 'ALTER TABLE defeitos ADD COLUMN deleted_at TIMESTAMP NULL;'
+    },
+    {
+      nome: 'created_by',
+      sql: 'ALTER TABLE defeitos ADD COLUMN created_by INTEGER NULL REFERENCES usuarios(id);'
+    },
+    {
+      nome: 'updated_by',
+      sql: 'ALTER TABLE defeitos ADD COLUMN updated_by INTEGER NULL REFERENCES usuarios(id);'
+    },
+    {
+      nome: 'deleted_by',
+      sql: 'ALTER TABLE defeitos ADD COLUMN deleted_by INTEGER NULL REFERENCES usuarios(id);'
+    }
+  ]
+
+  for (const coluna of colunasDefeitos) {
+    if (!(await columnExists('defeitos', coluna.nome))) {
+      await pool.query(coluna.sql)
+    }
+  }
+
+  await pool.query(`
+    UPDATE defeitos
     SET
       created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
       updated_at = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP),

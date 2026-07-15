@@ -40,10 +40,20 @@ export function runMigrations() {
 
     CREATE TABLE IF NOT EXISTS subsetores (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT NOT NULL UNIQUE,
       nome TEXT NOT NULL,
       setor_id INTEGER NOT NULL,
       ativo INTEGER NOT NULL DEFAULT 1,
-      FOREIGN KEY (setor_id) REFERENCES setores(id)
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TEXT,
+      created_by INTEGER,
+      updated_by INTEGER,
+      deleted_by INTEGER,
+      FOREIGN KEY (setor_id) REFERENCES setores(id),
+      FOREIGN KEY (created_by) REFERENCES usuarios(id),
+      FOREIGN KEY (updated_by) REFERENCES usuarios(id),
+      FOREIGN KEY (deleted_by) REFERENCES usuarios(id)
     );
 
     CREATE TABLE IF NOT EXISTS componentes (
@@ -247,6 +257,76 @@ export function runMigrations() {
 
   db.exec(`
     UPDATE setores
+    SET
+      created_at = COALESCE(created_at, datetime('now','localtime')),
+      updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')),
+      created_by = COALESCE(created_by, 1),
+      updated_by = COALESCE(updated_by, created_by, 1)
+  `)
+
+  if (!columnExists('subsetores', 'uuid')) {
+    db.exec(`
+      ALTER TABLE subsetores
+      ADD COLUMN uuid TEXT;
+    `)
+  }
+
+  const subsetoresSemUuid = db
+    .prepare(
+      `
+      SELECT id
+      FROM subsetores
+      WHERE uuid IS NULL
+         OR TRIM(uuid) = ''
+    `
+    )
+    .all() as Array<{ id: number }>
+
+  const atualizarUuidSubsetor = db.prepare(`
+    UPDATE subsetores
+    SET uuid = ?
+    WHERE id = ?
+  `)
+
+  const preencherUuidsSubsetores = db.transaction((subsetores: Array<{ id: number }>) => {
+    for (const subsetor of subsetores) {
+      atualizarUuidSubsetor.run(IdGenerator.generate(), subsetor.id)
+    }
+  })
+
+  preencherUuidsSubsetores(subsetoresSemUuid)
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_subsetores_uuid
+    ON subsetores(uuid);
+  `)
+
+  if (!columnExists('subsetores', 'created_at')) {
+    db.exec(`ALTER TABLE subsetores ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP;`)
+  }
+
+  if (!columnExists('subsetores', 'updated_at')) {
+    db.exec(`ALTER TABLE subsetores ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP;`)
+  }
+
+  if (!columnExists('subsetores', 'deleted_at')) {
+    db.exec(`ALTER TABLE subsetores ADD COLUMN deleted_at TEXT;`)
+  }
+
+  if (!columnExists('subsetores', 'created_by')) {
+    db.exec(`ALTER TABLE subsetores ADD COLUMN created_by INTEGER;`)
+  }
+
+  if (!columnExists('subsetores', 'updated_by')) {
+    db.exec(`ALTER TABLE subsetores ADD COLUMN updated_by INTEGER;`)
+  }
+
+  if (!columnExists('subsetores', 'deleted_by')) {
+    db.exec(`ALTER TABLE subsetores ADD COLUMN deleted_by INTEGER;`)
+  }
+
+  db.exec(`
+    UPDATE subsetores
     SET
       created_at = COALESCE(created_at, datetime('now','localtime')),
       updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')),

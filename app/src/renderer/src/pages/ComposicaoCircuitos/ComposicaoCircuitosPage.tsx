@@ -15,6 +15,7 @@ import { ui } from '../../theme/ui'
 import { CircuitoFormModal } from '../Circuitos/components/CircuitoFormModal'
 import { AdicionarComponenteModal } from './components/AdicionarComponenteModal'
 import { ComposicaoCircuitoCard } from './components/ComposicaoCircuitoCard'
+import { CircuitoComponenteInfoModal } from './components/CircuitoComponenteInfoModal'
 
 type FiltroComponentes = 'todos' | 'com' | 'sem'
 
@@ -34,6 +35,7 @@ function ComposicaoCircuitosPage() {
   const [carregandoCircuitoId, setCarregandoCircuitoId] = useState<number | null>(null)
   const [circuitoAbertoId, setCircuitoAbertoId] = useState<number | null>(null)
   const [circuitoSelecionado, setCircuitoSelecionado] = useState<Circuito | null>(null)
+  const [itemVisualizando, setItemVisualizando] = useState<CircuitoComponente | null>(null)
 
   const [busca, setBusca] = useState('')
   const [setorId, setSetorId] = useState<number | ''>('')
@@ -415,6 +417,7 @@ function ComposicaoCircuitosPage() {
               carregando={carregandoCircuitoId === circuito.id}
               processando={processando}
               onToggle={() => abrirCircuito(circuito)}
+              onVisualizar={setItemVisualizando}
               onAdicionar={() => {
                 setCircuitoSelecionado(circuito)
                 setModalAdicionarAberto(true)
@@ -437,6 +440,13 @@ function ComposicaoCircuitosPage() {
             totalPaginas={totalPaginas}
             onPaginaAnterior={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
             onProximaPagina={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
+          />
+        )}
+
+        {itemVisualizando && (
+          <CircuitoComponenteInfoModal
+            item={itemVisualizando}
+            onFechar={() => setItemVisualizando(null)}
           />
         )}
 

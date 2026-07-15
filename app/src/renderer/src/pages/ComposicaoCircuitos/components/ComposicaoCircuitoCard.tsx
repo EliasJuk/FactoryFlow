@@ -1,4 +1,4 @@
-import { Check, ChevronDown, ChevronUp, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Eye, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 
 import type { Circuito } from '../../../models/Circuito'
@@ -13,6 +13,7 @@ type Props = {
   processando: boolean
   onToggle: () => void
   onAdicionar: () => void
+  onVisualizar: (item: CircuitoComponente) => void
   onEditarQuantidade: (id: number, quantidade: number) => Promise<void>
   onRemover: (id: number) => Promise<void>
 }
@@ -25,6 +26,7 @@ export function ComposicaoCircuitoCard({
   processando,
   onToggle,
   onAdicionar,
+  onVisualizar,
   onEditarQuantidade,
   onRemover
 }: Props) {
@@ -148,6 +150,16 @@ export function ComposicaoCircuitoCard({
                             </>
                           ) : (
                             <>
+                              <button
+                                type="button"
+                                onClick={() => onVisualizar(item)}
+                                disabled={processando}
+                                className={ui.buttonSecondary}
+                                title="Informações"
+                              >
+                                <Eye size={15} />
+                              </button>
+
                               <button
                                 type="button"
                                 onClick={() => {

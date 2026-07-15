@@ -1,5 +1,6 @@
 import { IdGenerator } from '../../shared/ids/IdGenerator'
 import { SYSTEM_IDS } from '../../shared/ids/systemIds'
+import { gerarHashSenha } from '../../shared/security/password'
 import { pool } from './connection'
 
 async function columnExists(table: string, column: string): Promise<boolean> {
@@ -27,8 +28,28 @@ export async function runPostgresMigrations() {
       matricula TEXT,
       perfil TEXT NOT NULL DEFAULT 'OPERADOR',
       senha_hash TEXT,
+      deve_trocar_senha BOOLEAN NOT NULL DEFAULT false,
+      senha_alterada_em TIMESTAMP NULL,
       ativo BOOLEAN NOT NULL DEFAULT true
     );
+
+    CREATE TABLE IF NOT EXISTS solicitacoes_alteracao_senha (
+      id SERIAL PRIMARY KEY,
+      uuid UUID NOT NULL UNIQUE,
+      usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+      status TEXT NOT NULL DEFAULT 'PENDENTE',
+      solicitado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      atendido_em TIMESTAMP NULL,
+      cancelado_em TIMESTAMP NULL,
+      atendido_por INTEGER NULL REFERENCES usuarios(id),
+      cancelado_por INTEGER NULL REFERENCES usuarios(id),
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_solicitacao_senha_pendente_usuario
+    ON solicitacoes_alteracao_senha(usuario_id)
+    WHERE status = 'PENDENTE';
 
     CREATE TABLE IF NOT EXISTS setores (
       id SERIAL PRIMARY KEY,
@@ -74,11 +95,13 @@ export async function runPostgresMigrations() {
 
     CREATE TABLE IF NOT EXISTS componentes_precos (
       id SERIAL PRIMARY KEY,
+      uuid UUID NOT NULL UNIQUE,
       componente_id INTEGER NOT NULL REFERENCES componentes(id),
       valor_unitario NUMERIC(12, 4) NOT NULL DEFAULT 0,
       vigencia_inicio DATE NOT NULL DEFAULT CURRENT_DATE,
       vigencia_fim DATE,
-      ativo BOOLEAN NOT NULL DEFAULT true
+      ativo BOOLEAN NOT NULL DEFAULT true,
+      criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS circuitos (
@@ -542,6 +565,52 @@ export async function runPostgresMigrations() {
       updated_by = COALESCE(updated_by, created_by, 1)
   `)
 
+  if (!(await columnExists('componentes_precos', 'uuid'))) {
+    await pool.query(`
+      ALTER TABLE componentes_precos
+      ADD COLUMN uuid UUID;
+    `)
+  }
+
+  if (!(await columnExists('componentes_precos', 'criado_em'))) {
+    await pool.query(`
+      ALTER TABLE componentes_precos
+      ADD COLUMN criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    `)
+  }
+
+  const componentesPrecosSemUuid = await pool.query<{ id: number }>(`
+    SELECT id
+    FROM componentes_precos
+    WHERE uuid IS NULL
+  `)
+
+  for (const preco of componentesPrecosSemUuid.rows) {
+    await pool.query(
+      `
+        UPDATE componentes_precos
+        SET uuid = $1
+        WHERE id = $2
+      `,
+      [IdGenerator.generate(), preco.id]
+    )
+  }
+
+  await pool.query(`
+    ALTER TABLE componentes_precos
+    ALTER COLUMN uuid SET NOT NULL;
+  `)
+
+  await pool.query(`
+    ALTER TABLE componentes_precos
+    ALTER COLUMN criado_em SET NOT NULL;
+  `)
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_componentes_precos_uuid
+    ON componentes_precos(uuid);
+  `)
+
   if (!(await columnExists('defeitos', 'uuid'))) {
     await pool.query(`
       ALTER TABLE defeitos
@@ -766,6 +835,20 @@ export async function runPostgresMigrations() {
       updated_by = COALESCE(updated_by, created_by, 1)
   `)
 
+  if (!(await columnExists('usuarios', 'deve_trocar_senha'))) {
+    await pool.query(`
+      ALTER TABLE usuarios
+      ADD COLUMN deve_trocar_senha BOOLEAN NOT NULL DEFAULT false;
+    `)
+  }
+
+  if (!(await columnExists('usuarios', 'senha_alterada_em'))) {
+    await pool.query(`
+      ALTER TABLE usuarios
+      ADD COLUMN senha_alterada_em TIMESTAMP NULL;
+    `)
+  }
+
   if (!(await columnExists('usuarios', 'senha_hash'))) {
     await pool.query(`ALTER TABLE usuarios ADD COLUMN senha_hash TEXT;`)
   }
@@ -936,6 +1019,8 @@ export async function runPostgresMigrations() {
     `)
   }
 
+  const senhaInicialHash = gerarHashSenha('admin123')
+
   await pool.query(
     `
       INSERT INTO usuarios (
@@ -944,6 +1029,8 @@ export async function runPostgresMigrations() {
         nome,
         matricula,
         perfil,
+        senha_hash,
+        deve_trocar_senha,
         ativo,
         created_at,
         updated_at
@@ -954,14 +1041,23 @@ export async function runPostgresMigrations() {
         'Sistema',
         '0000',
         'ADMIN',
+        $2,
+        true,
         true,
         CURRENT_TIMESTAMP,
         CURRENT_TIMESTAMP
       )
       ON CONFLICT (id) DO UPDATE
-      SET uuid = EXCLUDED.uuid;
+      SET
+        uuid = EXCLUDED.uuid,
+        senha_hash = COALESCE(usuarios.senha_hash, EXCLUDED.senha_hash),
+        deve_trocar_senha = CASE
+          WHEN usuarios.senha_hash IS NULL OR BTRIM(usuarios.senha_hash) = ''
+            THEN true
+          ELSE usuarios.deve_trocar_senha
+        END;
     `,
-    [SYSTEM_IDS.usuarioSistema]
+    [SYSTEM_IDS.usuarioSistema, senhaInicialHash]
   )
 
   await pool.query(`

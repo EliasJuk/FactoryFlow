@@ -1,6 +1,7 @@
 import db from '../database'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
 import { SYSTEM_IDS } from '../../shared/ids/systemIds'
+import { gerarHashSenha } from '../../shared/security/password'
 
 function columnExists(table: string, column: string): boolean {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
@@ -18,8 +19,32 @@ export function runMigrations() {
       nome TEXT NOT NULL,
       matricula TEXT,
       perfil TEXT NOT NULL DEFAULT 'OPERADOR',
+      senha_hash TEXT,
+      deve_trocar_senha INTEGER NOT NULL DEFAULT 0,
+      senha_alterada_em TEXT,
       ativo INTEGER NOT NULL DEFAULT 1
     );
+
+    CREATE TABLE IF NOT EXISTS solicitacoes_alteracao_senha (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT NOT NULL UNIQUE,
+      usuario_id INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDENTE',
+      solicitado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      atendido_em TEXT,
+      cancelado_em TEXT,
+      atendido_por INTEGER,
+      cancelado_por INTEGER,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+      FOREIGN KEY (atendido_por) REFERENCES usuarios(id),
+      FOREIGN KEY (cancelado_por) REFERENCES usuarios(id)
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_solicitacao_senha_pendente_usuario
+    ON solicitacoes_alteracao_senha(usuario_id)
+    WHERE status = 'PENDENTE';
 
     CREATE TABLE IF NOT EXISTS setores (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,6 +100,7 @@ export function runMigrations() {
 
     CREATE TABLE IF NOT EXISTS componentes_precos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT NOT NULL UNIQUE,
       componente_id INTEGER NOT NULL,
       valor_unitario REAL NOT NULL DEFAULT 0,
       vigencia_inicio TEXT NOT NULL DEFAULT (date('now','localtime')),
@@ -576,6 +602,50 @@ export function runMigrations() {
       updated_by = COALESCE(updated_by, created_by, 1)
   `)
 
+  if (!columnExists('componentes_precos', 'uuid')) {
+    db.exec(`
+      ALTER TABLE componentes_precos
+      ADD COLUMN uuid TEXT;
+    `)
+  }
+
+  if (!columnExists('componentes_precos', 'criado_em')) {
+    db.exec(`
+      ALTER TABLE componentes_precos
+      ADD COLUMN criado_em TEXT DEFAULT CURRENT_TIMESTAMP;
+    `)
+  }
+
+  const componentesPrecosSemUuid = db
+    .prepare(
+      `
+      SELECT id
+      FROM componentes_precos
+      WHERE uuid IS NULL
+         OR TRIM(uuid) = ''
+    `
+    )
+    .all() as Array<{ id: number }>
+
+  const atualizarUuidComponentePreco = db.prepare(`
+    UPDATE componentes_precos
+    SET uuid = ?
+    WHERE id = ?
+  `)
+
+  const preencherUuidsComponentesPrecos = db.transaction((precos: Array<{ id: number }>) => {
+    for (const preco of precos) {
+      atualizarUuidComponentePreco.run(IdGenerator.generate(), preco.id)
+    }
+  })
+
+  preencherUuidsComponentesPrecos(componentesPrecosSemUuid)
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_componentes_precos_uuid
+    ON componentes_precos(uuid);
+  `)
+
   if (!columnExists('defeitos', 'uuid')) {
     db.exec(`
       ALTER TABLE defeitos
@@ -804,6 +874,20 @@ export function runMigrations() {
       updated_by = COALESCE(updated_by, created_by, 1)
   `)
 
+  if (!columnExists('usuarios', 'deve_trocar_senha')) {
+    db.exec(`
+      ALTER TABLE usuarios
+      ADD COLUMN deve_trocar_senha INTEGER NOT NULL DEFAULT 0;
+    `)
+  }
+
+  if (!columnExists('usuarios', 'senha_alterada_em')) {
+    db.exec(`
+      ALTER TABLE usuarios
+      ADD COLUMN senha_alterada_em TEXT;
+    `)
+  }
+
   if (!columnExists('usuarios', 'senha_hash')) {
     db.exec(`
       ALTER TABLE usuarios
@@ -980,6 +1064,8 @@ export function runMigrations() {
     `)
   }
 
+  const senhaInicialHash = gerarHashSenha('admin123')
+
   db.prepare(
     `
     INSERT OR IGNORE INTO usuarios (
@@ -988,6 +1074,8 @@ export function runMigrations() {
       nome,
       matricula,
       perfil,
+      senha_hash,
+      deve_trocar_senha,
       ativo,
       created_at,
       updated_at
@@ -998,10 +1086,25 @@ export function runMigrations() {
       'Sistema',
       '0000',
       'ADMIN',
+      ?,
+      1,
       1,
       datetime('now','localtime'),
       datetime('now','localtime')
     )
   `
-  ).run(SYSTEM_IDS.usuarioSistema)
+  ).run(SYSTEM_IDS.usuarioSistema, senhaInicialHash)
+
+  db.prepare(
+    `
+      UPDATE usuarios
+      SET
+        senha_hash = COALESCE(senha_hash, ?),
+        deve_trocar_senha = CASE
+          WHEN senha_hash IS NULL OR TRIM(senha_hash) = '' THEN 1
+          ELSE deve_trocar_senha
+        END
+      WHERE id = 1
+    `
+  ).run(senhaInicialHash)
 }

@@ -1,27 +1,21 @@
-import { useEffect, useMemo, useState } from "react"
-import { Boxes, Pencil, RotateCcw, Trash2 } from "lucide-react"
+import { useEffect, useMemo, useState } from 'react'
+import { Boxes, Eye, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
-import PageHeader from "../../components/PageHeader/PageHeader"
-import { Pagination } from "../../components/Pagination/Pagination"
-import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog"
-import { CrudHeader } from "../../components/Crud/CrudHeader/CrudHeader"
-import { SearchBar } from "../../components/Crud/SearchBar/SearchBar"
-import { CrudModal } from "../../components/Crud/CrudModal/CrudModal"
-import { InativosCard } from "../../components/Crud/InativosCard/InativosCard"
-import { ui } from "../../theme/ui"
+import PageHeader from '../../components/PageHeader/PageHeader'
+import type { Circuito } from '../../models/Circuito'
+import { Pagination } from '../../components/Pagination/Pagination'
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog'
+import { CrudHeader } from '../../components/Crud/CrudHeader/CrudHeader'
+import { SearchBar } from '../../components/Crud/SearchBar/SearchBar'
+import { CrudModal } from '../../components/Crud/CrudModal/CrudModal'
+import { InativosCard } from '../../components/Crud/InativosCard/InativosCard'
+import { ui } from '../../theme/ui'
 
-import { CircuitoComponentesModal } from "./components/CircuitoComponentesModal"
-import { AdicionarComponenteModal } from "./components/AdicionarComponenteModal"
+import { CircuitoComponentesModal } from './components/CircuitoComponentesModal'
+import { AdicionarComponenteModal } from './components/AdicionarComponenteModal'
+import { CircuitoInfoModal } from './components/CircuitoInfoModal'
 
-type ModalModo = "novo" | "editar"
-
-type Circuito = {
-  id: number
-  codigo: string
-  nome: string
-  ativo: boolean
-  totalComponentes: number
-}
+type ModalModo = 'novo' | 'editar'
 
 type Componente = {
   id: number
@@ -47,33 +41,29 @@ function CircuitosPage() {
   const [circuitos, setCircuitos] = useState<Circuito[]>([])
   const [circuitosInativos, setCircuitosInativos] = useState<Circuito[]>([])
   const [componentes, setComponentes] = useState<Componente[]>([])
-  const [componentesDoCircuito, setComponentesDoCircuito] = useState<
-    CircuitoComponente[]
-  >([])
+  const [componentesDoCircuito, setComponentesDoCircuito] = useState<CircuitoComponente[]>([])
 
-  const [busca, setBusca] = useState("")
+  const [busca, setBusca] = useState('')
   const [paginaAtual, setPaginaAtual] = useState(1)
   const [mostrarInativos, setMostrarInativos] = useState(false)
 
   const [modalAberto, setModalAberto] = useState(false)
-  const [modalModo, setModalModo] = useState<ModalModo>("novo")
+  const [modalModo, setModalModo] = useState<ModalModo>('novo')
   const [circuitoEditando, setCircuitoEditando] = useState<Circuito | null>(null)
+  const [circuitoVisualizando, setCircuitoVisualizando] = useState<Circuito | null>(null)
 
-  const [codigo, setCodigo] = useState("")
-  const [nome, setNome] = useState("")
-  const [mensagemErro, setMensagemErro] = useState("")
-  const [mensagemSucesso, setMensagemSucesso] = useState("")
+  const [codigo, setCodigo] = useState('')
+  const [nome, setNome] = useState('')
+  const [mensagemErro, setMensagemErro] = useState('')
+  const [mensagemSucesso, setMensagemSucesso] = useState('')
   const [processando, setProcessando] = useState(false)
 
-  const [circuitoParaInativar, setCircuitoParaInativar] =
-    useState<Circuito | null>(null)
-  const [circuitoParaRestaurar, setCircuitoParaRestaurar] =
-    useState<Circuito | null>(null)
+  const [circuitoParaInativar, setCircuitoParaInativar] = useState<Circuito | null>(null)
+  const [circuitoParaRestaurar, setCircuitoParaRestaurar] = useState<Circuito | null>(null)
   const [circuitoParaExcluirPermanente, setCircuitoParaExcluirPermanente] =
     useState<Circuito | null>(null)
 
-  const [circuitoSelecionado, setCircuitoSelecionado] =
-    useState<Circuito | null>(null)
+  const [circuitoSelecionado, setCircuitoSelecionado] = useState<Circuito | null>(null)
   const [modalAdicionarAberto, setModalAdicionarAberto] = useState(false)
 
   async function carregarCircuitos() {
@@ -92,9 +82,7 @@ function CircuitosPage() {
   }
 
   async function carregarComponentesDoCircuito(circuitoId: number) {
-    const lista = await window.api.circuitoComponentes.listarPorCircuito(
-      circuitoId
-    )
+    const lista = await window.api.circuitoComponentes.listarPorCircuito(circuitoId)
 
     setComponentesDoCircuito(lista)
   }
@@ -111,16 +99,12 @@ function CircuitosPage() {
 
     return circuitos.filter((circuito) => {
       return (
-        circuito.codigo.toLowerCase().includes(termo) ||
-        circuito.nome.toLowerCase().includes(termo)
+        circuito.codigo.toLowerCase().includes(termo) || circuito.nome.toLowerCase().includes(termo)
       )
     })
   }, [busca, circuitos])
 
-  const totalPaginas = Math.max(
-    1,
-    Math.ceil(circuitosFiltrados.length / ITENS_POR_PAGINA)
-  )
+  const totalPaginas = Math.max(1, Math.ceil(circuitosFiltrados.length / ITENS_POR_PAGINA))
 
   const circuitosPaginados = useMemo(() => {
     const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA
@@ -138,18 +122,18 @@ function CircuitosPage() {
   }, [paginaAtual, totalPaginas])
 
   function limparMensagens() {
-    setMensagemErro("")
-    setMensagemSucesso("")
+    setMensagemErro('')
+    setMensagemSucesso('')
   }
 
   function abrirNovoCircuito() {
     if (processando) return
 
     limparMensagens()
-    setModalModo("novo")
+    setModalModo('novo')
     setCircuitoEditando(null)
-    setCodigo("")
-    setNome("")
+    setCodigo('')
+    setNome('')
     setModalAberto(true)
   }
 
@@ -157,7 +141,7 @@ function CircuitosPage() {
     if (processando) return
 
     limparMensagens()
-    setModalModo("editar")
+    setModalModo('editar')
     setCircuitoEditando(circuito)
     setCodigo(circuito.codigo)
     setNome(circuito.nome)
@@ -169,25 +153,25 @@ function CircuitosPage() {
 
     setModalAberto(false)
     setCircuitoEditando(null)
-    setCodigo("")
-    setNome("")
-    setMensagemErro("")
+    setCodigo('')
+    setNome('')
+    setMensagemErro('')
   }
 
   async function salvarCircuito() {
     if (processando) return
 
-    setMensagemErro("")
+    setMensagemErro('')
 
     if (!codigo.trim() || !nome.trim()) {
-      setMensagemErro("Informe o código e o nome do circuito.")
+      setMensagemErro('Informe o código e o nome do circuito.')
       return
     }
 
     setProcessando(true)
 
     try {
-      if (modalModo === "editar" && circuitoEditando) {
+      if (modalModo === 'editar' && circuitoEditando) {
         const resultado = await window.api.circuitos.editar(
           circuitoEditando.id,
           codigo.trim().toUpperCase(),
@@ -199,19 +183,16 @@ function CircuitosPage() {
           return
         }
 
-        setMensagemSucesso("Circuito atualizado com sucesso.")
+        setMensagemSucesso('Circuito atualizado com sucesso.')
       } else {
-        const resultado = await window.api.circuitos.criar(
-          codigo.trim().toUpperCase(),
-          nome.trim()
-        )
+        const resultado = await window.api.circuitos.criar(codigo.trim().toUpperCase(), nome.trim())
 
         if (!resultado.sucesso) {
           setMensagemErro(resultado.mensagem)
           return
         }
 
-        setMensagemSucesso("Circuito cadastrado com sucesso.")
+        setMensagemSucesso('Circuito cadastrado com sucesso.')
       }
 
       fecharModal()
@@ -228,9 +209,7 @@ function CircuitosPage() {
     limparMensagens()
 
     try {
-      const resultado = await window.api.circuitos.excluir(
-        circuitoParaInativar.id
-      )
+      const resultado = await window.api.circuitos.excluir(circuitoParaInativar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -238,7 +217,7 @@ function CircuitosPage() {
       }
 
       setCircuitoParaInativar(null)
-      setMensagemSucesso("Circuito inativado com sucesso.")
+      setMensagemSucesso('Circuito inativado com sucesso.')
       await carregarCircuitos()
     } finally {
       setProcessando(false)
@@ -252,9 +231,7 @@ function CircuitosPage() {
     limparMensagens()
 
     try {
-      const resultado = await window.api.circuitos.restaurar(
-        circuitoParaRestaurar.id
-      )
+      const resultado = await window.api.circuitos.restaurar(circuitoParaRestaurar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -262,7 +239,7 @@ function CircuitosPage() {
       }
 
       setCircuitoParaRestaurar(null)
-      setMensagemSucesso("Circuito restaurado com sucesso.")
+      setMensagemSucesso('Circuito restaurado com sucesso.')
       await carregarCircuitos()
     } finally {
       setProcessando(false)
@@ -286,7 +263,7 @@ function CircuitosPage() {
       }
 
       setCircuitoParaExcluirPermanente(null)
-      setMensagemSucesso("Circuito excluído permanentemente.")
+      setMensagemSucesso('Circuito excluído permanentemente.')
       await carregarCircuitos()
     } finally {
       setProcessando(false)
@@ -301,10 +278,7 @@ function CircuitosPage() {
     await carregarComponentesDoCircuito(circuito.id)
   }
 
-  async function adicionarComponenteAoCircuito(
-    componenteId: number,
-    quantidade: number
-  ) {
+  async function adicionarComponenteAoCircuito(componenteId: number, quantidade: number) {
     if (!circuitoSelecionado || processando) return
 
     setProcessando(true)
@@ -338,8 +312,7 @@ function CircuitosPage() {
     }
   }
 
-  const podeSalvar =
-    codigo.trim().length > 0 && nome.trim().length > 0 && !processando
+  const podeSalvar = codigo.trim().length > 0 && nome.trim().length > 0 && !processando
 
   return (
     <main className={ui.page}>
@@ -388,10 +361,7 @@ function CircuitosPage() {
 
             <tbody>
               {circuitosPaginados.map((circuito) => (
-                <tr
-                  key={circuito.id}
-                  className="border-t border-[var(--border)]"
-                >
+                <tr key={circuito.uuid} className="border-t border-[var(--border)]">
                   <td className={ui.tableCellStrong}>{circuito.codigo}</td>
                   <td className={ui.tableCell}>{circuito.nome}</td>
                   <td className={ui.tableCell}>{circuito.totalComponentes}</td>
@@ -399,6 +369,18 @@ function CircuitosPage() {
                   <td className={ui.tableCell}>
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
+                        onClick={() => setCircuitoVisualizando(circuito)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Informações"
+                        aria-label={`Ver informações do circuito ${circuito.codigo}`}
+                      >
+                        <Eye size={15} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => abrirMontagem(circuito)}
                         disabled={processando}
                         className={ui.buttonSecondary}
@@ -444,12 +426,8 @@ function CircuitosPage() {
         <Pagination
           paginaAtual={paginaAtual}
           totalPaginas={totalPaginas}
-          onPaginaAnterior={() =>
-            setPaginaAtual((pagina) => Math.max(1, pagina - 1))
-          }
-          onProximaPagina={() =>
-            setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))
-          }
+          onPaginaAnterior={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
+          onProximaPagina={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
         />
 
         <InativosCard
@@ -470,10 +448,7 @@ function CircuitosPage() {
 
             <tbody>
               {circuitosInativos.map((circuito) => (
-                <tr
-                  key={circuito.id}
-                  className="border-t border-[var(--border)] bg-slate-50"
-                >
+                <tr key={circuito.uuid} className="border-t border-[var(--border)] bg-slate-50">
                   <td className={ui.tableCellStrong}>{circuito.codigo}</td>
                   <td className={ui.tableCell}>{circuito.nome}</td>
                   <td className={ui.tableCell}>{circuito.totalComponentes}</td>
@@ -481,6 +456,18 @@ function CircuitosPage() {
                   <td className={ui.tableCell}>
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
+                        onClick={() => setCircuitoVisualizando(circuito)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Informações"
+                        aria-label={`Ver informações do circuito ${circuito.codigo}`}
+                      >
+                        <Eye size={15} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => setCircuitoParaRestaurar(circuito)}
                         disabled={processando}
                         className={ui.buttonSecondary}
@@ -491,9 +478,7 @@ function CircuitosPage() {
                       </button>
 
                       <button
-                        onClick={() =>
-                          setCircuitoParaExcluirPermanente(circuito)
-                        }
+                        onClick={() => setCircuitoParaExcluirPermanente(circuito)}
                         disabled={processando}
                         className={ui.buttonDanger}
                         title="Excluir permanentemente"
@@ -517,20 +502,23 @@ function CircuitosPage() {
           </table>
         </InativosCard>
 
+        {circuitoVisualizando && (
+          <CircuitoInfoModal
+            circuito={circuitoVisualizando}
+            onFechar={() => setCircuitoVisualizando(null)}
+          />
+        )}
+
         {modalAberto && (
           <CrudModal
-            titulo={modalModo === "novo" ? "Novo Circuito" : "Editar Circuito"}
+            titulo={modalModo === 'novo' ? 'Novo Circuito' : 'Editar Circuito'}
             subtitulo="Informe o código CTF e o nome do circuito."
             mensagemErro={mensagemErro}
             processando={processando}
             onFechar={fecharModal}
             footer={
               <>
-                <button
-                  onClick={fecharModal}
-                  disabled={processando}
-                  className={ui.buttonSecondary}
-                >
+                <button onClick={fecharModal} disabled={processando} className={ui.buttonSecondary}>
                   Cancelar
                 </button>
 
@@ -540,10 +528,10 @@ function CircuitosPage() {
                   className={ui.buttonPrimary}
                 >
                   {processando
-                    ? "Salvando..."
-                    : modalModo === "novo"
-                      ? "Salvar"
-                      : "Salvar Alterações"}
+                    ? 'Salvando...'
+                    : modalModo === 'novo'
+                      ? 'Salvar'
+                      : 'Salvar Alterações'}
                 </button>
               </>
             }
@@ -553,9 +541,7 @@ function CircuitosPage() {
                 <label className={ui.label}>Código CTF</label>
                 <input
                   value={codigo}
-                  onChange={(event) =>
-                    setCodigo(event.target.value.toUpperCase())
-                  }
+                  onChange={(event) => setCodigo(event.target.value.toUpperCase())}
                   disabled={processando}
                   placeholder="Ex: 41-0000-0000"
                   className={ui.input}
@@ -581,10 +567,10 @@ function CircuitosPage() {
             titulo="Inativar circuito"
             descricao={
               <>
-                O circuito{" "}
+                O circuito{' '}
                 <strong>
                   {circuitoParaInativar.codigo} - {circuitoParaInativar.nome}
-                </strong>{" "}
+                </strong>{' '}
                 ficará inativo e não aparecerá nas listas principais.
               </>
             }
@@ -600,10 +586,10 @@ function CircuitosPage() {
             titulo="Restaurar circuito"
             descricao={
               <>
-                O circuito{" "}
+                O circuito{' '}
                 <strong>
                   {circuitoParaRestaurar.codigo} - {circuitoParaRestaurar.nome}
-                </strong>{" "}
+                </strong>{' '}
                 voltará a aparecer nas listas principais.
               </>
             }
@@ -618,11 +604,10 @@ function CircuitosPage() {
             titulo="Excluir permanentemente"
             descricao={
               <>
-                O circuito{" "}
+                O circuito{' '}
                 <strong>
-                  {circuitoParaExcluirPermanente.codigo} -{" "}
-                  {circuitoParaExcluirPermanente.nome}
-                </strong>{" "}
+                  {circuitoParaExcluirPermanente.codigo} - {circuitoParaExcluirPermanente.nome}
+                </strong>{' '}
                 será removido definitivamente. Esta ação não poderá ser desfeita.
               </>
             }

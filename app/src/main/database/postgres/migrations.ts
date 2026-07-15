@@ -119,11 +119,18 @@ export async function runPostgresMigrations() {
 
     CREATE TABLE IF NOT EXISTS circuito_posto_componentes (
       id SERIAL PRIMARY KEY,
+      uuid UUID NOT NULL UNIQUE,
       circuito_id INTEGER NOT NULL REFERENCES circuitos(id),
       posto_id INTEGER NOT NULL REFERENCES postos(id),
       componente_id INTEGER NOT NULL REFERENCES componentes(id),
       quantidade INTEGER NOT NULL DEFAULT 1,
-      ativo BOOLEAN NOT NULL DEFAULT true
+      ativo BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMP NULL,
+      created_by INTEGER NULL REFERENCES usuarios(id),
+      updated_by INTEGER NULL REFERENCES usuarios(id),
+      deleted_by INTEGER NULL REFERENCES usuarios(id)
     );
 
     CREATE TABLE IF NOT EXISTS defeitos (
@@ -673,6 +680,78 @@ export async function runPostgresMigrations() {
 
   await pool.query(`
     UPDATE circuitos
+    SET
+      created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
+      updated_at = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP),
+      created_by = COALESCE(created_by, 1),
+      updated_by = COALESCE(updated_by, created_by, 1)
+  `)
+
+  if (!(await columnExists('circuito_posto_componentes', 'uuid'))) {
+    await pool.query(`
+      ALTER TABLE circuito_posto_componentes
+      ADD COLUMN uuid UUID;
+    `)
+  }
+
+  const roteirosSemUuid = await pool.query<{ id: number }>(`
+    SELECT id
+    FROM circuito_posto_componentes
+    WHERE uuid IS NULL
+  `)
+
+  for (const roteiro of roteirosSemUuid.rows) {
+    await pool.query(`UPDATE circuito_posto_componentes SET uuid = $1 WHERE id = $2`, [
+      IdGenerator.generate(),
+      roteiro.id
+    ])
+  }
+
+  await pool.query(`
+    ALTER TABLE circuito_posto_componentes
+    ALTER COLUMN uuid SET NOT NULL;
+  `)
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_circuito_posto_componentes_uuid
+    ON circuito_posto_componentes(uuid);
+  `)
+
+  const colunasRoteiro = [
+    {
+      nome: 'created_at',
+      sql: 'ALTER TABLE circuito_posto_componentes ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+    },
+    {
+      nome: 'updated_at',
+      sql: 'ALTER TABLE circuito_posto_componentes ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+    },
+    {
+      nome: 'deleted_at',
+      sql: 'ALTER TABLE circuito_posto_componentes ADD COLUMN deleted_at TIMESTAMP NULL;'
+    },
+    {
+      nome: 'created_by',
+      sql: 'ALTER TABLE circuito_posto_componentes ADD COLUMN created_by INTEGER NULL REFERENCES usuarios(id);'
+    },
+    {
+      nome: 'updated_by',
+      sql: 'ALTER TABLE circuito_posto_componentes ADD COLUMN updated_by INTEGER NULL REFERENCES usuarios(id);'
+    },
+    {
+      nome: 'deleted_by',
+      sql: 'ALTER TABLE circuito_posto_componentes ADD COLUMN deleted_by INTEGER NULL REFERENCES usuarios(id);'
+    }
+  ]
+
+  for (const coluna of colunasRoteiro) {
+    if (!(await columnExists('circuito_posto_componentes', coluna.nome))) {
+      await pool.query(coluna.sql)
+    }
+  }
+
+  await pool.query(`
+    UPDATE circuito_posto_componentes
     SET
       created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
       updated_at = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP),

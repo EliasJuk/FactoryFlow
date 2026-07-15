@@ -64,7 +64,15 @@ function sendStartupProgress(message: string, progress: number): void {
   })
 }
 
-function registerIpcHandlers(): void {
+function registerBootstrapIpcHandlers(): void {
+  registerConfiguracaoIpc()
+
+  ipcMain.handle('app:is-ready', () => {
+    return appReady
+  })
+}
+
+function registerDatabaseIpcHandlers(): void {
   registerSetorIpc()
   registerSubsetorIpc()
   registerComponenteIpc()
@@ -77,12 +85,7 @@ function registerIpcHandlers(): void {
   registerUsuarioIpc()
   registerImportacaoIpc()
   registerExportacaoIpc()
-  registerConfiguracaoIpc()
   registerAuthIpc()
-
-  ipcMain.handle('app:is-ready', () => {
-    return appReady
-  })
 }
 
 //DEV TOOLS
@@ -102,7 +105,7 @@ async function initializeApplication(): Promise<void> {
     console.timeEnd('DatabaseManager.initialize')
 
     sendStartupProgress('Registrando módulos...', 75)
-    registerIpcHandlers()
+    registerDatabaseIpcHandlers()
 
     sendStartupProgress('Finalizando...', 100)
 
@@ -132,10 +135,11 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  registerBootstrapIpcHandlers()
   createWindow()
   registerShortcuts()
 
-  initializeApplication()
+  void initializeApplication()
 
   // On macOS it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.

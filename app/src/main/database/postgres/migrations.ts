@@ -60,9 +60,16 @@ export async function runPostgresMigrations() {
 
     CREATE TABLE IF NOT EXISTS componentes (
       id SERIAL PRIMARY KEY,
+      uuid UUID NOT NULL UNIQUE,
       codigo TEXT NOT NULL,
       nome TEXT NOT NULL,
-      ativo BOOLEAN NOT NULL DEFAULT true
+      ativo BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMP NULL,
+      created_by INTEGER NULL REFERENCES usuarios(id),
+      updated_by INTEGER NULL REFERENCES usuarios(id),
+      deleted_by INTEGER NULL REFERENCES usuarios(id)
     );
 
     CREATE TABLE IF NOT EXISTS componentes_precos (
@@ -424,6 +431,82 @@ export async function runPostgresMigrations() {
 
   await pool.query(`
     UPDATE postos
+    SET
+      created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
+      updated_at = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP),
+      created_by = COALESCE(created_by, 1),
+      updated_by = COALESCE(updated_by, created_by, 1)
+  `)
+
+  if (!(await columnExists('componentes', 'uuid'))) {
+    await pool.query(`
+      ALTER TABLE componentes
+      ADD COLUMN uuid UUID;
+    `)
+  }
+
+  const componentesSemUuid = await pool.query<{ id: number }>(`
+    SELECT id
+    FROM componentes
+    WHERE uuid IS NULL
+  `)
+
+  for (const componente of componentesSemUuid.rows) {
+    await pool.query(
+      `
+        UPDATE componentes
+        SET uuid = $1
+        WHERE id = $2
+      `,
+      [IdGenerator.generate(), componente.id]
+    )
+  }
+
+  await pool.query(`
+    ALTER TABLE componentes
+    ALTER COLUMN uuid SET NOT NULL;
+  `)
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_componentes_uuid
+    ON componentes(uuid);
+  `)
+
+  const colunasComponentes = [
+    {
+      nome: 'created_at',
+      sql: 'ALTER TABLE componentes ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+    },
+    {
+      nome: 'updated_at',
+      sql: 'ALTER TABLE componentes ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+    },
+    {
+      nome: 'deleted_at',
+      sql: 'ALTER TABLE componentes ADD COLUMN deleted_at TIMESTAMP NULL;'
+    },
+    {
+      nome: 'created_by',
+      sql: 'ALTER TABLE componentes ADD COLUMN created_by INTEGER NULL REFERENCES usuarios(id);'
+    },
+    {
+      nome: 'updated_by',
+      sql: 'ALTER TABLE componentes ADD COLUMN updated_by INTEGER NULL REFERENCES usuarios(id);'
+    },
+    {
+      nome: 'deleted_by',
+      sql: 'ALTER TABLE componentes ADD COLUMN deleted_by INTEGER NULL REFERENCES usuarios(id);'
+    }
+  ]
+
+  for (const coluna of colunasComponentes) {
+    if (!(await columnExists('componentes', coluna.nome))) {
+      await pool.query(coluna.sql)
+    }
+  }
+
+  await pool.query(`
+    UPDATE componentes
     SET
       created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
       updated_at = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP),

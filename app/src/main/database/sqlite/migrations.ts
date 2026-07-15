@@ -58,9 +58,19 @@ export function runMigrations() {
 
     CREATE TABLE IF NOT EXISTS componentes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT NOT NULL UNIQUE,
       codigo TEXT NOT NULL,
       nome TEXT NOT NULL,
-      ativo INTEGER NOT NULL DEFAULT 1
+      ativo INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TEXT,
+      created_by INTEGER,
+      updated_by INTEGER,
+      deleted_by INTEGER,
+      FOREIGN KEY (created_by) REFERENCES usuarios(id),
+      FOREIGN KEY (updated_by) REFERENCES usuarios(id),
+      FOREIGN KEY (deleted_by) REFERENCES usuarios(id)
     );
 
     CREATE TABLE IF NOT EXISTS circuitos (
@@ -407,6 +417,94 @@ export function runMigrations() {
 
   db.exec(`
     UPDATE postos
+    SET
+      created_at = COALESCE(created_at, datetime('now','localtime')),
+      updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')),
+      created_by = COALESCE(created_by, 1),
+      updated_by = COALESCE(updated_by, created_by, 1)
+  `)
+
+  if (!columnExists('componentes', 'uuid')) {
+    db.exec(`
+      ALTER TABLE componentes
+      ADD COLUMN uuid TEXT;
+    `)
+  }
+
+  const componentesSemUuid = db
+    .prepare(
+      `
+      SELECT id
+      FROM componentes
+      WHERE uuid IS NULL
+         OR TRIM(uuid) = ''
+    `
+    )
+    .all() as Array<{ id: number }>
+
+  const atualizarUuidComponente = db.prepare(`
+    UPDATE componentes
+    SET uuid = ?
+    WHERE id = ?
+  `)
+
+  const preencherUuidsComponentes = db.transaction((componentes: Array<{ id: number }>) => {
+    for (const componente of componentes) {
+      atualizarUuidComponente.run(IdGenerator.generate(), componente.id)
+    }
+  })
+
+  preencherUuidsComponentes(componentesSemUuid)
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_componentes_uuid
+    ON componentes(uuid);
+  `)
+
+  if (!columnExists('componentes', 'created_at')) {
+    db.exec(`
+      ALTER TABLE componentes
+      ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP;
+    `)
+  }
+
+  if (!columnExists('componentes', 'updated_at')) {
+    db.exec(`
+      ALTER TABLE componentes
+      ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP;
+    `)
+  }
+
+  if (!columnExists('componentes', 'deleted_at')) {
+    db.exec(`
+      ALTER TABLE componentes
+      ADD COLUMN deleted_at TEXT;
+    `)
+  }
+
+  if (!columnExists('componentes', 'created_by')) {
+    db.exec(`
+      ALTER TABLE componentes
+      ADD COLUMN created_by INTEGER;
+    `)
+  }
+
+  if (!columnExists('componentes', 'updated_by')) {
+    db.exec(`
+      ALTER TABLE componentes
+      ADD COLUMN updated_by INTEGER;
+    `)
+  }
+
+  if (!columnExists('componentes', 'deleted_by')) {
+    db.exec(`
+      ALTER TABLE componentes
+      ADD COLUMN deleted_by INTEGER;
+    `)
+  }
+
+  db.exec(`
+    UPDATE componentes
     SET
       created_at = COALESCE(created_at, datetime('now','localtime')),
       updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')),

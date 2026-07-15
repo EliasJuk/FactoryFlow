@@ -1,9 +1,10 @@
-import { Trash2, X } from "lucide-react"
+import { Trash2, X } from 'lucide-react'
 
-import { ui } from "../../../theme/ui"
-import { Circuito } from "../../../models/Circuito"
+import { ui } from '../../../theme/ui'
+import { Circuito } from '../../../models/Circuito'
+import type { RoteiroComponente } from '../../../models/Roteiro'
 
-type ModalModo = "novo" | "editar"
+type ModalModo = 'novo' | 'editar'
 
 type CircuitoComponente = {
   id: number
@@ -15,24 +16,13 @@ type CircuitoComponente = {
   ativo: boolean
 }
 
-type RoteiroComponente = {
-  id: number
-  circuitoId: number
-  postoId: number
-  componenteId: number
-  codigoComponente: string
-  nomeComponente: string
-  quantidade: number
-  ativo: boolean
-}
-
 type Props = {
   modalModo: ModalModo
   postoNome: string
   circuitos: Circuito[]
-  modalCircuitoId: number | ""
+  modalCircuitoId: number | ''
   componentesDoCircuito: CircuitoComponente[]
-  componenteId: number | ""
+  componenteId: number | ''
   quantidade: number
   modalItens: RoteiroComponente[]
   onFechar: () => void
@@ -63,17 +53,14 @@ export function RoteiroModal({
   onRemoverItem,
   onSalvar
 }: Props) {
-  const semComponentesNoCircuito =
-    modalCircuitoId !== "" && componentesDoCircuito.length === 0
+  const semComponentesNoCircuito = modalCircuitoId !== '' && componentesDoCircuito.length === 0
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-lg bg-white p-5 shadow-xl">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 className={ui.title}>
-              {modalModo === "novo" ? "Novo Roteiro" : "Editar Roteiro"}
-            </h2>
+            <h2 className={ui.title}>{modalModo === 'novo' ? 'Novo Roteiro' : 'Editar Roteiro'}</h2>
 
             <p className={ui.subtitle}>Posto: {postoNome}</p>
           </div>
@@ -89,7 +76,7 @@ export function RoteiroModal({
             <select
               value={modalCircuitoId}
               onChange={(event) => onAlterarCircuito(event.target.value)}
-              disabled={modalModo === "editar"}
+              disabled={modalModo === 'editar'}
               className={ui.select}
             >
               <option value="">Selecione...</option>
@@ -107,13 +94,11 @@ export function RoteiroModal({
             <select
               value={componenteId}
               onChange={(event) => onAlterarComponente(event.target.value)}
-              disabled={modalCircuitoId === "" || semComponentesNoCircuito}
+              disabled={modalCircuitoId === '' || semComponentesNoCircuito}
               className={ui.select}
             >
               <option value="">
-                {semComponentesNoCircuito
-                  ? "Nenhum componente neste circuito"
-                  : "Selecione..."}
+                {semComponentesNoCircuito ? 'Nenhum componente neste circuito' : 'Selecione...'}
               </option>
 
               {componentesDoCircuito.map((item) => (
@@ -139,8 +124,8 @@ export function RoteiroModal({
             <button
               onClick={onAdicionar}
               disabled={
-                modalCircuitoId === "" ||
-                componenteId === "" ||
+                modalCircuitoId === '' ||
+                componenteId === '' ||
                 quantidade < 1 ||
                 semComponentesNoCircuito
               }
@@ -153,9 +138,9 @@ export function RoteiroModal({
 
         {semComponentesNoCircuito && (
           <div className="mt-4 rounded-md bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-            Este circuito ainda não possui componentes cadastrados. Vá até a
-            tela de <strong>Circuitos</strong>, clique em{" "}
-            <strong>Montar Circuito</strong> e adicione os componentes.
+            Este circuito ainda não possui componentes cadastrados. Vá até a tela de{' '}
+            <strong>Circuitos</strong>, clique em <strong>Montar Circuito</strong> e adicione os
+            componentes.
           </div>
         )}
 
@@ -172,10 +157,8 @@ export function RoteiroModal({
 
             <tbody>
               {modalItens.map((item) => (
-                <tr key={item.id} className="border-t">
-                  <td className={ui.tableCellStrong}>
-                    {item.codigoComponente}
-                  </td>
+                <tr key={item.uuid} className="border-t">
+                  <td className={ui.tableCellStrong}>{item.codigoComponente}</td>
 
                   <td className={ui.tableCell}>{item.nomeComponente}</td>
 
@@ -185,10 +168,7 @@ export function RoteiroModal({
                       min={1}
                       value={item.quantidade}
                       onChange={(event) =>
-                        onAlterarQuantidadeItem(
-                          item.id,
-                          Number(event.target.value)
-                        )
+                        onAlterarQuantidadeItem(item.id, Number(event.target.value))
                       }
                       className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
                     />
@@ -196,10 +176,7 @@ export function RoteiroModal({
 
                   <td className={ui.tableCell}>
                     <div className="flex justify-end">
-                      <button
-                        onClick={() => onRemoverItem(item.id)}
-                        className={ui.buttonDanger}
-                      >
+                      <button onClick={() => onRemoverItem(item.id)} className={ui.buttonDanger}>
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -223,11 +200,7 @@ export function RoteiroModal({
             Cancelar
           </button>
 
-          <button
-            onClick={onSalvar}
-            disabled={modalCircuitoId === ""}
-            className={ui.buttonPrimary}
-          >
+          <button onClick={onSalvar} disabled={modalCircuitoId === ''} className={ui.buttonPrimary}>
             Salvar alterações
           </button>
         </div>

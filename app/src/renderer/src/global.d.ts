@@ -386,6 +386,7 @@ declare global {
       circuitoComponentes: {
         listarPorCircuito: (circuitoId: number) => Promise<CircuitoComponenteApi[]>
         adicionar: (circuitoId: number, componenteId: number, quantidade: number) => Promise<void>
+        editarQuantidade: (id: number, quantidade: number) => Promise<void>
         remover: (id: number) => Promise<void>
       }
 

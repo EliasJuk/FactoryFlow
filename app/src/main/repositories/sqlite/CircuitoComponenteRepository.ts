@@ -1,5 +1,5 @@
 //import db from "../database/database"
-import { getDatabase } from "../../database/connection"
+import { getDatabase } from '../../database/connection'
 const db = getDatabase()
 
 export interface CircuitoComponente {
@@ -15,7 +15,8 @@ export interface CircuitoComponente {
 export class CircuitoComponenteRepository {
   listarPorCircuito(circuitoId: number): CircuitoComponente[] {
     const itens = db
-      .prepare(`
+      .prepare(
+        `
         SELECT 
           cc.id,
           cc.circuito_id as circuitoId,
@@ -29,16 +30,17 @@ export class CircuitoComponenteRepository {
         WHERE cc.circuito_id = ?
           AND cc.ativo = 1
         ORDER BY c.codigo
-      `)
+      `
+      )
       .all(circuitoId) as Array<{
-        id: number
-        circuitoId: number
-        componenteId: number
-        codigoComponente: string
-        nomeComponente: string
-        quantidade: number
-        ativo: number
-      }>
+      id: number
+      circuitoId: number
+      componenteId: number
+      codigoComponente: string
+      nomeComponente: string
+      quantidade: number
+      ativo: number
+    }>
 
     return itens.map((item) => ({
       ...item,
@@ -47,18 +49,37 @@ export class CircuitoComponenteRepository {
   }
 
   adicionar(circuitoId: number, componenteId: number, quantidade: number): void {
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO circuito_componentes 
         (circuito_id, componente_id, quantidade, ativo)
       VALUES (?, ?, ?, 1)
-    `).run(circuitoId, componenteId, quantidade)
+    `
+    ).run(circuitoId, componenteId, quantidade)
+  }
+
+  editarQuantidade(id: number, quantidade: number): void {
+    if (!Number.isInteger(quantidade) || quantidade <= 0) {
+      throw new Error('QUANTIDADE_INVALIDA')
+    }
+
+    db.prepare(
+      `
+      UPDATE circuito_componentes
+      SET quantidade = ?
+      WHERE id = ?
+        AND ativo = 1
+    `
+    ).run(quantidade, id)
   }
 
   remover(id: number): void {
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE circuito_componentes
       SET ativo = 0
       WHERE id = ?
-    `).run(id)
+    `
+    ).run(id)
   }
 }

@@ -1,4 +1,4 @@
-import { pool } from "../../database/postgres/connection"
+import { pool } from '../../database/postgres/connection'
 
 export interface CircuitoComponente {
   id: number
@@ -12,7 +12,8 @@ export interface CircuitoComponente {
 
 export class CircuitoComponenteRepository {
   async listarPorCircuito(circuitoId: number): Promise<CircuitoComponente[]> {
-    const result = await pool.query<any>(`
+    const result = await pool.query<any>(
+      `
       SELECT
         cc.id,
         cc.circuito_id as "circuitoId",
@@ -26,7 +27,9 @@ export class CircuitoComponenteRepository {
       WHERE cc.circuito_id = $1
         AND cc.ativo = true
       ORDER BY c.codigo
-    `, [circuitoId])
+    `,
+      [circuitoId]
+    )
 
     return result.rows.map((item) => ({
       ...item,
@@ -35,18 +38,40 @@ export class CircuitoComponenteRepository {
   }
 
   async adicionar(circuitoId: number, componenteId: number, quantidade: number): Promise<void> {
-    await pool.query(`
+    await pool.query(
+      `
       INSERT INTO circuito_componentes
         (circuito_id, componente_id, quantidade, ativo)
       VALUES ($1, $2, $3, true)
-    `, [circuitoId, componenteId, quantidade])
+    `,
+      [circuitoId, componenteId, quantidade]
+    )
+  }
+
+  async editarQuantidade(id: number, quantidade: number): Promise<void> {
+    if (!Number.isInteger(quantidade) || quantidade <= 0) {
+      throw new Error('QUANTIDADE_INVALIDA')
+    }
+
+    await pool.query(
+      `
+      UPDATE circuito_componentes
+      SET quantidade = $1
+      WHERE id = $2
+        AND ativo = true
+    `,
+      [quantidade, id]
+    )
   }
 
   async remover(id: number): Promise<void> {
-    await pool.query(`
+    await pool.query(
+      `
       UPDATE circuito_componentes
       SET ativo = false
       WHERE id = $1
-    `, [id])
+    `,
+      [id]
+    )
   }
 }

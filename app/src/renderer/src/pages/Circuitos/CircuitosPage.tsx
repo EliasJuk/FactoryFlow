@@ -298,6 +298,26 @@ function CircuitosPage() {
     }
   }
 
+  async function editarQuantidadeDoComponente(id: number, quantidade: number) {
+    if (!circuitoSelecionado || processando) return
+
+    setProcessando(true)
+    limparMensagens()
+
+    try {
+      await window.api.circuitoComponentes.editarQuantidade(id, quantidade)
+      await carregarComponentesDoCircuito(circuitoSelecionado.id)
+      await carregarCircuitos()
+      setMensagemSucesso('Quantidade atualizada com sucesso.')
+    } catch (error) {
+      setMensagemErro(
+        error instanceof Error ? error.message : 'Erro ao atualizar a quantidade do componente.'
+      )
+    } finally {
+      setProcessando(false)
+    }
+  }
+
   async function removerComponenteDoCircuito(id: number) {
     if (!circuitoSelecionado || processando) return
 
@@ -628,6 +648,7 @@ function CircuitosPage() {
               setComponentesDoCircuito([])
             }}
             onAbrirAdicionar={() => setModalAdicionarAberto(true)}
+            onEditarQuantidade={editarQuantidadeDoComponente}
             onRemover={removerComponenteDoCircuito}
           />
         )}

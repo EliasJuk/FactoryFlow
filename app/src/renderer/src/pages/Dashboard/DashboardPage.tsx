@@ -1,8 +1,8 @@
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from 'react-router-dom'
 
-import { APP } from "../../config/app"
-import { useApp } from "../../contexts/AppContext"
-import { ui } from "../../theme/ui"
+import { APP } from '../../config/app'
+import { useApp } from '../../contexts/AppContext'
+import { ui } from '../../theme/ui'
 
 import {
   Package,
@@ -19,7 +19,8 @@ import {
   Upload,
   BarChart3,
   FileDown,
-} from "lucide-react"
+  Workflow
+} from 'lucide-react'
 
 type DashboardCardProps = {
   title: string
@@ -45,7 +46,7 @@ function DashboardPage() {
   const navigate = useNavigate()
   const { usuario } = useApp()
   const perfil = usuario.perfil?.toUpperCase()
-  const podeVerAdministracao = perfil !== "OPERADOR"
+  const podeVerAdministracao = perfil !== 'OPERADOR'
 
   return (
     <main className={ui.page}>
@@ -65,21 +66,21 @@ function DashboardPage() {
               title="Lançar Refugo"
               description="Registrar novos refugos"
               icon={<Recycle size={24} />}
-              onClick={() => navigate("/lancar-refugo")}
+              onClick={() => navigate('/lancar-refugo')}
             />
 
             <DashboardCard
               title="Ver Lançamentos"
               description="Consultar registros"
               icon={<ClipboardList size={24} />}
-              onClick={() => navigate("/ver-lancamentos")}
+              onClick={() => navigate('/ver-lancamentos')}
             />
 
             <DashboardCard
               title="Ver Resultados"
               description="Indicadores e gráficos"
               icon={<BarChart3 size={24} />}
-              onClick={() => navigate("/resultados")}
+              onClick={() => navigate('/resultados')}
             />
           </div>
         </div>
@@ -93,25 +94,31 @@ function DashboardPage() {
                   title="Defeitos"
                   description="Códigos de defeito"
                   icon={<AlertTriangle size={24} />}
-                    onClick={() => navigate("/defeitos")}
+                  onClick={() => navigate('/defeitos')}
                 />
                 <DashboardCard
                   title="Componentes"
                   description="Cadastrar componentes"
                   icon={<Package size={24} />}
-                  onClick={() => navigate("/componentes")}
+                  onClick={() => navigate('/componentes')}
                 />
                 <DashboardCard
                   title="Circuitos"
                   description="Cadastrar circuitos"
                   icon={<Boxes size={24} />}
-                  onClick={() => navigate("/circuitos")}
+                  onClick={() => navigate('/circuitos')}
+                />
+                <DashboardCard
+                  title="Composição de Circuitos"
+                  description="Gerenciar componentes dos circuitos"
+                  icon={<Workflow size={24} />}
+                  onClick={() => navigate('/composicao-circuitos')}
                 />
                 <DashboardCard
                   title="Roteiro"
                   description="Roteiros dos postos de trabalho"
                   icon={<Route size={24} />}
-                  onClick={() => navigate("/roteiro")}
+                  onClick={() => navigate('/roteiro')}
                 />
               </div>
             </div>
@@ -124,19 +131,19 @@ function DashboardPage() {
                   title="Setores"
                   description="Cadastrar setores"
                   icon={<Building2 size={24} />}
-                  onClick={() => navigate("/setores")}
+                  onClick={() => navigate('/setores')}
                 />
                 <DashboardCard
                   title="Subsetores"
                   description="Cadastrar subsetores"
                   icon={<Layers3 size={24} />}
-                  onClick={() => navigate("/subsetores")}
+                  onClick={() => navigate('/subsetores')}
                 />
                 <DashboardCard
-                    title="Postos de Trabalho"
-                    description="gerenciar Postos de trabalho"
-                    icon={<MapPinned size={24} />}
-                    onClick={() => navigate("/postos")}
+                  title="Postos de Trabalho"
+                  description="gerenciar Postos de trabalho"
+                  icon={<MapPinned size={24} />}
+                  onClick={() => navigate('/postos')}
                 />
               </div>
             </div>
@@ -149,25 +156,25 @@ function DashboardPage() {
                   title="Usuários"
                   description="Perfis e acessos"
                   icon={<Users size={24} />}
-                  onClick={() => navigate("/usuarios")}
+                  onClick={() => navigate('/usuarios')}
                 />
                 <DashboardCard
                   title="Configurações"
                   description="Sistema e impressão"
                   icon={<Settings size={24} />}
-                  onClick={() => navigate("/configuracoes")}
+                  onClick={() => navigate('/configuracoes')}
                 />
                 <DashboardCard
                   title="Importação de Dados"
                   description="Importar cadastros por modelos CSV."
                   icon={<Upload size={24} />}
-                  onClick={() => navigate("/importacao")}
+                  onClick={() => navigate('/importacao')}
                 />
                 <DashboardCard
                   title="Exportação de Dados"
                   description="Gerar CSV para SAP e Power BI"
                   icon={<FileDown size={24} />}
-                  onClick={() => navigate("/exportacao")}
+                  onClick={() => navigate('/exportacao')}
                 />
               </div>
             </div>

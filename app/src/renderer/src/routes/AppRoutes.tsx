@@ -1,24 +1,24 @@
-import { HashRouter, Route, Routes } from "react-router-dom"
+import { HashRouter, Route, Routes } from 'react-router-dom'
 
-import LoginPage from "../pages/Login/LoginPage"
-import DashboardPage from "../pages/Dashboard/DashboardPage"
+import LoginPage from '../pages/Login/LoginPage'
+import DashboardPage from '../pages/Dashboard/DashboardPage'
 
-import LancarRefugoPage from "../pages/LancarRefugo/LancarRefugoPage"
-import VerLancamentosPage from "../pages/VerLancamentos/VerLancamentosPage"
-import ComponentesPage from "../pages/Componentes/ComponentesPage"
-import CircuitosPage from "../pages/Circuitos/CircuitosPage"
-import DefeitosPage from "../pages/Defeitos/DefeitosPage"
+import LancarRefugoPage from '../pages/LancarRefugo/LancarRefugoPage'
+import VerLancamentosPage from '../pages/VerLancamentos/VerLancamentosPage'
+import ComponentesPage from '../pages/Componentes/ComponentesPage'
+import CircuitosPage from '../pages/Circuitos/CircuitosPage'
+import ComposicaoCircuitosPage from '../pages/ComposicaoCircuitos/ComposicaoCircuitosPage'
+import DefeitosPage from '../pages/Defeitos/DefeitosPage'
 
-import SetoresPage from "../pages/Setores/SetoresPage"
-import Subsetores from "../pages/Subsetores/SubsetoresPage"
-import Postos from "../pages/Postos/PostosPage"
-import RoteiroPage from "../pages/Roteiro/RoteiroPage"
-import UsuariosPage from "../pages/Usuarios/UsuariosPage"
-import ImportacaoPage from "../pages/Importacao/ImportacaoPage"
-import ResultadosPage from "../pages/Resultados/ResultadosPage"
-import ExportacaoPage from "../pages/Exportacao/ExportacaoPage"
-import ConfiguracoesPage from "../pages/Configuracoes/ConfiguracoesPage"
-
+import SetoresPage from '../pages/Setores/SetoresPage'
+import Subsetores from '../pages/Subsetores/SubsetoresPage'
+import Postos from '../pages/Postos/PostosPage'
+import RoteiroPage from '../pages/Roteiro/RoteiroPage'
+import UsuariosPage from '../pages/Usuarios/UsuariosPage'
+import ImportacaoPage from '../pages/Importacao/ImportacaoPage'
+import ResultadosPage from '../pages/Resultados/ResultadosPage'
+import ExportacaoPage from '../pages/Exportacao/ExportacaoPage'
+import ConfiguracoesPage from '../pages/Configuracoes/ConfiguracoesPage'
 
 function AppRoutes() {
   return (
@@ -30,6 +30,7 @@ function AppRoutes() {
         <Route path="/ver-lancamentos" element={<VerLancamentosPage />} />
         <Route path="/componentes" element={<ComponentesPage />} />
         <Route path="/circuitos" element={<CircuitosPage />} />
+        <Route path="/composicao-circuitos" element={<ComposicaoCircuitosPage />} />
         <Route path="/defeitos" element={<DefeitosPage />} />
 
         <Route path="/setores" element={<SetoresPage />} />

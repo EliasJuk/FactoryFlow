@@ -1,26 +1,20 @@
-import { useEffect, useMemo, useState } from "react"
-import { Pencil, RotateCcw, Trash2 } from "lucide-react"
+import { useEffect, useMemo, useState } from 'react'
+import { Eye, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
-import PageHeader from "../../components/PageHeader/PageHeader"
-import { Setor } from "../../models/Setor"
-import { ui } from "../../theme/ui"
+import PageHeader from '../../components/PageHeader/PageHeader'
+import type { Setor } from '../../models/Setor'
+import type { Subsetor } from '../../models/Subsetor'
+import { ui } from '../../theme/ui'
 
-import { Pagination } from "../../components/Pagination/Pagination"
-import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog"
-import { CrudHeader } from "../../components/Crud/CrudHeader/CrudHeader"
-import { SearchBar } from "../../components/Crud/SearchBar/SearchBar"
-import { CrudModal } from "../../components/Crud/CrudModal/CrudModal"
-import { InativosCard } from "../../components/Crud/InativosCard/InativosCard"
+import { Pagination } from '../../components/Pagination/Pagination'
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog'
+import { CrudHeader } from '../../components/Crud/CrudHeader/CrudHeader'
+import { SearchBar } from '../../components/Crud/SearchBar/SearchBar'
+import { CrudModal } from '../../components/Crud/CrudModal/CrudModal'
+import { InativosCard } from '../../components/Crud/InativosCard/InativosCard'
+import { SubsetorInfoModal } from './components/SubsetorInfoModal'
 
-type ModalModo = "novo" | "editar"
-
-type Subsetor = {
-  id: number
-  nome: string
-  setorId: number
-  setorNome: string
-  ativo: boolean
-}
+type ModalModo = 'novo' | 'editar'
 
 const ITENS_POR_PAGINA = 10
 
@@ -29,25 +23,24 @@ function SubsetoresPage() {
   const [subsetores, setSubsetores] = useState<Subsetor[]>([])
   const [subsetoresInativos, setSubsetoresInativos] = useState<Subsetor[]>([])
 
-  const [busca, setBusca] = useState("")
+  const [busca, setBusca] = useState('')
   const [paginaAtual, setPaginaAtual] = useState(1)
   const [mostrarInativos, setMostrarInativos] = useState(false)
 
   const [modalAberto, setModalAberto] = useState(false)
-  const [modalModo, setModalModo] = useState<ModalModo>("novo")
+  const [modalModo, setModalModo] = useState<ModalModo>('novo')
   const [subsetorEditando, setSubsetorEditando] = useState<Subsetor | null>(null)
+  const [subsetorVisualizando, setSubsetorVisualizando] = useState<Subsetor | null>(null)
 
-  const [nome, setNome] = useState("")
-  const [setorId, setSetorId] = useState<number | "">("")
-  const [mensagemErro, setMensagemErro] = useState("")
-  const [mensagemSucesso, setMensagemSucesso] = useState("")
+  const [nome, setNome] = useState('')
+  const [setorId, setSetorId] = useState<number | ''>('')
+  const [mensagemErro, setMensagemErro] = useState('')
+  const [mensagemSucesso, setMensagemSucesso] = useState('')
   const [processando, setProcessando] = useState(false)
 
-  const [subsetorParaInativar, setSubsetorParaInativar] =
-    useState<Subsetor | null>(null)
+  const [subsetorParaInativar, setSubsetorParaInativar] = useState<Subsetor | null>(null)
 
-  const [subsetorParaRestaurar, setSubsetorParaRestaurar] =
-    useState<Subsetor | null>(null)
+  const [subsetorParaRestaurar, setSubsetorParaRestaurar] = useState<Subsetor | null>(null)
 
   const [subsetorParaExcluirPermanente, setSubsetorParaExcluirPermanente] =
     useState<Subsetor | null>(null)
@@ -86,10 +79,7 @@ function SubsetoresPage() {
     })
   }, [busca, subsetores])
 
-  const totalPaginas = Math.max(
-    1,
-    Math.ceil(subsetoresFiltrados.length / ITENS_POR_PAGINA)
-  )
+  const totalPaginas = Math.max(1, Math.ceil(subsetoresFiltrados.length / ITENS_POR_PAGINA))
 
   const subsetoresPaginados = useMemo(() => {
     const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA
@@ -107,18 +97,18 @@ function SubsetoresPage() {
   }, [paginaAtual, totalPaginas])
 
   function limparMensagens() {
-    setMensagemErro("")
-    setMensagemSucesso("")
+    setMensagemErro('')
+    setMensagemSucesso('')
   }
 
   function abrirNovoSubsetor() {
     if (processando) return
 
     limparMensagens()
-    setModalModo("novo")
+    setModalModo('novo')
     setSubsetorEditando(null)
-    setNome("")
-    setSetorId(setores[0]?.id ?? "")
+    setNome('')
+    setSetorId(setores[0]?.id ?? '')
     setModalAberto(true)
   }
 
@@ -126,7 +116,7 @@ function SubsetoresPage() {
     if (processando) return
 
     limparMensagens()
-    setModalModo("editar")
+    setModalModo('editar')
     setSubsetorEditando(subsetor)
     setNome(subsetor.nome)
     setSetorId(subsetor.setorId)
@@ -138,25 +128,25 @@ function SubsetoresPage() {
 
     setModalAberto(false)
     setSubsetorEditando(null)
-    setNome("")
-    setSetorId("")
-    setMensagemErro("")
+    setNome('')
+    setSetorId('')
+    setMensagemErro('')
   }
 
   async function salvarSubsetor() {
     if (processando) return
 
-    setMensagemErro("")
+    setMensagemErro('')
 
-    if (!nome.trim() || setorId === "") {
-      setMensagemErro("Informe o setor e o nome do subsetor.")
+    if (!nome.trim() || setorId === '') {
+      setMensagemErro('Informe o setor e o nome do subsetor.')
       return
     }
 
     setProcessando(true)
 
     try {
-      if (modalModo === "editar" && subsetorEditando) {
+      if (modalModo === 'editar' && subsetorEditando) {
         const resultado = await window.api.subsetores.editar(
           subsetorEditando.id,
           nome.trim(),
@@ -168,19 +158,16 @@ function SubsetoresPage() {
           return
         }
 
-        setMensagemSucesso("Subsetor atualizado com sucesso.")
+        setMensagemSucesso('Subsetor atualizado com sucesso.')
       } else {
-        const resultado = await window.api.subsetores.criar(
-          nome.trim(),
-          Number(setorId)
-        )
+        const resultado = await window.api.subsetores.criar(nome.trim(), Number(setorId))
 
         if (!resultado.sucesso) {
           setMensagemErro(resultado.mensagem)
           return
         }
 
-        setMensagemSucesso("Subsetor cadastrado com sucesso.")
+        setMensagemSucesso('Subsetor cadastrado com sucesso.')
       }
 
       fecharModal()
@@ -195,9 +182,7 @@ function SubsetoresPage() {
 
     limparMensagens()
 
-    const totalPostos = await window.api.subsetores.contarPostosAtivos(
-      subsetor.id
-    )
+    const totalPostos = await window.api.subsetores.contarPostosAtivos(subsetor.id)
 
     if (totalPostos > 0) {
       setSubsetorBloqueado({
@@ -217,9 +202,7 @@ function SubsetoresPage() {
     limparMensagens()
 
     try {
-      const resultado = await window.api.subsetores.excluir(
-        subsetorParaInativar.id
-      )
+      const resultado = await window.api.subsetores.excluir(subsetorParaInativar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -227,7 +210,7 @@ function SubsetoresPage() {
       }
 
       setSubsetorParaInativar(null)
-      setMensagemSucesso("Subsetor inativado com sucesso.")
+      setMensagemSucesso('Subsetor inativado com sucesso.')
       await carregarDados()
     } finally {
       setProcessando(false)
@@ -241,9 +224,7 @@ function SubsetoresPage() {
     limparMensagens()
 
     try {
-      const resultado = await window.api.subsetores.restaurar(
-        subsetorParaRestaurar.id
-      )
+      const resultado = await window.api.subsetores.restaurar(subsetorParaRestaurar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -251,7 +232,7 @@ function SubsetoresPage() {
       }
 
       setSubsetorParaRestaurar(null)
-      setMensagemSucesso("Subsetor restaurado com sucesso.")
+      setMensagemSucesso('Subsetor restaurado com sucesso.')
       await carregarDados()
     } finally {
       setProcessando(false)
@@ -275,14 +256,14 @@ function SubsetoresPage() {
       }
 
       setSubsetorParaExcluirPermanente(null)
-      setMensagemSucesso("Subsetor excluído permanentemente.")
+      setMensagemSucesso('Subsetor excluído permanentemente.')
       await carregarDados()
     } finally {
       setProcessando(false)
     }
   }
 
-  const podeSalvar = nome.trim().length > 0 && setorId !== ""
+  const podeSalvar = nome.trim().length > 0 && setorId !== ''
 
   return (
     <main className={ui.page}>
@@ -330,16 +311,25 @@ function SubsetoresPage() {
 
             <tbody>
               {subsetoresPaginados.map((subsetor) => (
-                <tr
-                  key={subsetor.id}
-                  className="border-t border-[var(--border)]"
-                >
+                <tr key={subsetor.uuid} className="border-t border-[var(--border)]">
                   <td className={ui.tableCell}>{subsetor.setorNome}</td>
                   <td className={ui.tableCellStrong}>{subsetor.nome}</td>
 
                   <td className={ui.tableCell}>
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
+                        onClick={() => setSubsetorVisualizando(subsetor)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Informações"
+                        aria-label={`Ver informações do subsetor ${subsetor.nome}`}
+                      >
+                        <Eye size={15} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => abrirEditarSubsetor(subsetor)}
                         disabled={processando}
                         className={ui.buttonSecondary}
@@ -375,12 +365,8 @@ function SubsetoresPage() {
         <Pagination
           paginaAtual={paginaAtual}
           totalPaginas={totalPaginas}
-          onPaginaAnterior={() =>
-            setPaginaAtual((pagina) => Math.max(1, pagina - 1))
-          }
-          onProximaPagina={() =>
-            setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))
-          }
+          onPaginaAnterior={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
+          onProximaPagina={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
         />
 
         <InativosCard
@@ -400,16 +386,25 @@ function SubsetoresPage() {
 
             <tbody>
               {subsetoresInativos.map((subsetor) => (
-                <tr
-                  key={subsetor.id}
-                  className="border-t border-[var(--border)] bg-slate-50"
-                >
+                <tr key={subsetor.uuid} className="border-t border-[var(--border)] bg-slate-50">
                   <td className={ui.tableCell}>{subsetor.setorNome}</td>
                   <td className={ui.tableCellStrong}>{subsetor.nome}</td>
 
                   <td className={ui.tableCell}>
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
+                        onClick={() => setSubsetorVisualizando(subsetor)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Informações"
+                        aria-label={`Ver informações do subsetor ${subsetor.nome}`}
+                      >
+                        <Eye size={15} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => setSubsetorParaRestaurar(subsetor)}
                         disabled={processando}
                         className={ui.buttonSecondary}
@@ -420,9 +415,7 @@ function SubsetoresPage() {
                       </button>
 
                       <button
-                        onClick={() =>
-                          setSubsetorParaExcluirPermanente(subsetor)
-                        }
+                        onClick={() => setSubsetorParaExcluirPermanente(subsetor)}
                         disabled={processando}
                         className={ui.buttonDanger}
                         title="Excluir permanentemente"
@@ -446,20 +439,23 @@ function SubsetoresPage() {
           </table>
         </InativosCard>
 
+        {subsetorVisualizando && (
+          <SubsetorInfoModal
+            subsetor={subsetorVisualizando}
+            onFechar={() => setSubsetorVisualizando(null)}
+          />
+        )}
+
         {modalAberto && (
           <CrudModal
-            titulo={modalModo === "novo" ? "Novo Subsetor" : "Editar Subsetor"}
+            titulo={modalModo === 'novo' ? 'Novo Subsetor' : 'Editar Subsetor'}
             subtitulo="Informe o setor responsável e o nome do subsetor."
             mensagemErro={mensagemErro}
             processando={processando}
             onFechar={fecharModal}
             footer={
               <>
-                <button
-                  onClick={fecharModal}
-                  disabled={processando}
-                  className={ui.buttonSecondary}
-                >
+                <button onClick={fecharModal} disabled={processando} className={ui.buttonSecondary}>
                   Cancelar
                 </button>
 
@@ -469,10 +465,10 @@ function SubsetoresPage() {
                   className={ui.buttonPrimary}
                 >
                   {processando
-                    ? "Salvando..."
-                    : modalModo === "novo"
-                      ? "Salvar"
-                      : "Salvar Alterações"}
+                    ? 'Salvando...'
+                    : modalModo === 'novo'
+                      ? 'Salvar'
+                      : 'Salvar Alterações'}
                 </button>
               </>
             }
@@ -483,9 +479,7 @@ function SubsetoresPage() {
                 <select
                   value={setorId}
                   onChange={(event) =>
-                    setSetorId(
-                      event.target.value === "" ? "" : Number(event.target.value)
-                    )
+                    setSetorId(event.target.value === '' ? '' : Number(event.target.value))
                   }
                   disabled={processando}
                   className={ui.select}
@@ -493,7 +487,7 @@ function SubsetoresPage() {
                   <option value="">Selecione...</option>
 
                   {setores.map((setor) => (
-                    <option key={setor.id} value={setor.id}>
+                    <option key={setor.uuid} value={setor.id}>
                       {setor.nome}
                     </option>
                   ))}
@@ -519,8 +513,8 @@ function SubsetoresPage() {
             titulo="Inativar subsetor"
             descricao={
               <>
-                O subsetor <strong>{subsetorParaInativar.nome}</strong> ficará
-                inativo e não aparecerá nas listas principais.
+                O subsetor <strong>{subsetorParaInativar.nome}</strong> ficará inativo e não
+                aparecerá nas listas principais.
               </>
             }
             textoConfirmar="Confirmar inativação"
@@ -535,8 +529,8 @@ function SubsetoresPage() {
             titulo="Restaurar subsetor"
             descricao={
               <>
-                O subsetor <strong>{subsetorParaRestaurar.nome}</strong> voltará
-                a aparecer nas listas principais.
+                O subsetor <strong>{subsetorParaRestaurar.nome}</strong> voltará a aparecer nas
+                listas principais.
               </>
             }
             textoConfirmar="Restaurar"
@@ -550,9 +544,8 @@ function SubsetoresPage() {
             titulo="Excluir permanentemente"
             descricao={
               <>
-                O subsetor{" "}
-                <strong>{subsetorParaExcluirPermanente.nome}</strong> será
-                removido definitivamente. Esta ação não poderá ser desfeita.
+                O subsetor <strong>{subsetorParaExcluirPermanente.nome}</strong> será removido
+                definitivamente. Esta ação não poderá ser desfeita.
               </>
             }
             textoConfirmar="Excluir permanentemente"
@@ -567,14 +560,13 @@ function SubsetoresPage() {
             titulo="Subsetor possui vínculos"
             descricao={
               <>
-                Não é possível inativar o subsetor{" "}
-                <strong>{subsetorBloqueado.subsetor.nome}</strong>, pois existem{" "}
-                <strong>{subsetorBloqueado.totalPostos}</strong> posto(s) de
-                trabalho vinculado(s) a ele.
+                Não é possível inativar o subsetor{' '}
+                <strong>{subsetorBloqueado.subsetor.nome}</strong>, pois existem{' '}
+                <strong>{subsetorBloqueado.totalPostos}</strong> posto(s) de trabalho vinculado(s) a
+                ele.
                 <br />
                 <br />
-                Primeiro inative ou remova os postos de trabalho vinculados a
-                este subsetor.
+                Primeiro inative ou remova os postos de trabalho vinculados a este subsetor.
               </>
             }
             textoConfirmar="Voltar"

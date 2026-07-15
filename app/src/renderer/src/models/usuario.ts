@@ -7,6 +7,7 @@ export interface Usuario {
   nome: string
   perfil: PerfilUsuario
   ativo: boolean
+  deveTrocarSenha?: boolean
 
   createdAt?: string | null
   updatedAt?: string | null

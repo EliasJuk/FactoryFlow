@@ -313,7 +313,22 @@ declare global {
             nome: string
             matricula: string
             perfil: string
+            deveTrocarSenha: boolean
           }
+        }>
+
+        solicitarRedefinicao: (matricula: string) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
+
+        alterarSenhaObrigatoria: (
+          usuarioId: number,
+          senhaAtual: string,
+          novaSenha: string
+        ) => Promise<{
+          sucesso: boolean
+          mensagem: string
         }>
       }
 
@@ -568,6 +583,41 @@ declare global {
         remover: (
           id: number,
           usuarioId?: number
+        ) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
+
+        listarSolicitacoesSenha: () => Promise<
+          {
+            id: number
+            uuid: string
+            usuarioId: number
+            usuarioNome: string
+            usuarioMatricula: string
+            status: 'PENDENTE' | 'ATENDIDA' | 'CANCELADA'
+            solicitadoEm: string
+            atendidoEm: string | null
+            canceladoEm: string | null
+            atendidoPor: number | null
+            atendidoPorNome: string | null
+            canceladoPor: number | null
+            canceladoPorNome: string | null
+          }[]
+        >
+
+        atenderSolicitacaoSenha: (
+          solicitacaoId: number,
+          atendenteId: number
+        ) => Promise<{
+          sucesso: boolean
+          mensagem: string
+          senhaTemporaria?: string
+        }>
+
+        cancelarSolicitacaoSenha: (
+          solicitacaoId: number,
+          responsavelId: number
         ) => Promise<{
           sucesso: boolean
           mensagem: string

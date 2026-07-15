@@ -19,29 +19,34 @@ import ImportacaoPage from '../pages/Importacao/ImportacaoPage'
 import ResultadosPage from '../pages/Resultados/ResultadosPage'
 import ExportacaoPage from '../pages/Exportacao/ExportacaoPage'
 import ConfiguracoesPage from '../pages/Configuracoes/ConfiguracoesPage'
+import TrocarSenhaPage from '../pages/TrocarSenha/TrocarSenhaPage'
+import { ProtectedRoute } from './ProtectedRoute'
 
 function AppRoutes() {
   return (
     <HashRouter>
       <Routes>
         <Route path="/" element={<LoginPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/lancar-refugo" element={<LancarRefugoPage />} />
-        <Route path="/ver-lancamentos" element={<VerLancamentosPage />} />
-        <Route path="/componentes" element={<ComponentesPage />} />
-        <Route path="/circuitos" element={<CircuitosPage />} />
-        <Route path="/composicao-circuitos" element={<ComposicaoCircuitosPage />} />
-        <Route path="/defeitos" element={<DefeitosPage />} />
+        <Route path="/trocar-senha" element={<TrocarSenhaPage />} />
 
-        <Route path="/setores" element={<SetoresPage />} />
-        <Route path="/subSetores" element={<Subsetores />} />
-        <Route path="/postos" element={<Postos />} />
-        <Route path="/roteiro" element={<RoteiroPage />} />
-        <Route path="/usuarios" element={<UsuariosPage />} />
-        <Route path="/importacao" element={<ImportacaoPage />} />
-        <Route path="/resultados" element={<ResultadosPage />} />
-        <Route path="/exportacao" element={<ExportacaoPage />} />
-        <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/lancar-refugo" element={<LancarRefugoPage />} />
+          <Route path="/ver-lancamentos" element={<VerLancamentosPage />} />
+          <Route path="/componentes" element={<ComponentesPage />} />
+          <Route path="/circuitos" element={<CircuitosPage />} />
+          <Route path="/composicao-circuitos" element={<ComposicaoCircuitosPage />} />
+          <Route path="/defeitos" element={<DefeitosPage />} />
+          <Route path="/setores" element={<SetoresPage />} />
+          <Route path="/subSetores" element={<Subsetores />} />
+          <Route path="/postos" element={<Postos />} />
+          <Route path="/roteiro" element={<RoteiroPage />} />
+          <Route path="/usuarios" element={<UsuariosPage />} />
+          <Route path="/importacao" element={<ImportacaoPage />} />
+          <Route path="/resultados" element={<ResultadosPage />} />
+          <Route path="/exportacao" element={<ExportacaoPage />} />
+          <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+        </Route>
       </Routes>
     </HashRouter>
   )

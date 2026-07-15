@@ -35,7 +35,23 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   auth: {
-    login: (matricula: string, senha: string) => ipcRenderer.invoke('auth:login', matricula, senha)
+    login: (matricula: string, senha: string) =>
+      ipcRenderer.invoke('auth:login', matricula, senha),
+
+    solicitarRedefinicao: (matricula: string) =>
+      ipcRenderer.invoke('auth:solicitar-redefinicao', matricula),
+
+    alterarSenhaObrigatoria: (
+      usuarioId: number,
+      senhaAtual: string,
+      novaSenha: string
+    ) =>
+      ipcRenderer.invoke(
+        'auth:alterar-senha-obrigatoria',
+        usuarioId,
+        senhaAtual,
+        novaSenha
+      )
   },
 
   setores: {
@@ -261,7 +277,24 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('usuarios:ativar', id, usuarioId),
 
     remover: (id: number, usuarioId?: number | null) =>
-      ipcRenderer.invoke('usuarios:remover', id, usuarioId)
+      ipcRenderer.invoke('usuarios:remover', id, usuarioId),
+
+    listarSolicitacoesSenha: () =>
+      ipcRenderer.invoke('usuarios:listar-solicitacoes-senha'),
+
+    atenderSolicitacaoSenha: (solicitacaoId: number, atendenteId: number) =>
+      ipcRenderer.invoke(
+        'usuarios:atender-solicitacao-senha',
+        solicitacaoId,
+        atendenteId
+      ),
+
+    cancelarSolicitacaoSenha: (solicitacaoId: number, responsavelId: number) =>
+      ipcRenderer.invoke(
+        'usuarios:cancelar-solicitacao-senha',
+        solicitacaoId,
+        responsavelId
+      )
   },
 
   importacao: {

@@ -13,6 +13,12 @@ import { UsuarioFormModal } from './components/UsuarioFormModal'
 import { UsuarioInfoModal } from './components/UsuarioInfoModal'
 
 import type { PerfilUsuario, Usuario } from '../../models/Usuario'
+import { useApp } from '../../contexts/AppContext'
+import {
+  SenhaTemporariaModal,
+  SolicitacoesSenhaCard,
+  type SolicitacaoSenha
+} from './components/SolicitacoesSenhaCard'
 
 type ModalModo = 'novo' | 'editar'
 
@@ -26,8 +32,15 @@ const perfis: PerfilUsuario[] = ['OPERADOR', 'TECNICO', 'LIDER', 'SUPERVISOR', '
 const ITENS_POR_PAGINA = 10
 
 function UsuariosPage() {
+  const { usuario: usuarioLogado } = useApp()
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [usuariosInativos, setUsuariosInativos] = useState<Usuario[]>([])
+  const [solicitacoesSenha, setSolicitacoesSenha] = useState<SolicitacaoSenha[]>([])
+  const [senhaTemporaria, setSenhaTemporaria] = useState<{
+    nome: string
+    matricula: string
+    senha: string
+  } | null>(null)
 
   const [busca, setBusca] = useState('')
   const [paginaAtual, setPaginaAtual] = useState(1)
@@ -52,6 +65,9 @@ function UsuariosPage() {
   const [usuarioParaRestaurar, setUsuarioParaRestaurar] = useState<Usuario | null>(null)
   const [usuarioParaRemover, setUsuarioParaRemover] = useState<Usuario | null>(null)
 
+  const podeGerenciarSenhas =
+    usuarioLogado.perfil === 'ADMIN' || usuarioLogado.perfil === 'QUALIDADE'
+
   async function carregarUsuarios() {
     const [ativos, inativos] = await Promise.all([
       window.api.usuarios.listar(),
@@ -60,6 +76,9 @@ function UsuariosPage() {
 
     setUsuarios(ativos)
     setUsuariosInativos(inativos)
+
+    const solicitacoes = await window.api.usuarios.listarSolicitacoesSenha()
+    setSolicitacoesSenha(solicitacoes)
   }
 
   useEffect(() => {
@@ -448,23 +467,72 @@ function UsuariosPage() {
           </table>
         </InativosCard>
 
-        <div className="rounded-lg bg-white shadow-sm">
-          <button
-            type="button"
-            className="flex w-full items-center justify-between px-4 py-4 text-left"
-          >
-            <div>
-              <h2 className={ui.title}>Solicitações de alteração de senha</h2>
-              <p className={ui.subtitle}>
-                Área reservada para futuras solicitações de redefinição de senha.
-              </p>
-            </div>
+        <SolicitacoesSenhaCard
+          solicitacoes={solicitacoesSenha}
+          processando={processando}
+          podeGerenciar={podeGerenciarSenhas}
+          onAtender={async (solicitacao) => {
+            if (!usuarioLogado.id || processando) return
 
-            <span className="rounded bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-              0 pendente(s)
-            </span>
-          </button>
-        </div>
+            setProcessando(true)
+            limparMensagens()
+
+            try {
+              const resultado = await window.api.usuarios.atenderSolicitacaoSenha(
+                solicitacao.id,
+                usuarioLogado.id
+              )
+
+              if (!resultado.sucesso || !resultado.senhaTemporaria) {
+                setMensagemErro(resultado.mensagem)
+                return
+              }
+
+              setSenhaTemporaria({
+                nome: solicitacao.usuarioNome,
+                matricula: solicitacao.usuarioMatricula,
+                senha: resultado.senhaTemporaria
+              })
+
+              setMensagemSucesso(resultado.mensagem)
+              await carregarUsuarios()
+            } finally {
+              setProcessando(false)
+            }
+          }}
+          onCancelar={async (solicitacao) => {
+            if (!usuarioLogado.id || processando) return
+
+            setProcessando(true)
+            limparMensagens()
+
+            try {
+              const resultado = await window.api.usuarios.cancelarSolicitacaoSenha(
+                solicitacao.id,
+                usuarioLogado.id
+              )
+
+              if (!resultado.sucesso) {
+                setMensagemErro(resultado.mensagem)
+                return
+              }
+
+              setMensagemSucesso(resultado.mensagem)
+              await carregarUsuarios()
+            } finally {
+              setProcessando(false)
+            }
+          }}
+        />
+
+        {senhaTemporaria && (
+          <SenhaTemporariaModal
+            nome={senhaTemporaria.nome}
+            matricula={senhaTemporaria.matricula}
+            senha={senhaTemporaria.senha}
+            onFechar={() => setSenhaTemporaria(null)}
+          />
+        )}
 
         {modalAberto && (
           <UsuarioFormModal

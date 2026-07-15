@@ -6,6 +6,7 @@ import { APP } from "../../config/app"
 import Button from "../../components/Button/Button"
 import Input from "../../components/Input/Input"
 import { useApp, type Usuario } from "../../contexts/AppContext"
+import { ForgotPasswordModal } from "./components/ForgotPasswordModal"
 
 type DatabaseProvider = "sqlite" | "postgres"
 
@@ -32,6 +33,7 @@ function LoginPage() {
   const [senha, setSenha] = useState("")
   const [erroLogin, setErroLogin] = useState("")
   const [carregandoLogin, setCarregandoLogin] = useState(false)
+  const [mostrarEsqueciSenha, setMostrarEsqueciSenha] = useState(false)
 
   const [configBanco, setConfigBanco] = useState<ConfigBanco | null>(null)
   const [mostrarBanco, setMostrarBanco] = useState(false)
@@ -127,7 +129,7 @@ function LoginPage() {
         })
       }
 
-      navigate("/dashboard")
+      navigate(resultado.usuario?.deveTrocarSenha ? "/trocar-senha" : "/dashboard")
     } finally {
       setCarregandoLogin(false)
     }
@@ -260,17 +262,29 @@ function LoginPage() {
               </p>
             )}
 
+            <button
+              type="button"
+              onClick={() => setMostrarEsqueciSenha(true)}
+              disabled={!isReady || carregandoLogin}
+              className="w-full text-center text-sm font-semibold text-orange-500 hover:text-orange-400 disabled:opacity-50"
+            >
+              Esqueci minha senha
+            </button>
+
             <Button type="submit" disabled={!isReady || carregandoLogin}>
               {carregandoLogin ? "Entrando..." : isReady ? "Entrar" : "Aguarde..."}
             </Button>
           </form>
 
           <div className="mt-6 text-center text-xs text-slate-600">
-            <p>Versão 1.6.0</p>
+            <p>Versão 1.5.0</p>
             <p>Desenvolvido por EliasJuk</p>
           </div>
         </div>
       </div>
+      {mostrarEsqueciSenha && (
+        <ForgotPasswordModal onFechar={() => setMostrarEsqueciSenha(false)} />
+      )}
     </main>
   )
 }

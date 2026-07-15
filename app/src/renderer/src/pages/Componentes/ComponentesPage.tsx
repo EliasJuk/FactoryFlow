@@ -1,37 +1,31 @@
-import { useEffect, useMemo, useState } from "react"
-import { DollarSign, Pencil, RotateCcw, Trash2 } from "lucide-react"
+import { useEffect, useMemo, useState } from 'react'
+import { DollarSign, Eye, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
-import PageHeader from "../../components/PageHeader/PageHeader"
-import { ui } from "../../theme/ui"
+import PageHeader from '../../components/PageHeader/PageHeader'
+import type { Componente } from '../../models/Componente'
+import { ui } from '../../theme/ui'
 
-import { Pagination } from "../../components/Pagination/Pagination"
-import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog"
-import { CrudHeader } from "../../components/Crud/CrudHeader/CrudHeader"
-import { SearchBar } from "../../components/Crud/SearchBar/SearchBar"
-import { CrudModal } from "../../components/Crud/CrudModal/CrudModal"
-import { InativosCard } from "../../components/Crud/InativosCard/InativosCard"
+import { Pagination } from '../../components/Pagination/Pagination'
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog'
+import { CrudHeader } from '../../components/Crud/CrudHeader/CrudHeader'
+import { SearchBar } from '../../components/Crud/SearchBar/SearchBar'
+import { CrudModal } from '../../components/Crud/CrudModal/CrudModal'
+import { InativosCard } from '../../components/Crud/InativosCard/InativosCard'
+import { ComponenteInfoModal } from './components/ComponenteInfoModal'
 
-type ModalModo = "novo" | "editar"
-
-type Componente = {
-  id: number
-  codigo: string
-  nome: string
-  precoAtual: number
-  ativo: boolean
-}
+type ModalModo = 'novo' | 'editar'
 
 const ITENS_POR_PAGINA = 10
 
 function formatarMoeda(valor: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL"
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
   }).format(valor || 0)
 }
 
 function converterValorMonetario(valor: string) {
-  const normalizado = valor.replace(/\./g, "").replace(",", ".")
+  const normalizado = valor.replace(/\./g, '').replace(',', '.')
   const numero = Number(normalizado)
 
   return Number.isNaN(numero) ? 0 : numero
@@ -41,27 +35,25 @@ function ComponentesPage() {
   const [componentes, setComponentes] = useState<Componente[]>([])
   const [componentesInativos, setComponentesInativos] = useState<Componente[]>([])
 
-  const [busca, setBusca] = useState("")
+  const [busca, setBusca] = useState('')
   const [paginaAtual, setPaginaAtual] = useState(1)
   const [mostrarInativos, setMostrarInativos] = useState(false)
 
   const [modalAberto, setModalAberto] = useState(false)
-  const [modalModo, setModalModo] = useState<ModalModo>("novo")
-  const [componenteEditando, setComponenteEditando] =
-    useState<Componente | null>(null)
+  const [modalModo, setModalModo] = useState<ModalModo>('novo')
+  const [componenteEditando, setComponenteEditando] = useState<Componente | null>(null)
+  const [componenteVisualizando, setComponenteVisualizando] = useState<Componente | null>(null)
 
-  const [codigo, setCodigo] = useState("")
-  const [nome, setNome] = useState("")
-  const [precoAtual, setPrecoAtual] = useState("")
-  const [mensagemErro, setMensagemErro] = useState("")
-  const [mensagemSucesso, setMensagemSucesso] = useState("")
+  const [codigo, setCodigo] = useState('')
+  const [nome, setNome] = useState('')
+  const [precoAtual, setPrecoAtual] = useState('')
+  const [mensagemErro, setMensagemErro] = useState('')
+  const [mensagemSucesso, setMensagemSucesso] = useState('')
   const [processando, setProcessando] = useState(false)
 
-  const [componenteParaInativar, setComponenteParaInativar] =
-    useState<Componente | null>(null)
+  const [componenteParaInativar, setComponenteParaInativar] = useState<Componente | null>(null)
 
-  const [componenteParaRestaurar, setComponenteParaRestaurar] =
-    useState<Componente | null>(null)
+  const [componenteParaRestaurar, setComponenteParaRestaurar] = useState<Componente | null>(null)
 
   const [componenteParaExcluirPermanente, setComponenteParaExcluirPermanente] =
     useState<Componente | null>(null)
@@ -93,10 +85,7 @@ function ComponentesPage() {
     })
   }, [busca, componentes])
 
-  const totalPaginas = Math.max(
-    1,
-    Math.ceil(componentesFiltrados.length / ITENS_POR_PAGINA)
-  )
+  const totalPaginas = Math.max(1, Math.ceil(componentesFiltrados.length / ITENS_POR_PAGINA))
 
   const componentesPaginados = useMemo(() => {
     const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA
@@ -114,19 +103,19 @@ function ComponentesPage() {
   }, [paginaAtual, totalPaginas])
 
   function limparMensagens() {
-    setMensagemErro("")
-    setMensagemSucesso("")
+    setMensagemErro('')
+    setMensagemSucesso('')
   }
 
   function abrirNovoComponente() {
     if (processando) return
 
     limparMensagens()
-    setModalModo("novo")
+    setModalModo('novo')
     setComponenteEditando(null)
-    setCodigo("")
-    setNome("")
-    setPrecoAtual("")
+    setCodigo('')
+    setNome('')
+    setPrecoAtual('')
     setModalAberto(true)
   }
 
@@ -134,15 +123,11 @@ function ComponentesPage() {
     if (processando) return
 
     limparMensagens()
-    setModalModo("editar")
+    setModalModo('editar')
     setComponenteEditando(componente)
     setCodigo(componente.codigo)
     setNome(componente.nome)
-    setPrecoAtual(
-      componente.precoAtual
-        ? String(componente.precoAtual).replace(".", ",")
-        : ""
-    )
+    setPrecoAtual(componente.precoAtual ? String(componente.precoAtual).replace('.', ',') : '')
     setModalAberto(true)
   }
 
@@ -151,19 +136,19 @@ function ComponentesPage() {
 
     setModalAberto(false)
     setComponenteEditando(null)
-    setCodigo("")
-    setNome("")
-    setPrecoAtual("")
-    setMensagemErro("")
+    setCodigo('')
+    setNome('')
+    setPrecoAtual('')
+    setMensagemErro('')
   }
 
   async function salvarComponente() {
     if (processando) return
 
-    setMensagemErro("")
+    setMensagemErro('')
 
     if (!codigo.trim() || !nome.trim()) {
-      setMensagemErro("Informe o código CTF e o nome do componente.")
+      setMensagemErro('Informe o código CTF e o nome do componente.')
       return
     }
 
@@ -172,7 +157,7 @@ function ComponentesPage() {
     try {
       const valor = converterValorMonetario(precoAtual)
 
-      if (modalModo === "editar" && componenteEditando) {
+      if (modalModo === 'editar' && componenteEditando) {
         const resultado = await window.api.componentes.editar(
           componenteEditando.id,
           codigo.trim().toUpperCase(),
@@ -185,7 +170,7 @@ function ComponentesPage() {
           return
         }
 
-        setMensagemSucesso("Componente atualizado com sucesso.")
+        setMensagemSucesso('Componente atualizado com sucesso.')
       } else {
         const resultado = await window.api.componentes.criar(
           codigo.trim().toUpperCase(),
@@ -198,7 +183,7 @@ function ComponentesPage() {
           return
         }
 
-        setMensagemSucesso("Componente cadastrado com sucesso.")
+        setMensagemSucesso('Componente cadastrado com sucesso.')
       }
 
       fecharModal()
@@ -215,9 +200,7 @@ function ComponentesPage() {
     limparMensagens()
 
     try {
-      const resultado = await window.api.componentes.excluir(
-        componenteParaInativar.id
-      )
+      const resultado = await window.api.componentes.excluir(componenteParaInativar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -225,7 +208,7 @@ function ComponentesPage() {
       }
 
       setComponenteParaInativar(null)
-      setMensagemSucesso("Componente inativado com sucesso.")
+      setMensagemSucesso('Componente inativado com sucesso.')
       await carregarComponentes()
     } finally {
       setProcessando(false)
@@ -239,9 +222,7 @@ function ComponentesPage() {
     limparMensagens()
 
     try {
-      const resultado = await window.api.componentes.restaurar(
-        componenteParaRestaurar.id
-      )
+      const resultado = await window.api.componentes.restaurar(componenteParaRestaurar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -249,7 +230,7 @@ function ComponentesPage() {
       }
 
       setComponenteParaRestaurar(null)
-      setMensagemSucesso("Componente restaurado com sucesso.")
+      setMensagemSucesso('Componente restaurado com sucesso.')
       await carregarComponentes()
     } finally {
       setProcessando(false)
@@ -273,17 +254,14 @@ function ComponentesPage() {
       }
 
       setComponenteParaExcluirPermanente(null)
-      setMensagemSucesso("Componente excluído permanentemente.")
+      setMensagemSucesso('Componente excluído permanentemente.')
       await carregarComponentes()
     } finally {
       setProcessando(false)
     }
   }
 
-  const podeSalvar =
-    codigo.trim().length > 0 &&
-    nome.trim().length > 0 &&
-    !processando
+  const podeSalvar = codigo.trim().length > 0 && nome.trim().length > 0 && !processando
 
   return (
     <main className={ui.page}>
@@ -332,19 +310,26 @@ function ComponentesPage() {
 
             <tbody>
               {componentesPaginados.map((componente) => (
-                <tr
-                  key={componente.id}
-                  className="border-t border-[var(--border)]"
-                >
+                <tr key={componente.uuid} className="border-t border-[var(--border)]">
                   <td className={ui.tableCellStrong}>{componente.codigo}</td>
                   <td className={ui.tableCell}>{componente.nome}</td>
-                  <td className={ui.tableCell}>
-                    {formatarMoeda(componente.precoAtual)}
-                  </td>
+                  <td className={ui.tableCell}>{formatarMoeda(componente.precoAtual)}</td>
 
                   <td className={ui.tableCell}>
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
+                        onClick={() => setComponenteVisualizando(componente)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Informações"
+                        aria-label={`Ver informações do componente ${componente.codigo}`}
+                      >
+                        <Eye size={15} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => abrirEditarComponente(componente)}
                         disabled={processando}
                         className={ui.buttonSecondary}
@@ -380,12 +365,8 @@ function ComponentesPage() {
         <Pagination
           paginaAtual={paginaAtual}
           totalPaginas={totalPaginas}
-          onPaginaAnterior={() =>
-            setPaginaAtual((pagina) => Math.max(1, pagina - 1))
-          }
-          onProximaPagina={() =>
-            setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))
-          }
+          onPaginaAnterior={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
+          onProximaPagina={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
         />
 
         <InativosCard
@@ -406,19 +387,26 @@ function ComponentesPage() {
 
             <tbody>
               {componentesInativos.map((componente) => (
-                <tr
-                  key={componente.id}
-                  className="border-t border-[var(--border)] bg-slate-50"
-                >
+                <tr key={componente.uuid} className="border-t border-[var(--border)] bg-slate-50">
                   <td className={ui.tableCellStrong}>{componente.codigo}</td>
                   <td className={ui.tableCell}>{componente.nome}</td>
-                  <td className={ui.tableCell}>
-                    {formatarMoeda(componente.precoAtual)}
-                  </td>
+                  <td className={ui.tableCell}>{formatarMoeda(componente.precoAtual)}</td>
 
                   <td className={ui.tableCell}>
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
+                        onClick={() => setComponenteVisualizando(componente)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Informações"
+                        aria-label={`Ver informações do componente ${componente.codigo}`}
+                      >
+                        <Eye size={15} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => setComponenteParaRestaurar(componente)}
                         disabled={processando}
                         className={ui.buttonSecondary}
@@ -429,9 +417,7 @@ function ComponentesPage() {
                       </button>
 
                       <button
-                        onClick={() =>
-                          setComponenteParaExcluirPermanente(componente)
-                        }
+                        onClick={() => setComponenteParaExcluirPermanente(componente)}
                         disabled={processando}
                         className={ui.buttonDanger}
                         title="Excluir permanentemente"
@@ -455,13 +441,16 @@ function ComponentesPage() {
           </table>
         </InativosCard>
 
+        {componenteVisualizando && (
+          <ComponenteInfoModal
+            componente={componenteVisualizando}
+            onFechar={() => setComponenteVisualizando(null)}
+          />
+        )}
+
         {modalAberto && (
           <CrudModal
-            titulo={
-              modalModo === "novo"
-                ? "Novo Componente"
-                : "Editar Componente"
-            }
+            titulo={modalModo === 'novo' ? 'Novo Componente' : 'Editar Componente'}
             subtitulo="Informe o código, o nome e o preço vigente do componente."
             mensagemErro={mensagemErro}
             processando={processando}
@@ -469,11 +458,7 @@ function ComponentesPage() {
             maxWidth="max-w-2xl"
             footer={
               <>
-                <button
-                  onClick={fecharModal}
-                  disabled={processando}
-                  className={ui.buttonSecondary}
-                >
+                <button onClick={fecharModal} disabled={processando} className={ui.buttonSecondary}>
                   Cancelar
                 </button>
 
@@ -483,10 +468,10 @@ function ComponentesPage() {
                   className={ui.buttonPrimary}
                 >
                   {processando
-                    ? "Salvando..."
-                    : modalModo === "novo"
-                      ? "Salvar"
-                      : "Salvar Alterações"}
+                    ? 'Salvando...'
+                    : modalModo === 'novo'
+                      ? 'Salvar'
+                      : 'Salvar Alterações'}
                 </button>
               </>
             }
@@ -496,9 +481,7 @@ function ComponentesPage() {
                 <label className={ui.label}>Código CTF</label>
                 <input
                   value={codigo}
-                  onChange={(event) =>
-                    setCodigo(event.target.value.toUpperCase())
-                  }
+                  onChange={(event) => setCodigo(event.target.value.toUpperCase())}
                   disabled={processando}
                   placeholder="Ex: 33-0000-0000"
                   className={ui.input}
@@ -536,9 +519,9 @@ function ComponentesPage() {
             </div>
 
             <div className="mt-4 rounded-md bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-              <strong>Observação:</strong> ao alterar o preço, o valor antigo
-              fica preservado no histórico. Os refugos já lançados continuam
-              com o preço usado no momento do lançamento.
+              <strong>Observação:</strong> ao alterar o preço, o valor antigo fica preservado no
+              histórico. Os refugos já lançados continuam com o preço usado no momento do
+              lançamento.
             </div>
           </CrudModal>
         )}
@@ -548,16 +531,15 @@ function ComponentesPage() {
             titulo="Inativar componente"
             descricao={
               <>
-                O componente{" "}
+                O componente{' '}
                 <strong>
-                  {componenteParaInativar.codigo} -{" "}
-                  {componenteParaInativar.nome}
-                </strong>{" "}
+                  {componenteParaInativar.codigo} - {componenteParaInativar.nome}
+                </strong>{' '}
                 ficará inativo e não aparecerá nas listas principais.
                 <br />
                 <br />
-                Os refugos antigos continuarão preservados com o código, nome e
-                preço utilizados no momento do lançamento.
+                Os refugos antigos continuarão preservados com o código, nome e preço utilizados no
+                momento do lançamento.
               </>
             }
             textoConfirmar="Confirmar inativação"
@@ -572,11 +554,10 @@ function ComponentesPage() {
             titulo="Restaurar componente"
             descricao={
               <>
-                O componente{" "}
+                O componente{' '}
                 <strong>
-                  {componenteParaRestaurar.codigo} -{" "}
-                  {componenteParaRestaurar.nome}
-                </strong>{" "}
+                  {componenteParaRestaurar.codigo} - {componenteParaRestaurar.nome}
+                </strong>{' '}
                 voltará a aparecer nas listas principais.
               </>
             }
@@ -591,11 +572,10 @@ function ComponentesPage() {
             titulo="Excluir permanentemente"
             descricao={
               <>
-                O componente{" "}
+                O componente{' '}
                 <strong>
-                  {componenteParaExcluirPermanente.codigo} -{" "}
-                  {componenteParaExcluirPermanente.nome}
-                </strong>{" "}
+                  {componenteParaExcluirPermanente.codigo} - {componenteParaExcluirPermanente.nome}
+                </strong>{' '}
                 será removido definitivamente. Esta ação não poderá ser desfeita.
               </>
             }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Boxes, Eye, Pencil, RotateCcw, Trash2 } from 'lucide-react'
+import { Eye, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
 import type { Circuito } from '../../models/Circuito'
@@ -7,48 +7,24 @@ import { Pagination } from '../../components/Pagination/Pagination'
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog'
 import { CrudHeader } from '../../components/Crud/CrudHeader/CrudHeader'
 import { SearchBar } from '../../components/Crud/SearchBar/SearchBar'
-import { CrudModal } from '../../components/Crud/CrudModal/CrudModal'
 import { InativosCard } from '../../components/Crud/InativosCard/InativosCard'
 import { ui } from '../../theme/ui'
 
-import { CircuitoComponentesModal } from './components/CircuitoComponentesModal'
-import { AdicionarComponenteModal } from './components/AdicionarComponenteModal'
+import { CircuitoFormModal, type CircuitoFormModo } from './components/CircuitoFormModal'
 import { CircuitoInfoModal } from './components/CircuitoInfoModal'
-
-type ModalModo = 'novo' | 'editar'
-
-type Componente = {
-  id: number
-  codigo: string
-  nome: string
-  precoAtual: number
-  ativo: boolean
-}
-
-type CircuitoComponente = {
-  id: number
-  circuitoId: number
-  componenteId: number
-  codigoComponente: string
-  nomeComponente: string
-  quantidade: number
-  ativo: boolean
-}
 
 const ITENS_POR_PAGINA = 10
 
 function CircuitosPage() {
   const [circuitos, setCircuitos] = useState<Circuito[]>([])
   const [circuitosInativos, setCircuitosInativos] = useState<Circuito[]>([])
-  const [componentes, setComponentes] = useState<Componente[]>([])
-  const [componentesDoCircuito, setComponentesDoCircuito] = useState<CircuitoComponente[]>([])
 
   const [busca, setBusca] = useState('')
   const [paginaAtual, setPaginaAtual] = useState(1)
   const [mostrarInativos, setMostrarInativos] = useState(false)
 
   const [modalAberto, setModalAberto] = useState(false)
-  const [modalModo, setModalModo] = useState<ModalModo>('novo')
+  const [modalModo, setModalModo] = useState<CircuitoFormModo>('novo')
   const [circuitoEditando, setCircuitoEditando] = useState<Circuito | null>(null)
   const [circuitoVisualizando, setCircuitoVisualizando] = useState<Circuito | null>(null)
 
@@ -63,9 +39,6 @@ function CircuitosPage() {
   const [circuitoParaExcluirPermanente, setCircuitoParaExcluirPermanente] =
     useState<Circuito | null>(null)
 
-  const [circuitoSelecionado, setCircuitoSelecionado] = useState<Circuito | null>(null)
-  const [modalAdicionarAberto, setModalAdicionarAberto] = useState(false)
-
   async function carregarCircuitos() {
     const [ativos, inativos] = await Promise.all([
       window.api.circuitos.listar(),
@@ -76,20 +49,8 @@ function CircuitosPage() {
     setCircuitosInativos(inativos)
   }
 
-  async function carregarComponentes() {
-    const lista = await window.api.componentes.listar()
-    setComponentes(lista)
-  }
-
-  async function carregarComponentesDoCircuito(circuitoId: number) {
-    const lista = await window.api.circuitoComponentes.listarPorCircuito(circuitoId)
-
-    setComponentesDoCircuito(lista)
-  }
-
   useEffect(() => {
     carregarCircuitos()
-    carregarComponentes()
   }, [])
 
   const circuitosFiltrados = useMemo(() => {
@@ -270,75 +231,11 @@ function CircuitosPage() {
     }
   }
 
-  async function abrirMontagem(circuito: Circuito) {
-    if (processando) return
-
-    limparMensagens()
-    setCircuitoSelecionado(circuito)
-    await carregarComponentesDoCircuito(circuito.id)
-  }
-
-  async function adicionarComponenteAoCircuito(componenteId: number, quantidade: number) {
-    if (!circuitoSelecionado || processando) return
-
-    setProcessando(true)
-
-    try {
-      await window.api.circuitoComponentes.adicionar(
-        circuitoSelecionado.id,
-        componenteId,
-        quantidade
-      )
-
-      setModalAdicionarAberto(false)
-      await carregarComponentesDoCircuito(circuitoSelecionado.id)
-      await carregarCircuitos()
-    } finally {
-      setProcessando(false)
-    }
-  }
-
-  async function editarQuantidadeDoComponente(id: number, quantidade: number) {
-    if (!circuitoSelecionado || processando) return
-
-    setProcessando(true)
-    limparMensagens()
-
-    try {
-      await window.api.circuitoComponentes.editarQuantidade(id, quantidade)
-      await carregarComponentesDoCircuito(circuitoSelecionado.id)
-      await carregarCircuitos()
-      setMensagemSucesso('Quantidade atualizada com sucesso.')
-    } catch (error) {
-      setMensagemErro(
-        error instanceof Error ? error.message : 'Erro ao atualizar a quantidade do componente.'
-      )
-    } finally {
-      setProcessando(false)
-    }
-  }
-
-  async function removerComponenteDoCircuito(id: number) {
-    if (!circuitoSelecionado || processando) return
-
-    setProcessando(true)
-
-    try {
-      await window.api.circuitoComponentes.remover(id)
-      await carregarComponentesDoCircuito(circuitoSelecionado.id)
-      await carregarCircuitos()
-    } finally {
-      setProcessando(false)
-    }
-  }
-
-  const podeSalvar = codigo.trim().length > 0 && nome.trim().length > 0 && !processando
-
   return (
     <main className={ui.page}>
       <PageHeader
         title="Cadastro de Circuitos"
-        subtitle="Cadastre circuitos e monte os componentes de cada circuito."
+        subtitle="Cadastre, edite e gerencie os circuitos disponíveis."
       />
 
       <section className={ui.section}>
@@ -397,17 +294,6 @@ function CircuitosPage() {
                         aria-label={`Ver informações do circuito ${circuito.codigo}`}
                       >
                         <Eye size={15} />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => abrirMontagem(circuito)}
-                        disabled={processando}
-                        className={ui.buttonSecondary}
-                        title="Montar Circuito"
-                      >
-                        <Boxes size={15} />
-                        Montar Circuito
                       </button>
 
                       <button
@@ -530,56 +416,17 @@ function CircuitosPage() {
         )}
 
         {modalAberto && (
-          <CrudModal
-            titulo={modalModo === 'novo' ? 'Novo Circuito' : 'Editar Circuito'}
-            subtitulo="Informe o código CTF e o nome do circuito."
+          <CircuitoFormModal
+            modo={modalModo}
+            codigo={codigo}
+            nome={nome}
             mensagemErro={mensagemErro}
             processando={processando}
+            onCodigoChange={setCodigo}
+            onNomeChange={setNome}
             onFechar={fecharModal}
-            footer={
-              <>
-                <button onClick={fecharModal} disabled={processando} className={ui.buttonSecondary}>
-                  Cancelar
-                </button>
-
-                <button
-                  onClick={salvarCircuito}
-                  disabled={!podeSalvar}
-                  className={ui.buttonPrimary}
-                >
-                  {processando
-                    ? 'Salvando...'
-                    : modalModo === 'novo'
-                      ? 'Salvar'
-                      : 'Salvar Alterações'}
-                </button>
-              </>
-            }
-          >
-            <div className="grid gap-3 md:grid-cols-[180px_1fr]">
-              <div>
-                <label className={ui.label}>Código CTF</label>
-                <input
-                  value={codigo}
-                  onChange={(event) => setCodigo(event.target.value.toUpperCase())}
-                  disabled={processando}
-                  placeholder="Ex: 41-0000-0000"
-                  className={ui.input}
-                />
-              </div>
-
-              <div>
-                <label className={ui.label}>Nome do Circuito</label>
-                <input
-                  value={nome}
-                  onChange={(event) => setNome(event.target.value)}
-                  disabled={processando}
-                  placeholder="Ex: Spin 2180"
-                  className={ui.input}
-                />
-              </div>
-            </div>
-          </CrudModal>
+            onSalvar={salvarCircuito}
+          />
         )}
 
         {circuitoParaInativar && (
@@ -635,30 +482,6 @@ function CircuitosPage() {
             perigo
             onCancelar={() => setCircuitoParaExcluirPermanente(null)}
             onConfirmar={confirmarExclusaoPermanente}
-          />
-        )}
-
-        {circuitoSelecionado && (
-          <CircuitoComponentesModal
-            circuito={circuitoSelecionado}
-            itens={componentesDoCircuito}
-            processando={processando}
-            onFechar={() => {
-              setCircuitoSelecionado(null)
-              setComponentesDoCircuito([])
-            }}
-            onAbrirAdicionar={() => setModalAdicionarAberto(true)}
-            onEditarQuantidade={editarQuantidadeDoComponente}
-            onRemover={removerComponenteDoCircuito}
-          />
-        )}
-
-        {modalAdicionarAberto && (
-          <AdicionarComponenteModal
-            componentes={componentes}
-            processando={processando}
-            onFechar={() => setModalAdicionarAberto(false)}
-            onAdicionar={adicionarComponenteAoCircuito}
           />
         )}
       </section>

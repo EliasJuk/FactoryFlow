@@ -82,10 +82,20 @@ export function runMigrations() {
 
     CREATE TABLE IF NOT EXISTS postos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT NOT NULL UNIQUE,
       nome TEXT NOT NULL,
       subsetor_id INTEGER NOT NULL,
       ativo INTEGER NOT NULL DEFAULT 1,
-      FOREIGN KEY (subsetor_id) REFERENCES subsetores(id)
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TEXT,
+      created_by INTEGER,
+      updated_by INTEGER,
+      deleted_by INTEGER,
+      FOREIGN KEY (subsetor_id) REFERENCES subsetores(id),
+      FOREIGN KEY (created_by) REFERENCES usuarios(id),
+      FOREIGN KEY (updated_by) REFERENCES usuarios(id),
+      FOREIGN KEY (deleted_by) REFERENCES usuarios(id)
     );
 
     CREATE TABLE IF NOT EXISTS circuito_posto_componentes (
@@ -327,6 +337,76 @@ export function runMigrations() {
 
   db.exec(`
     UPDATE subsetores
+    SET
+      created_at = COALESCE(created_at, datetime('now','localtime')),
+      updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')),
+      created_by = COALESCE(created_by, 1),
+      updated_by = COALESCE(updated_by, created_by, 1)
+  `)
+
+  if (!columnExists('postos', 'uuid')) {
+    db.exec(`
+      ALTER TABLE postos
+      ADD COLUMN uuid TEXT;
+    `)
+  }
+
+  const postosSemUuid = db
+    .prepare(
+      `
+      SELECT id
+      FROM postos
+      WHERE uuid IS NULL
+         OR TRIM(uuid) = ''
+    `
+    )
+    .all() as Array<{ id: number }>
+
+  const atualizarUuidPosto = db.prepare(`
+    UPDATE postos
+    SET uuid = ?
+    WHERE id = ?
+  `)
+
+  const preencherUuidsPostos = db.transaction((postos: Array<{ id: number }>) => {
+    for (const posto of postos) {
+      atualizarUuidPosto.run(IdGenerator.generate(), posto.id)
+    }
+  })
+
+  preencherUuidsPostos(postosSemUuid)
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_postos_uuid
+    ON postos(uuid);
+  `)
+
+  if (!columnExists('postos', 'created_at')) {
+    db.exec(`ALTER TABLE postos ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP;`)
+  }
+
+  if (!columnExists('postos', 'updated_at')) {
+    db.exec(`ALTER TABLE postos ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP;`)
+  }
+
+  if (!columnExists('postos', 'deleted_at')) {
+    db.exec(`ALTER TABLE postos ADD COLUMN deleted_at TEXT;`)
+  }
+
+  if (!columnExists('postos', 'created_by')) {
+    db.exec(`ALTER TABLE postos ADD COLUMN created_by INTEGER;`)
+  }
+
+  if (!columnExists('postos', 'updated_by')) {
+    db.exec(`ALTER TABLE postos ADD COLUMN updated_by INTEGER;`)
+  }
+
+  if (!columnExists('postos', 'deleted_by')) {
+    db.exec(`ALTER TABLE postos ADD COLUMN deleted_by INTEGER;`)
+  }
+
+  db.exec(`
+    UPDATE postos
     SET
       created_at = COALESCE(created_at, datetime('now','localtime')),
       updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')),

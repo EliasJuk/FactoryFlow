@@ -3,6 +3,7 @@ import { Plus, RotateCcw } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
 import { SearchBar } from '../../components/Crud/SearchBar/SearchBar'
+import { Pagination } from '../../components/Pagination/Pagination'
 import type { Circuito } from '../../models/Circuito'
 import type { CircuitoComponente } from '../../models/CircuitoComponente'
 import type { Posto } from '../../models/Posto'
@@ -16,6 +17,8 @@ import { AdicionarComponenteModal } from './components/AdicionarComponenteModal'
 import { ComposicaoCircuitoCard } from './components/ComposicaoCircuitoCard'
 
 type FiltroComponentes = 'todos' | 'com' | 'sem'
+
+const ITENS_POR_PAGINA = 10
 
 function ComposicaoCircuitosPage() {
   const [circuitos, setCircuitos] = useState<Circuito[]>([])
@@ -37,6 +40,7 @@ function ComposicaoCircuitosPage() {
   const [subsetorId, setSubsetorId] = useState<number | ''>('')
   const [postoId, setPostoId] = useState<number | ''>('')
   const [filtroComponentes, setFiltroComponentes] = useState<FiltroComponentes>('todos')
+  const [paginaAtual, setPaginaAtual] = useState(1)
 
   const [modalCircuitoAberto, setModalCircuitoAberto] = useState(false)
   const [modalAdicionarAberto, setModalAdicionarAberto] = useState(false)
@@ -131,6 +135,25 @@ function ComposicaoCircuitosPage() {
       return correspondeBusca && correspondeComponentes && correspondeEstrutura
     })
   }, [busca, circuitos, filtroComponentes, postoId, postosFiltrados, roteiros, setorId, subsetorId])
+
+  const totalPaginas = Math.max(1, Math.ceil(circuitosFiltrados.length / ITENS_POR_PAGINA))
+
+  const circuitosPaginados = useMemo(() => {
+    const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA
+
+    return circuitosFiltrados.slice(inicio, inicio + ITENS_POR_PAGINA)
+  }, [circuitosFiltrados, paginaAtual])
+
+  useEffect(() => {
+    setPaginaAtual(1)
+    setCircuitoAbertoId(null)
+  }, [busca, setorId, subsetorId, postoId, filtroComponentes])
+
+  useEffect(() => {
+    if (paginaAtual > totalPaginas) {
+      setPaginaAtual(totalPaginas)
+    }
+  }, [paginaAtual, totalPaginas])
 
   async function abrirCircuito(circuito: Circuito) {
     if (circuitoAbertoId === circuito.id) {
@@ -288,6 +311,11 @@ function ComposicaoCircuitosPage() {
             </button>
           </div>
 
+          <p className="mt-3 text-xs text-slate-500">
+            Exibindo {circuitosFiltrados.length} circuito(s). Limite de {ITENS_POR_PAGINA} por
+            página.
+          </p>
+
           <div className="mt-4 grid gap-3 md:grid-cols-4">
             <div>
               <label className={ui.label}>Setor</label>
@@ -378,7 +406,7 @@ function ComposicaoCircuitosPage() {
         </div>
 
         <div className="space-y-3">
-          {circuitosFiltrados.map((circuito) => (
+          {circuitosPaginados.map((circuito) => (
             <ComposicaoCircuitoCard
               key={circuito.uuid}
               circuito={circuito}
@@ -402,6 +430,15 @@ function ComposicaoCircuitosPage() {
             </div>
           )}
         </div>
+
+        {circuitosFiltrados.length > 0 && (
+          <Pagination
+            paginaAtual={paginaAtual}
+            totalPaginas={totalPaginas}
+            onPaginaAnterior={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
+            onProximaPagina={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
+          />
+        )}
 
         {modalCircuitoAberto && (
           <CircuitoFormModal

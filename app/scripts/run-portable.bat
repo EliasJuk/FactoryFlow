@@ -50,6 +50,69 @@ if not exist "node_modules" (
   )
 )
 
+echo Limpando builds anteriores...
+echo.
+
+if exist "out" (
+  rmdir /s /q "out"
+)
+
+if exist "dist" (
+  rmdir /s /q "dist"
+)
+
+if exist "dist-installer" (
+  rmdir /s /q "dist-installer"
+)
+
+echo Executando typecheck e gerando o build da aplicacao...
+echo.
+
+call npm run build
+set "BUILD_EXIT_CODE=%ERRORLEVEL%"
+
+if not "%BUILD_EXIT_CODE%"=="0" (
+  color 0C
+  echo.
+  echo ERRO: nao foi possivel gerar o build da aplicacao.
+  echo Codigo: %BUILD_EXIT_CODE%
+  echo.
+  pause
+  exit /b %BUILD_EXIT_CODE%
+)
+
+if not exist "out\main\index.js" (
+  color 0C
+  echo.
+  echo ERRO: o processo principal nao foi gerado:
+  echo %CD%\out\main\index.js
+  echo.
+  pause
+  exit /b 1
+)
+
+if not exist "out\preload\index.js" (
+  color 0C
+  echo.
+  echo ERRO: o preload nao foi gerado:
+  echo %CD%\out\preload\index.js
+  echo.
+  pause
+  exit /b 1
+)
+
+if not exist "out\renderer\index.html" (
+  color 0C
+  echo.
+  echo ERRO: o renderer nao foi gerado:
+  echo %CD%\out\renderer\index.html
+  echo.
+  pause
+  exit /b 1
+)
+
+echo.
+echo Build concluido.
 echo Gerando executavel portable...
 echo.
 

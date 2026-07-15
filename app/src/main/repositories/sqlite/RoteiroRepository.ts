@@ -1,9 +1,12 @@
-//import db from "../database/database"
-import { getDatabase } from "../../database/connection"
+import { getDatabase } from '../../database/connection'
+import { IdGenerator } from '../../shared/ids/IdGenerator'
+
 const db = getDatabase()
+const USUARIO_SISTEMA_ID = 1
 
 export interface RoteiroComponente {
   id: number
+  uuid: string
   circuitoId: number
   postoId: number
   componenteId: number
@@ -11,6 +14,15 @@ export interface RoteiroComponente {
   nomeComponente: string
   quantidade: number
   ativo: boolean
+  createdAt: string | null
+  updatedAt: string | null
+  deletedAt: string | null
+  createdBy: number | null
+  updatedBy: number | null
+  deletedBy: number | null
+  createdByNome: string | null
+  updatedByNome: string | null
+  deletedByNome: string | null
 }
 
 export interface CircuitoPorPosto {
@@ -23,23 +35,58 @@ export interface CircuitoPorPosto {
   totalComponentes: number
 }
 
-type RoteiroComponenteRow = Omit<RoteiroComponente, "ativo"> & {
+type RoteiroComponenteRow = Omit<RoteiroComponente, 'ativo'> & {
   ativo: number
 }
 
 export class RoteiroRepository {
-  listarCircuitosPorPosto(postoId: number, busca = ""): CircuitoPorPosto[] {
+  private consultaItensBase(): string {
+    return `
+      SELECT
+        cpc.id,
+        cpc.uuid,
+        cpc.circuito_id AS circuitoId,
+        cpc.posto_id AS postoId,
+        cpc.componente_id AS componenteId,
+        comp.codigo AS codigoComponente,
+        comp.nome AS nomeComponente,
+        cpc.quantidade,
+        cpc.ativo,
+        cpc.created_at AS createdAt,
+        cpc.updated_at AS updatedAt,
+        cpc.deleted_at AS deletedAt,
+        cpc.created_by AS createdBy,
+        cpc.updated_by AS updatedBy,
+        cpc.deleted_by AS deletedBy,
+        criado.nome AS createdByNome,
+        atualizado.nome AS updatedByNome,
+        removido.nome AS deletedByNome
+      FROM circuito_posto_componentes cpc
+      INNER JOIN componentes comp ON comp.id = cpc.componente_id
+      LEFT JOIN usuarios criado ON criado.id = cpc.created_by
+      LEFT JOIN usuarios atualizado ON atualizado.id = cpc.updated_by
+      LEFT JOIN usuarios removido ON removido.id = cpc.deleted_by
+    `
+  }
+
+  private mapear(item: RoteiroComponenteRow): RoteiroComponente {
+    return { ...item, ativo: Boolean(item.ativo) }
+  }
+
+  listarCircuitosPorPosto(postoId: number, busca = ''): CircuitoPorPosto[] {
     const termo = `%${busca}%`
 
-    return db.prepare(`
+    return db
+      .prepare(
+        `
       SELECT
-        c.id as circuitoId,
-        c.codigo as codigoCircuito,
-        c.nome as nomeCircuito,
-        p.id as postoId,
-        p.nome as postoNome,
-        sub.nome as subsetorNome,
-        COUNT(cpc.id) as totalComponentes
+        c.id AS circuitoId,
+        c.codigo AS codigoCircuito,
+        c.nome AS nomeCircuito,
+        p.id AS postoId,
+        p.nome AS postoNome,
+        sub.nome AS subsetorNome,
+        COUNT(cpc.id) AS totalComponentes
       FROM circuito_posto_componentes cpc
       INNER JOIN circuitos c ON c.id = cpc.circuito_id
       INNER JOIN postos p ON p.id = cpc.posto_id
@@ -53,109 +100,144 @@ export class RoteiroRepository {
         )
       GROUP BY c.id, c.codigo, c.nome, p.id, p.nome, sub.nome
       ORDER BY c.codigo
-    `).all(postoId, busca, termo, termo) as CircuitoPorPosto[]
+    `
+      )
+      .all(postoId, busca, termo, termo) as CircuitoPorPosto[]
   }
 
-  listarPorCircuitoEPosto(
-    circuitoId: number,
-    postoId: number
-  ): RoteiroComponente[] {
-    const itens = db.prepare(`
-      SELECT
-        cpc.id,
-        cpc.circuito_id as circuitoId,
-        cpc.posto_id as postoId,
-        cpc.componente_id as componenteId,
-        comp.codigo as codigoComponente,
-        comp.nome as nomeComponente,
-        cpc.quantidade,
-        cpc.ativo
-      FROM circuito_posto_componentes cpc
-      INNER JOIN componentes comp ON comp.id = cpc.componente_id
+  listarPorCircuitoEPosto(circuitoId: number, postoId: number): RoteiroComponente[] {
+    const itens = db
+      .prepare(
+        `
+      ${this.consultaItensBase()}
       WHERE cpc.circuito_id = ?
         AND cpc.posto_id = ?
         AND cpc.ativo = 1
       ORDER BY comp.codigo
-    `).all(circuitoId, postoId) as RoteiroComponenteRow[]
+    `
+      )
+      .all(circuitoId, postoId) as RoteiroComponenteRow[]
 
-    return itens.map((item) => ({
-      ...item,
-      ativo: Boolean(item.ativo)
-    }))
+    return itens.map((item) => this.mapear(item))
   }
 
   adicionar(
     circuitoId: number,
     postoId: number,
     componenteId: number,
-    quantidade: number
+    quantidade: number,
+    usuarioId: number = USUARIO_SISTEMA_ID
   ): void {
-    const existente = db.prepare(`
+    if (!Number.isInteger(quantidade) || quantidade <= 0) {
+      throw new Error('QUANTIDADE_INVALIDA')
+    }
+
+    const existente = db
+      .prepare(
+        `
       SELECT id
       FROM circuito_posto_componentes
       WHERE circuito_id = ?
         AND posto_id = ?
         AND componente_id = ?
-    `).get(circuitoId, postoId, componenteId) as { id: number } | undefined
+    `
+      )
+      .get(circuitoId, postoId, componenteId) as { id: number } | undefined
 
     if (existente) {
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE circuito_posto_componentes
-        SET quantidade = ?, ativo = 1
+        SET
+          quantidade = ?,
+          ativo = 1,
+          updated_at = datetime('now','localtime'),
+          updated_by = ?,
+          deleted_at = NULL,
+          deleted_by = NULL
         WHERE id = ?
-      `).run(quantidade, existente.id)
+      `
+      ).run(quantidade, usuarioId, existente.id)
 
       return
     }
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO circuito_posto_componentes (
+        uuid,
         circuito_id,
         posto_id,
         componente_id,
         quantidade,
-        ativo
-      ) VALUES (?, ?, ?, ?, 1)
-    `).run(circuitoId, postoId, componenteId, quantidade)
+        ativo,
+        created_at,
+        updated_at,
+        created_by,
+        updated_by
+      )
+      VALUES (
+        ?, ?, ?, ?, ?, 1,
+        datetime('now','localtime'),
+        datetime('now','localtime'),
+        ?, ?
+      )
+    `
+    ).run(
+      IdGenerator.generate(),
+      circuitoId,
+      postoId,
+      componenteId,
+      quantidade,
+      usuarioId,
+      usuarioId
+    )
   }
 
-  editarQuantidade(id: number, quantidade: number): void {
-    db.prepare(`
+  editarQuantidade(id: number, quantidade: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+    if (!Number.isInteger(quantidade) || quantidade <= 0) {
+      throw new Error('QUANTIDADE_INVALIDA')
+    }
+
+    db.prepare(
+      `
       UPDATE circuito_posto_componentes
-      SET quantidade = ?
+      SET
+        quantidade = ?,
+        updated_at = datetime('now','localtime'),
+        updated_by = ?
       WHERE id = ?
         AND ativo = 1
-    `).run(quantidade, id)
+    `
+    ).run(quantidade, usuarioId, id)
   }
 
-  remover(id: number): void {
-    db.prepare(`
+  remover(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+    db.prepare(
+      `
       UPDATE circuito_posto_componentes
-      SET ativo = 0
+      SET
+        ativo = 0,
+        updated_at = datetime('now','localtime'),
+        updated_by = ?,
+        deleted_at = datetime('now','localtime'),
+        deleted_by = ?
       WHERE id = ?
-    `).run(id)
+    `
+    ).run(usuarioId, usuarioId, id)
   }
 
   listarTodos(): RoteiroComponente[] {
-    const itens = db.prepare(`
-      SELECT
-        cpc.id,
-        cpc.circuito_id as circuitoId,
-        cpc.posto_id as postoId,
-        cpc.componente_id as componenteId,
-        comp.codigo as codigoComponente,
-        comp.nome as nomeComponente,
-        cpc.quantidade,
-        cpc.ativo
-      FROM circuito_posto_componentes cpc
-      INNER JOIN componentes comp ON comp.id = cpc.componente_id
+    const itens = db
+      .prepare(
+        `
+      ${this.consultaItensBase()}
       WHERE cpc.ativo = 1
       ORDER BY comp.codigo
-    `).all() as RoteiroComponenteRow[]
+    `
+      )
+      .all() as RoteiroComponenteRow[]
 
-    return itens.map((item) => ({
-      ...item,
-      ativo: Boolean(item.ativo)
-    }))
+    return itens.map((item) => this.mapear(item))
   }
 }

@@ -73,6 +73,23 @@ export function runMigrations() {
       FOREIGN KEY (deleted_by) REFERENCES usuarios(id)
     );
 
+    CREATE TABLE IF NOT EXISTS componentes_precos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      componente_id INTEGER NOT NULL,
+      valor_unitario REAL NOT NULL DEFAULT 0,
+      vigencia_inicio TEXT NOT NULL DEFAULT (date('now','localtime')),
+      vigencia_fim TEXT,
+      ativo INTEGER NOT NULL DEFAULT 1,
+      criado_em TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+      FOREIGN KEY (componente_id) REFERENCES componentes(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_componentes_precos_componente
+    ON componentes_precos (componente_id);
+
+    CREATE INDEX IF NOT EXISTS idx_componentes_precos_ativo
+    ON componentes_precos (ativo);
+
     CREATE TABLE IF NOT EXISTS circuitos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       uuid TEXT NOT NULL UNIQUE,
@@ -202,6 +219,13 @@ export function runMigrations() {
       componente_id INTEGER NOT NULL,
       defeito_id INTEGER NOT NULL,
       quantidade INTEGER NOT NULL,
+
+      codigo_componente_snapshot TEXT,
+      nome_componente_snapshot TEXT,
+      codigo_defeito_snapshot TEXT,
+      descricao_defeito_snapshot TEXT,
+      preco_unitario_snapshot REAL NOT NULL DEFAULT 0,
+      custo_total_snapshot REAL NOT NULL DEFAULT 0,
 
       FOREIGN KEY (refugo_id) REFERENCES refugos(id),
       FOREIGN KEY (componente_id) REFERENCES componentes(id),
@@ -917,6 +941,30 @@ export function runMigrations() {
         ELSE NULL
       END
   `)
+
+  if (!columnExists('refugo_itens', 'codigo_componente_snapshot')) {
+    db.exec(`ALTER TABLE refugo_itens ADD COLUMN codigo_componente_snapshot TEXT;`)
+  }
+
+  if (!columnExists('refugo_itens', 'nome_componente_snapshot')) {
+    db.exec(`ALTER TABLE refugo_itens ADD COLUMN nome_componente_snapshot TEXT;`)
+  }
+
+  if (!columnExists('refugo_itens', 'codigo_defeito_snapshot')) {
+    db.exec(`ALTER TABLE refugo_itens ADD COLUMN codigo_defeito_snapshot TEXT;`)
+  }
+
+  if (!columnExists('refugo_itens', 'descricao_defeito_snapshot')) {
+    db.exec(`ALTER TABLE refugo_itens ADD COLUMN descricao_defeito_snapshot TEXT;`)
+  }
+
+  if (!columnExists('refugo_itens', 'preco_unitario_snapshot')) {
+    db.exec(`ALTER TABLE refugo_itens ADD COLUMN preco_unitario_snapshot REAL NOT NULL DEFAULT 0;`)
+  }
+
+  if (!columnExists('refugo_itens', 'custo_total_snapshot')) {
+    db.exec(`ALTER TABLE refugo_itens ADD COLUMN custo_total_snapshot REAL NOT NULL DEFAULT 0;`)
+  }
 
   if (!columnExists('refugos', 'status')) {
     db.exec(`

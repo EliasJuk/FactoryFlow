@@ -1,41 +1,22 @@
-import { useEffect, useMemo, useState } from "react"
-import {
-  Pencil,
-  RotateCcw,
-  Trash2,
-} from "lucide-react"
+import { useEffect, useMemo, useState } from 'react'
+import { Eye, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
-import PageHeader from "../../components/PageHeader/PageHeader"
-import { ui } from "../../theme/ui"
+import PageHeader from '../../components/PageHeader/PageHeader'
+import type { Posto } from '../../models/Posto'
+import type { Subsetor } from '../../models/Subsetor'
+import { ui } from '../../theme/ui'
 
-import { Pagination } from "../../components/Pagination/Pagination"
-import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog"
+import { Pagination } from '../../components/Pagination/Pagination'
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog'
 //import { Pagination } from "../../components/Crud/Pagination/Pagination"
 //import { ConfirmDialog } from "../../components/Crud/ConfirmDialog/ConfirmDialog"
-import { CrudHeader } from "../../components/Crud/CrudHeader/CrudHeader"
-import { SearchBar } from "../../components/Crud/SearchBar/SearchBar"
-import { CrudModal } from "../../components/Crud/CrudModal/CrudModal"
-import { InativosCard } from "../../components/Crud/InativosCard/InativosCard"
+import { CrudHeader } from '../../components/Crud/CrudHeader/CrudHeader'
+import { SearchBar } from '../../components/Crud/SearchBar/SearchBar'
+import { CrudModal } from '../../components/Crud/CrudModal/CrudModal'
+import { InativosCard } from '../../components/Crud/InativosCard/InativosCard'
+import { PostoInfoModal } from './components/PostoInfoModal'
 
-
-type ModalModo = "novo" | "editar"
-
-type Subsetor = {
-  id: number
-  nome: string
-  setorId: number
-  setorNome: string
-  ativo: boolean
-}
-
-type Posto = {
-  id: number
-  nome: string
-  subsetorId: number
-  subsetorNome: string
-  setorNome: string
-  ativo: boolean
-}
+type ModalModo = 'novo' | 'editar'
 
 const ITENS_POR_PAGINA = 10
 
@@ -44,24 +25,24 @@ function PostosPage() {
   const [postos, setPostos] = useState<Posto[]>([])
   const [postosInativos, setPostosInativos] = useState<Posto[]>([])
 
-  const [busca, setBusca] = useState("")
+  const [busca, setBusca] = useState('')
   const [paginaAtual, setPaginaAtual] = useState(1)
   const [mostrarInativos, setMostrarInativos] = useState(false)
 
   const [modalAberto, setModalAberto] = useState(false)
-  const [modalModo, setModalModo] = useState<ModalModo>("novo")
+  const [modalModo, setModalModo] = useState<ModalModo>('novo')
   const [postoEditando, setPostoEditando] = useState<Posto | null>(null)
+  const [postoVisualizando, setPostoVisualizando] = useState<Posto | null>(null)
 
-  const [nome, setNome] = useState("")
-  const [subsetorId, setSubsetorId] = useState<number | "">("")
-  const [mensagemErro, setMensagemErro] = useState("")
-  const [mensagemSucesso, setMensagemSucesso] = useState("")
+  const [nome, setNome] = useState('')
+  const [subsetorId, setSubsetorId] = useState<number | ''>('')
+  const [mensagemErro, setMensagemErro] = useState('')
+  const [mensagemSucesso, setMensagemSucesso] = useState('')
   const [processando, setProcessando] = useState(false)
 
   const [postoParaInativar, setPostoParaInativar] = useState<Posto | null>(null)
   const [postoParaRestaurar, setPostoParaRestaurar] = useState<Posto | null>(null)
-  const [postoParaExcluirPermanente, setPostoParaExcluirPermanente] =
-    useState<Posto | null>(null)
+  const [postoParaExcluirPermanente, setPostoParaExcluirPermanente] = useState<Posto | null>(null)
 
   const [postoBloqueado, setPostoBloqueado] = useState<{
     posto: Posto
@@ -98,10 +79,7 @@ function PostosPage() {
     })
   }, [busca, postos])
 
-  const totalPaginas = Math.max(
-    1,
-    Math.ceil(postosFiltrados.length / ITENS_POR_PAGINA)
-  )
+  const totalPaginas = Math.max(1, Math.ceil(postosFiltrados.length / ITENS_POR_PAGINA))
 
   const postosPaginados = useMemo(() => {
     const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA
@@ -119,18 +97,18 @@ function PostosPage() {
   }, [paginaAtual, totalPaginas])
 
   function limparMensagens() {
-    setMensagemErro("")
-    setMensagemSucesso("")
+    setMensagemErro('')
+    setMensagemSucesso('')
   }
 
   function abrirNovoPosto() {
     if (processando) return
 
     limparMensagens()
-    setModalModo("novo")
+    setModalModo('novo')
     setPostoEditando(null)
-    setNome("")
-    setSubsetorId(subsetores[0]?.id ?? "")
+    setNome('')
+    setSubsetorId(subsetores[0]?.id ?? '')
     setModalAberto(true)
   }
 
@@ -138,7 +116,7 @@ function PostosPage() {
     if (processando) return
 
     limparMensagens()
-    setModalModo("editar")
+    setModalModo('editar')
     setPostoEditando(posto)
     setNome(posto.nome)
     setSubsetorId(posto.subsetorId)
@@ -150,25 +128,25 @@ function PostosPage() {
 
     setModalAberto(false)
     setPostoEditando(null)
-    setNome("")
-    setSubsetorId("")
-    setMensagemErro("")
+    setNome('')
+    setSubsetorId('')
+    setMensagemErro('')
   }
 
   async function salvarPosto() {
     if (processando) return
 
-    setMensagemErro("")
+    setMensagemErro('')
 
-    if (!nome.trim() || subsetorId === "") {
-      setMensagemErro("Informe o subsetor e o nome do posto de trabalho.")
+    if (!nome.trim() || subsetorId === '') {
+      setMensagemErro('Informe o subsetor e o nome do posto de trabalho.')
       return
     }
 
     setProcessando(true)
 
     try {
-      if (modalModo === "editar" && postoEditando) {
+      if (modalModo === 'editar' && postoEditando) {
         const resultado = await window.api.postos.editar(
           postoEditando.id,
           nome.trim(),
@@ -180,19 +158,16 @@ function PostosPage() {
           return
         }
 
-        setMensagemSucesso("Posto atualizado com sucesso.")
+        setMensagemSucesso('Posto atualizado com sucesso.')
       } else {
-        const resultado = await window.api.postos.criar(
-          nome.trim(),
-          Number(subsetorId)
-        )
+        const resultado = await window.api.postos.criar(nome.trim(), Number(subsetorId))
 
         if (!resultado.sucesso) {
           setMensagemErro(resultado.mensagem)
           return
         }
 
-        setMensagemSucesso("Posto cadastrado com sucesso.")
+        setMensagemSucesso('Posto cadastrado com sucesso.')
       }
 
       fecharModal()
@@ -235,7 +210,7 @@ function PostosPage() {
       }
 
       setPostoParaInativar(null)
-      setMensagemSucesso("Posto inativado com sucesso.")
+      setMensagemSucesso('Posto inativado com sucesso.')
       await carregarDados()
     } finally {
       setProcessando(false)
@@ -257,7 +232,7 @@ function PostosPage() {
       }
 
       setPostoParaRestaurar(null)
-      setMensagemSucesso("Posto restaurado com sucesso.")
+      setMensagemSucesso('Posto restaurado com sucesso.')
       await carregarDados()
     } finally {
       setProcessando(false)
@@ -271,9 +246,7 @@ function PostosPage() {
     limparMensagens()
 
     try {
-      const resultado = await window.api.postos.excluirPermanente(
-        postoParaExcluirPermanente.id
-      )
+      const resultado = await window.api.postos.excluirPermanente(postoParaExcluirPermanente.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -281,14 +254,14 @@ function PostosPage() {
       }
 
       setPostoParaExcluirPermanente(null)
-      setMensagemSucesso("Posto excluído permanentemente.")
+      setMensagemSucesso('Posto excluído permanentemente.')
       await carregarDados()
     } finally {
       setProcessando(false)
     }
   }
 
-  const podeSalvar = nome.trim().length > 0 && subsetorId !== ""
+  const podeSalvar = nome.trim().length > 0 && subsetorId !== ''
 
   return (
     <main className={ui.page}>
@@ -337,10 +310,7 @@ function PostosPage() {
 
             <tbody>
               {postosPaginados.map((posto) => (
-                <tr
-                  key={posto.id}
-                  className="border-t border-[var(--border)]"
-                >
+                <tr key={posto.uuid} className="border-t border-[var(--border)]">
                   <td className={ui.tableCell}>{posto.setorNome}</td>
                   <td className={ui.tableCell}>{posto.subsetorNome}</td>
                   <td className={ui.tableCellStrong}>{posto.nome}</td>
@@ -348,6 +318,18 @@ function PostosPage() {
                   <td className={ui.tableCell}>
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
+                        onClick={() => setPostoVisualizando(posto)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Informações"
+                        aria-label={`Ver informações do posto ${posto.nome}`}
+                      >
+                        <Eye size={15} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => abrirEditarPosto(posto)}
                         disabled={processando}
                         className={ui.buttonSecondary}
@@ -383,12 +365,8 @@ function PostosPage() {
         <Pagination
           paginaAtual={paginaAtual}
           totalPaginas={totalPaginas}
-          onPaginaAnterior={() =>
-            setPaginaAtual((pagina) => Math.max(1, pagina - 1))
-          }
-          onProximaPagina={() =>
-            setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))
-          }
+          onPaginaAnterior={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
+          onProximaPagina={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
         />
 
         <InativosCard
@@ -409,10 +387,7 @@ function PostosPage() {
 
             <tbody>
               {postosInativos.map((posto) => (
-                <tr
-                  key={posto.id}
-                  className="border-t border-[var(--border)] bg-slate-50"
-                >
+                <tr key={posto.uuid} className="border-t border-[var(--border)] bg-slate-50">
                   <td className={ui.tableCell}>{posto.setorNome}</td>
                   <td className={ui.tableCell}>{posto.subsetorNome}</td>
                   <td className={ui.tableCellStrong}>{posto.nome}</td>
@@ -420,6 +395,18 @@ function PostosPage() {
                   <td className={ui.tableCell}>
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
+                        onClick={() => setPostoVisualizando(posto)}
+                        disabled={processando}
+                        className={ui.buttonSecondary}
+                        title="Informações"
+                        aria-label={`Ver informações do posto ${posto.nome}`}
+                      >
+                        <Eye size={15} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => setPostoParaRestaurar(posto)}
                         disabled={processando}
                         className={ui.buttonSecondary}
@@ -454,20 +441,20 @@ function PostosPage() {
           </table>
         </InativosCard>
 
+        {postoVisualizando && (
+          <PostoInfoModal posto={postoVisualizando} onFechar={() => setPostoVisualizando(null)} />
+        )}
+
         {modalAberto && (
           <CrudModal
-            titulo={modalModo === "novo" ? "Novo Posto" : "Editar Posto"}
+            titulo={modalModo === 'novo' ? 'Novo Posto' : 'Editar Posto'}
             subtitulo="Informe o subsetor e o nome do posto de trabalho."
             mensagemErro={mensagemErro}
             processando={processando}
             onFechar={fecharModal}
             footer={
               <>
-                <button
-                  onClick={fecharModal}
-                  disabled={processando}
-                  className={ui.buttonSecondary}
-                >
+                <button onClick={fecharModal} disabled={processando} className={ui.buttonSecondary}>
                   Cancelar
                 </button>
 
@@ -477,10 +464,10 @@ function PostosPage() {
                   className={ui.buttonPrimary}
                 >
                   {processando
-                    ? "Salvando..."
-                    : modalModo === "novo"
-                      ? "Salvar"
-                      : "Salvar Alterações"}
+                    ? 'Salvando...'
+                    : modalModo === 'novo'
+                      ? 'Salvar'
+                      : 'Salvar Alterações'}
                 </button>
               </>
             }
@@ -491,9 +478,7 @@ function PostosPage() {
                 <select
                   value={subsetorId}
                   onChange={(event) =>
-                    setSubsetorId(
-                      event.target.value === "" ? "" : Number(event.target.value)
-                    )
+                    setSubsetorId(event.target.value === '' ? '' : Number(event.target.value))
                   }
                   disabled={processando}
                   className={ui.select}
@@ -501,7 +486,7 @@ function PostosPage() {
                   <option value="">Selecione...</option>
 
                   {subsetores.map((subsetor) => (
-                    <option key={subsetor.id} value={subsetor.id}>
+                    <option key={subsetor.uuid} value={subsetor.id}>
                       {subsetor.setorNome} - {subsetor.nome}
                     </option>
                   ))}
@@ -527,8 +512,8 @@ function PostosPage() {
             titulo="Inativar posto"
             descricao={
               <>
-                O posto <strong>{postoParaInativar.nome}</strong> ficará inativo
-                e não aparecerá nas listas principais.
+                O posto <strong>{postoParaInativar.nome}</strong> ficará inativo e não aparecerá nas
+                listas principais.
               </>
             }
             textoConfirmar="Confirmar inativação"
@@ -543,8 +528,8 @@ function PostosPage() {
             titulo="Restaurar posto"
             descricao={
               <>
-                O posto <strong>{postoParaRestaurar.nome}</strong> voltará a
-                aparecer nas listas principais.
+                O posto <strong>{postoParaRestaurar.nome}</strong> voltará a aparecer nas listas
+                principais.
               </>
             }
             textoConfirmar="Restaurar"
@@ -558,8 +543,8 @@ function PostosPage() {
             titulo="Excluir permanentemente"
             descricao={
               <>
-                O posto <strong>{postoParaExcluirPermanente.nome}</strong> será
-                removido definitivamente. Esta ação não poderá ser desfeita.
+                O posto <strong>{postoParaExcluirPermanente.nome}</strong> será removido
+                definitivamente. Esta ação não poderá ser desfeita.
               </>
             }
             textoConfirmar="Excluir permanentemente"
@@ -572,15 +557,12 @@ function PostosPage() {
         {postoBloqueado && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl">
-              <h2 className="text-lg font-bold text-amber-800">
-                Posto possui vínculos
-              </h2>
+              <h2 className="text-lg font-bold text-amber-800">Posto possui vínculos</h2>
 
               <p className="mt-3 text-sm leading-6 text-slate-700">
-                Não é possível inativar o posto{" "}
-                <strong>{postoBloqueado.posto.nome}</strong>, pois existem{" "}
-                <strong>{postoBloqueado.totalRoteiros}</strong> roteiro(s)
-                vinculado(s) a ele.
+                Não é possível inativar o posto <strong>{postoBloqueado.posto.nome}</strong>, pois
+                existem <strong>{postoBloqueado.totalRoteiros}</strong> roteiro(s) vinculado(s) a
+                ele.
               </p>
 
               <p className="mt-3 text-sm leading-6 text-slate-700">

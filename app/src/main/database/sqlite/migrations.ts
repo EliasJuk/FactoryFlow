@@ -75,9 +75,19 @@ export function runMigrations() {
 
     CREATE TABLE IF NOT EXISTS circuitos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT NOT NULL UNIQUE,
       codigo TEXT NOT NULL,
       nome TEXT NOT NULL,
-      ativo INTEGER NOT NULL DEFAULT 1
+      ativo INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TEXT,
+      created_by INTEGER,
+      updated_by INTEGER,
+      deleted_by INTEGER,
+      FOREIGN KEY (created_by) REFERENCES usuarios(id),
+      FOREIGN KEY (updated_by) REFERENCES usuarios(id),
+      FOREIGN KEY (deleted_by) REFERENCES usuarios(id)
     );
 
     CREATE TABLE IF NOT EXISTS circuito_componentes (
@@ -603,6 +613,76 @@ export function runMigrations() {
 
   db.exec(`
     UPDATE defeitos
+    SET
+      created_at = COALESCE(created_at, datetime('now','localtime')),
+      updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')),
+      created_by = COALESCE(created_by, 1),
+      updated_by = COALESCE(updated_by, created_by, 1)
+  `)
+
+  if (!columnExists('circuitos', 'uuid')) {
+    db.exec(`
+      ALTER TABLE circuitos
+      ADD COLUMN uuid TEXT;
+    `)
+  }
+
+  const circuitosSemUuid = db
+    .prepare(
+      `
+      SELECT id
+      FROM circuitos
+      WHERE uuid IS NULL
+         OR TRIM(uuid) = ''
+    `
+    )
+    .all() as Array<{ id: number }>
+
+  const atualizarUuidCircuito = db.prepare(`
+    UPDATE circuitos
+    SET uuid = ?
+    WHERE id = ?
+  `)
+
+  const preencherUuidsCircuitos = db.transaction((circuitos: Array<{ id: number }>) => {
+    for (const circuito of circuitos) {
+      atualizarUuidCircuito.run(IdGenerator.generate(), circuito.id)
+    }
+  })
+
+  preencherUuidsCircuitos(circuitosSemUuid)
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_circuitos_uuid
+    ON circuitos(uuid);
+  `)
+
+  if (!columnExists('circuitos', 'created_at')) {
+    db.exec(`ALTER TABLE circuitos ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP;`)
+  }
+
+  if (!columnExists('circuitos', 'updated_at')) {
+    db.exec(`ALTER TABLE circuitos ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP;`)
+  }
+
+  if (!columnExists('circuitos', 'deleted_at')) {
+    db.exec(`ALTER TABLE circuitos ADD COLUMN deleted_at TEXT;`)
+  }
+
+  if (!columnExists('circuitos', 'created_by')) {
+    db.exec(`ALTER TABLE circuitos ADD COLUMN created_by INTEGER;`)
+  }
+
+  if (!columnExists('circuitos', 'updated_by')) {
+    db.exec(`ALTER TABLE circuitos ADD COLUMN updated_by INTEGER;`)
+  }
+
+  if (!columnExists('circuitos', 'deleted_by')) {
+    db.exec(`ALTER TABLE circuitos ADD COLUMN deleted_by INTEGER;`)
+  }
+
+  db.exec(`
+    UPDATE circuitos
     SET
       created_at = COALESCE(created_at, datetime('now','localtime')),
       updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')),

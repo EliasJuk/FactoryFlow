@@ -92,12 +92,22 @@ export function runMigrations() {
 
     CREATE TABLE IF NOT EXISTS circuito_componentes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT NOT NULL UNIQUE,
       circuito_id INTEGER NOT NULL,
       componente_id INTEGER NOT NULL,
       quantidade INTEGER NOT NULL DEFAULT 1,
       ativo INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TEXT,
+      created_by INTEGER,
+      updated_by INTEGER,
+      deleted_by INTEGER,
       FOREIGN KEY (circuito_id) REFERENCES circuitos(id),
-      FOREIGN KEY (componente_id) REFERENCES componentes(id)
+      FOREIGN KEY (componente_id) REFERENCES componentes(id),
+      FOREIGN KEY (created_by) REFERENCES usuarios(id),
+      FOREIGN KEY (updated_by) REFERENCES usuarios(id),
+      FOREIGN KEY (deleted_by) REFERENCES usuarios(id)
     );
 
     CREATE TABLE IF NOT EXISTS postos (
@@ -831,6 +841,82 @@ export function runMigrations() {
       ADD COLUMN quantidade_produzida INTEGER NOT NULL DEFAULT 0;
     `)
   }
+
+  if (!columnExists('circuito_componentes', 'uuid')) {
+    db.exec(`ALTER TABLE circuito_componentes ADD COLUMN uuid TEXT;`)
+  }
+
+  const circuitoComponentesSemUuid = db
+    .prepare(
+      `
+      SELECT id
+      FROM circuito_componentes
+      WHERE uuid IS NULL OR TRIM(uuid) = ''
+    `
+    )
+    .all() as Array<{ id: number }>
+
+  const atualizarUuidCircuitoComponente = db.prepare(`
+    UPDATE circuito_componentes
+    SET uuid = ?
+    WHERE id = ?
+  `)
+
+  db.transaction((itens: Array<{ id: number }>) => {
+    for (const item of itens) {
+      atualizarUuidCircuitoComponente.run(IdGenerator.generate(), item.id)
+    }
+  })(circuitoComponentesSemUuid)
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_circuito_componentes_uuid
+    ON circuito_componentes(uuid);
+  `)
+
+  if (!columnExists('circuito_componentes', 'created_at')) {
+    db.exec(
+      `ALTER TABLE circuito_componentes ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP;`
+    )
+  }
+
+  if (!columnExists('circuito_componentes', 'updated_at')) {
+    db.exec(
+      `ALTER TABLE circuito_componentes ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP;`
+    )
+  }
+
+  if (!columnExists('circuito_componentes', 'deleted_at')) {
+    db.exec(`ALTER TABLE circuito_componentes ADD COLUMN deleted_at TEXT;`)
+  }
+
+  if (!columnExists('circuito_componentes', 'created_by')) {
+    db.exec(`ALTER TABLE circuito_componentes ADD COLUMN created_by INTEGER;`)
+  }
+
+  if (!columnExists('circuito_componentes', 'updated_by')) {
+    db.exec(`ALTER TABLE circuito_componentes ADD COLUMN updated_by INTEGER;`)
+  }
+
+  if (!columnExists('circuito_componentes', 'deleted_by')) {
+    db.exec(`ALTER TABLE circuito_componentes ADD COLUMN deleted_by INTEGER;`)
+  }
+
+  db.exec(`
+    UPDATE circuito_componentes
+    SET
+      created_at = COALESCE(created_at, datetime('now','localtime')),
+      updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')),
+      created_by = COALESCE(created_by, 1),
+      updated_by = COALESCE(updated_by, created_by, 1),
+      deleted_at = CASE
+        WHEN ativo = 0 THEN COALESCE(deleted_at, updated_at, datetime('now','localtime'))
+        ELSE NULL
+      END,
+      deleted_by = CASE
+        WHEN ativo = 0 THEN COALESCE(deleted_by, updated_by, created_by, 1)
+        ELSE NULL
+      END
+  `)
 
   if (!columnExists('refugos', 'status')) {
     db.exec(`

@@ -18,6 +18,7 @@ import { registerImportacaoIpc } from './ipc/importacao.ipc'
 import { registerExportacaoIpc } from './ipc/exportacao.ipc'
 import { registerConfiguracaoIpc } from './ipc/configuracao.ipc'
 import { registerAuthIpc } from './ipc/auth.ipc'
+import { registerPasswordResetIpc } from './ipc/passwordReset.ipc'
 
 let mainWindow: BrowserWindow | null = null
 let appReady = false
@@ -86,6 +87,7 @@ function registerDatabaseIpcHandlers(): void {
   registerImportacaoIpc()
   registerExportacaoIpc()
   registerAuthIpc()
+  registerPasswordResetIpc()
 }
 
 //DEV TOOLS

@@ -1,5 +1,5 @@
-import crypto from "crypto"
-import { RepositoryFactory } from "../repositories/factory/RepositoryFactory"
+import { RepositoryFactory } from '../repositories/factory/RepositoryFactory'
+import { verificarSenha } from '../shared/security/password'
 
 type AuthResult = {
   sucesso: boolean
@@ -9,72 +9,45 @@ type AuthResult = {
     nome: string
     matricula: string
     perfil: string
+    deveTrocarSenha: boolean
   }
-}
-
-function verificarSenha(senha: string, senhaHash: string) {
-  const [salt, hashOriginal] = senhaHash.split(":")
-
-  if (!salt || !hashOriginal) return false
-
-  const hashDigitado = crypto
-    .pbkdf2Sync(senha, salt, 100000, 64, "sha512")
-    .toString("hex")
-
-  const bufferOriginal = Buffer.from(hashOriginal, "hex")
-  const bufferDigitado = Buffer.from(hashDigitado, "hex")
-
-  if (bufferOriginal.length !== bufferDigitado.length) return false
-
-  return crypto.timingSafeEqual(bufferOriginal, bufferDigitado)
 }
 
 export class AuthService {
   async login(matricula: string, senha: string): Promise<AuthResult> {
     try {
       const repository = RepositoryFactory.usuarios()
-
-      const usuario = await repository.buscarCredenciaisPorMatricula(
-        matricula.trim()
-      )
+      const usuario = await repository.buscarCredenciaisPorMatricula(matricula.trim())
 
       if (!usuario || !usuario.ativo || usuario.deletedAt) {
         return {
           sucesso: false,
-          mensagem: "Matrícula ou senha inválida."
+          mensagem: 'Matrícula ou senha inválida.'
         }
       }
 
-      if (!usuario.senhaHash) {
+      if (!usuario.senhaHash || !verificarSenha(senha, usuario.senhaHash)) {
         return {
           sucesso: false,
-          mensagem: "Usuário sem senha cadastrada."
-        }
-      }
-
-      const senhaValida = verificarSenha(senha, usuario.senhaHash)
-
-      if (!senhaValida) {
-        return {
-          sucesso: false,
-          mensagem: "Matrícula ou senha inválida."
+          mensagem: 'Matrícula ou senha inválida.'
         }
       }
 
       return {
         sucesso: true,
-        mensagem: "Login realizado com sucesso.",
+        mensagem: 'Login realizado com sucesso.',
         usuario: {
           id: usuario.id,
           nome: usuario.nome,
           matricula: usuario.matricula,
-          perfil: usuario.perfil
+          perfil: usuario.perfil,
+          deveTrocarSenha: Boolean(usuario.deveTrocarSenha)
         }
       }
     } catch {
       return {
         sucesso: false,
-        mensagem: "Não foi possível conectar ao banco de dados."
+        mensagem: 'Não foi possível conectar ao banco de dados.'
       }
     }
   }

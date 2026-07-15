@@ -39,6 +39,7 @@ interface UsuarioCredenciais {
   senhaHash: string | null
   ativo: number
   deletedAt: string | null
+  deveTrocarSenha: number
 }
 
 function gerarHashSenha(senha: string): string {
@@ -150,6 +151,7 @@ export class UsuarioRepository {
         matricula,
         perfil,
         senha_hash,
+        deve_trocar_senha,
         ativo,
         created_at,
         updated_at,
@@ -161,6 +163,7 @@ export class UsuarioRepository {
         ?,
         ?,
         ?,
+        1,
         1,
         datetime('now', 'localtime'),
         datetime('now', 'localtime'),
@@ -202,6 +205,7 @@ export class UsuarioRepository {
           matricula = ?,
           perfil = ?,
           senha_hash = ?,
+          deve_trocar_senha = 1,
           updated_at = datetime('now', 'localtime'),
           updated_by = ?
         WHERE id = ?
@@ -283,7 +287,8 @@ export class UsuarioRepository {
           perfil,
           senha_hash AS senhaHash,
           ativo,
-          deleted_at AS deletedAt
+          deleted_at AS deletedAt,
+          deve_trocar_senha AS deveTrocarSenha
         FROM usuarios
         WHERE matricula = ?
           AND deleted_at IS NULL

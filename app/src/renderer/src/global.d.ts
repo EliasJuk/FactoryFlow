@@ -66,12 +66,25 @@ type CircuitoApi = {
 
 type CircuitoComponenteApi = {
   id: number
+  uuid: string
   circuitoId: number
   componenteId: number
   codigoComponente: string
   nomeComponente: string
   quantidade: number
   ativo: boolean
+
+  createdAt?: string | null
+  updatedAt?: string | null
+  deletedAt?: string | null
+
+  createdBy?: number | null
+  updatedBy?: number | null
+  deletedBy?: number | null
+
+  createdByNome?: string | null
+  updatedByNome?: string | null
+  deletedByNome?: string | null
 }
 
 type PostoApi = {
@@ -398,9 +411,19 @@ declare global {
 
       circuitoComponentes: {
         listarPorCircuito: (circuitoId: number) => Promise<CircuitoComponenteApi[]>
-        adicionar: (circuitoId: number, componenteId: number, quantidade: number) => Promise<void>
-        editarQuantidade: (id: number, quantidade: number) => Promise<void>
-        remover: (id: number) => Promise<void>
+        adicionar: (
+          circuitoId: number,
+          componenteId: number,
+          quantidade: number,
+          usuarioId?: number | null
+        ) => Promise<void>
+        editarQuantidade: (
+          id: number,
+          quantidade: number,
+          usuarioId?: number | null
+        ) => Promise<void>
+        remover: (id: number, usuarioId?: number | null) => Promise<void>
+        restaurar: (id: number, usuarioId?: number | null) => Promise<void>
       }
 
       postos: {

@@ -1,54 +1,126 @@
 import { pool } from '../../database/postgres/connection'
+import { IdGenerator } from '../../shared/ids/IdGenerator'
+
+const USUARIO_SISTEMA_ID = 1
 
 export interface CircuitoComponente {
   id: number
+  uuid: string
   circuitoId: number
   componenteId: number
   codigoComponente: string
   nomeComponente: string
   quantidade: number
   ativo: boolean
+  createdAt?: string | null
+  updatedAt?: string | null
+  deletedAt?: string | null
+  createdBy?: number | null
+  updatedBy?: number | null
+  deletedBy?: number | null
+  createdByNome?: string | null
+  updatedByNome?: string | null
+  deletedByNome?: string | null
 }
 
 export class CircuitoComponenteRepository {
   async listarPorCircuito(circuitoId: number): Promise<CircuitoComponente[]> {
-    const result = await pool.query<any>(
+    const result = await pool.query<CircuitoComponente>(
       `
       SELECT
         cc.id,
-        cc.circuito_id as "circuitoId",
-        cc.componente_id as "componenteId",
-        c.codigo as "codigoComponente",
-        c.nome as "nomeComponente",
+        cc.uuid,
+        cc.circuito_id AS "circuitoId",
+        cc.componente_id AS "componenteId",
+        c.codigo AS "codigoComponente",
+        c.nome AS "nomeComponente",
         cc.quantidade,
-        cc.ativo
+        cc.ativo,
+        cc.created_at AS "createdAt",
+        cc.updated_at AS "updatedAt",
+        cc.deleted_at AS "deletedAt",
+        cc.created_by AS "createdBy",
+        cc.updated_by AS "updatedBy",
+        cc.deleted_by AS "deletedBy",
+        uc.nome AS "createdByNome",
+        uu.nome AS "updatedByNome",
+        ud.nome AS "deletedByNome"
       FROM circuito_componentes cc
       INNER JOIN componentes c ON c.id = cc.componente_id
-      WHERE cc.circuito_id = $1
-        AND cc.ativo = true
+      LEFT JOIN usuarios uc ON uc.id = cc.created_by
+      LEFT JOIN usuarios uu ON uu.id = cc.updated_by
+      LEFT JOIN usuarios ud ON ud.id = cc.deleted_by
+      WHERE cc.circuito_id = $1 AND cc.ativo = true
       ORDER BY c.codigo
     `,
       [circuitoId]
     )
 
-    return result.rows.map((item) => ({
-      ...item,
-      ativo: Boolean(item.ativo)
-    }))
+    return result.rows.map((item) => ({ ...item, ativo: Boolean(item.ativo) }))
   }
 
-  async adicionar(circuitoId: number, componenteId: number, quantidade: number): Promise<void> {
+  async adicionar(
+    circuitoId: number,
+    componenteId: number,
+    quantidade: number,
+    usuarioId: number = USUARIO_SISTEMA_ID
+  ): Promise<void> {
+    if (!Number.isInteger(quantidade) || quantidade <= 0) {
+      throw new Error('QUANTIDADE_INVALIDA')
+    }
+
+    const existente = await pool.query<{ id: number; ativo: boolean }>(
+      `
+      SELECT id, ativo
+      FROM circuito_componentes
+      WHERE circuito_id = $1 AND componente_id = $2
+      ORDER BY id DESC
+      LIMIT 1
+    `,
+      [circuitoId, componenteId]
+    )
+
+    const vinculo = existente.rows[0]
+
+    if (vinculo?.ativo) {
+      throw new Error('COMPONENTE_JA_VINCULADO')
+    }
+
+    if (vinculo) {
+      await pool.query(
+        `
+        UPDATE circuito_componentes
+        SET
+          quantidade = $1,
+          ativo = true,
+          updated_at = CURRENT_TIMESTAMP,
+          updated_by = $2,
+          deleted_at = NULL,
+          deleted_by = NULL
+        WHERE id = $3
+      `,
+        [quantidade, usuarioId, vinculo.id]
+      )
+      return
+    }
+
     await pool.query(
       `
-      INSERT INTO circuito_componentes
-        (circuito_id, componente_id, quantidade, ativo)
-      VALUES ($1, $2, $3, true)
+      INSERT INTO circuito_componentes (
+        uuid, circuito_id, componente_id, quantidade, ativo,
+        created_at, updated_at, created_by, updated_by
+      )
+      VALUES ($1, $2, $3, $4, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $5, $5)
     `,
-      [circuitoId, componenteId, quantidade]
+      [IdGenerator.generate(), circuitoId, componenteId, quantidade, usuarioId]
     )
   }
 
-  async editarQuantidade(id: number, quantidade: number): Promise<void> {
+  async editarQuantidade(
+    id: number,
+    quantidade: number,
+    usuarioId: number = USUARIO_SISTEMA_ID
+  ): Promise<void> {
     if (!Number.isInteger(quantidade) || quantidade <= 0) {
       throw new Error('QUANTIDADE_INVALIDA')
     }
@@ -56,22 +128,42 @@ export class CircuitoComponenteRepository {
     await pool.query(
       `
       UPDATE circuito_componentes
-      SET quantidade = $1
-      WHERE id = $2
-        AND ativo = true
+      SET quantidade = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+      WHERE id = $3 AND ativo = true
     `,
-      [quantidade, id]
+      [quantidade, usuarioId, id]
     )
   }
 
-  async remover(id: number): Promise<void> {
+  async remover(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
     await pool.query(
       `
       UPDATE circuito_componentes
-      SET ativo = false
-      WHERE id = $1
+      SET
+        ativo = false,
+        updated_at = CURRENT_TIMESTAMP,
+        updated_by = $1,
+        deleted_at = CURRENT_TIMESTAMP,
+        deleted_by = $1
+      WHERE id = $2 AND ativo = true
     `,
-      [id]
+      [usuarioId, id]
+    )
+  }
+
+  async restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+    await pool.query(
+      `
+      UPDATE circuito_componentes
+      SET
+        ativo = true,
+        updated_at = CURRENT_TIMESTAMP,
+        updated_by = $1,
+        deleted_at = NULL,
+        deleted_by = NULL
+      WHERE id = $2 AND ativo = false
+    `,
+      [usuarioId, id]
     )
   }
 }

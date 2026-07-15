@@ -115,11 +115,25 @@ contextBridge.exposeInMainWorld('api', {
   circuitoComponentes: {
     listarPorCircuito: (circuitoId: number) =>
       ipcRenderer.invoke('circuito-componentes:listar-por-circuito', circuitoId),
-    adicionar: (circuitoId: number, componenteId: number, quantidade: number) =>
-      ipcRenderer.invoke('circuito-componentes:adicionar', circuitoId, componenteId, quantidade),
-    editarQuantidade: (id: number, quantidade: number) =>
-      ipcRenderer.invoke('circuito-componentes:editar-quantidade', id, quantidade),
-    remover: (id: number) => ipcRenderer.invoke('circuito-componentes:remover', id)
+    adicionar: (
+      circuitoId: number,
+      componenteId: number,
+      quantidade: number,
+      usuarioId?: number | null
+    ) =>
+      ipcRenderer.invoke(
+        'circuito-componentes:adicionar',
+        circuitoId,
+        componenteId,
+        quantidade,
+        usuarioId
+      ),
+    editarQuantidade: (id: number, quantidade: number, usuarioId?: number | null) =>
+      ipcRenderer.invoke('circuito-componentes:editar-quantidade', id, quantidade, usuarioId),
+    remover: (id: number, usuarioId?: number | null) =>
+      ipcRenderer.invoke('circuito-componentes:remover', id, usuarioId),
+    restaurar: (id: number, usuarioId?: number | null) =>
+      ipcRenderer.invoke('circuito-componentes:restaurar', id, usuarioId)
   },
 
   postos: {

@@ -1,228 +1,353 @@
-import db from "../../database/database"
+import db from '../../database/database'
+import { IdGenerator } from '../../shared/ids/IdGenerator'
+
+const USUARIO_SISTEMA_ID = 1
 
 export interface Componente {
   id: number
+  uuid: string
   codigo: string
   nome: string
   precoAtual: number
   ativo: boolean
+  createdAt: string | null
+  updatedAt: string | null
+  deletedAt: string | null
+  createdBy: number | null
+  updatedBy: number | null
+  deletedBy: number | null
+  createdByNome: string | null
+  updatedByNome: string | null
+  deletedByNome: string | null
+}
+
+type ComponenteRow = {
+  id: number
+  uuid: string
+  codigo: string
+  nome: string
+  precoAtual: number
+  ativo: number
+  createdAt: string | null
+  updatedAt: string | null
+  deletedAt: string | null
+  createdBy: number | null
+  updatedBy: number | null
+  deletedBy: number | null
+  createdByNome: string | null
+  updatedByNome: string | null
+  deletedByNome: string | null
 }
 
 export class ComponenteRepository {
-  listar(): Componente[] {
-    const componentes = db
-      .prepare(`
-        SELECT
-          c.id,
-          c.codigo,
-          c.nome,
-          COALESCE((
-            SELECT cp.valor_unitario
-            FROM componentes_precos cp
-            WHERE cp.componente_id = c.id
-            ORDER BY cp.id DESC
-            LIMIT 1
-          ), 0) as precoAtual,
-          c.ativo
-        FROM componentes c
-        WHERE c.ativo = 1
-        ORDER BY c.codigo
-      `)
-      .all() as Array<{
-        id: number
-        codigo: string
-        nome: string
-        precoAtual: number
-        ativo: number
-      }>
+  private consultaBase(): string {
+    return `
+      SELECT
+        c.id,
+        c.uuid,
+        c.codigo,
+        c.nome,
+        COALESCE((
+          SELECT cp.valor_unitario
+          FROM componentes_precos cp
+          WHERE cp.componente_id = c.id
+          ORDER BY cp.id DESC
+          LIMIT 1
+        ), 0) AS precoAtual,
+        c.ativo,
+        c.created_at AS createdAt,
+        c.updated_at AS updatedAt,
+        c.deleted_at AS deletedAt,
+        c.created_by AS createdBy,
+        c.updated_by AS updatedBy,
+        c.deleted_by AS deletedBy,
+        criado.nome AS createdByNome,
+        atualizado.nome AS updatedByNome,
+        removido.nome AS deletedByNome
+      FROM componentes c
+      LEFT JOIN usuarios criado ON criado.id = c.created_by
+      LEFT JOIN usuarios atualizado ON atualizado.id = c.updated_by
+      LEFT JOIN usuarios removido ON removido.id = c.deleted_by
+    `
+  }
 
-    return componentes.map((componente) => ({
+  private mapear(componente: ComponenteRow): Componente {
+    return {
       ...componente,
       precoAtual: Number(componente.precoAtual ?? 0),
       ativo: Boolean(componente.ativo)
-    }))
+    }
+  }
+
+  listar(): Componente[] {
+    const componentes = db
+      .prepare(
+        `
+        ${this.consultaBase()}
+        WHERE c.ativo = 1
+        ORDER BY c.codigo
+      `
+      )
+      .all() as ComponenteRow[]
+
+    return componentes.map((componente) => this.mapear(componente))
   }
 
   listarInativos(): Componente[] {
     const componentes = db
-      .prepare(`
-        SELECT
-          c.id,
-          c.codigo,
-          c.nome,
-          COALESCE((
-            SELECT cp.valor_unitario
-            FROM componentes_precos cp
-            WHERE cp.componente_id = c.id
-            ORDER BY cp.id DESC
-            LIMIT 1
-          ), 0) as precoAtual,
-          c.ativo
-        FROM componentes c
+      .prepare(
+        `
+        ${this.consultaBase()}
         WHERE c.ativo = 0
         ORDER BY c.codigo
-      `)
-      .all() as Array<{
-        id: number
-        codigo: string
-        nome: string
-        precoAtual: number
-        ativo: number
-      }>
+      `
+      )
+      .all() as ComponenteRow[]
 
-    return componentes.map((componente) => ({
-      ...componente,
-      precoAtual: Number(componente.precoAtual ?? 0),
-      ativo: Boolean(componente.ativo)
-    }))
+    return componentes.map((componente) => this.mapear(componente))
   }
 
-  criar(codigo: string, nome: string, precoAtual = 0): void {
+  criar(
+    codigo: string,
+    nome: string,
+    precoAtual = 0,
+    usuarioId: number = USUARIO_SISTEMA_ID
+  ): void {
+    const codigoFormatado = codigo.trim().toUpperCase()
+    const nomeFormatado = nome.trim()
+
+    const existente = db
+      .prepare(
+        `
+        SELECT id, ativo
+        FROM componentes
+        WHERE codigo = ?
+        LIMIT 1
+      `
+      )
+      .get(codigoFormatado) as { id: number; ativo: number } | undefined
+
+    if (existente?.ativo === 1) {
+      throw new Error('COMPONENTE_DUPLICADO')
+    }
+
+    if (existente?.ativo === 0) {
+      throw new Error(
+        'Já existe um componente inativo com este código. Restaure o componente em vez de criar outro.'
+      )
+    }
+
+    const executar = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          INSERT INTO componentes (
+            uuid,
+            codigo,
+            nome,
+            ativo,
+            created_at,
+            updated_at,
+            created_by,
+            updated_by
+          )
+          VALUES (?, ?, ?, 1, datetime('now','localtime'), datetime('now','localtime'), ?, ?)
+        `
+        )
+        .run(IdGenerator.generate(), codigoFormatado, nomeFormatado, usuarioId, usuarioId)
+
+      const componenteId = Number(resultado.lastInsertRowid)
+
+      if (precoAtual > 0) {
+        this.atualizarPreco(componenteId, precoAtual)
+      }
+    })
+
+    executar()
+  }
+
+  editar(
+    id: number,
+    codigo: string,
+    nome: string,
+    precoAtual = 0,
+    usuarioId: number = USUARIO_SISTEMA_ID
+  ): void {
     const codigoFormatado = codigo.trim().toUpperCase()
     const nomeFormatado = nome.trim()
 
     const duplicado = db
-      .prepare(`
-        SELECT id
+      .prepare(
+        `
+        SELECT id, ativo
         FROM componentes
         WHERE codigo = ?
-          AND ativo = 1
-      `)
-      .get(codigoFormatado) as { id: number } | undefined
-
-    if (duplicado) {
-      throw new Error("COMPONENTE_DUPLICADO")
-    }
-
-    const resultado = db
-      .prepare(`
-        INSERT INTO componentes (codigo, nome, ativo)
-        VALUES (?, ?, 1)
-      `)
-      .run(codigoFormatado, nomeFormatado)
-
-    const componenteId = Number(resultado.lastInsertRowid)
-
-    if (precoAtual > 0) {
-      this.atualizarPreco(componenteId, precoAtual)
-    }
-  }
-
-  editar(id: number, codigo: string, nome: string, precoAtual = 0): void {
-    const codigoFormatado = codigo.trim().toUpperCase()
-    const nomeFormatado = nome.trim()
-
-    const duplicado = db
-      .prepare(`
-        SELECT id
-        FROM componentes
-        WHERE codigo = ?
-          AND ativo = 1
           AND id <> ?
-      `)
-      .get(codigoFormatado, id) as { id: number } | undefined
+        LIMIT 1
+      `
+      )
+      .get(codigoFormatado, id) as { id: number; ativo: number } | undefined
 
-    if (duplicado) {
-      throw new Error("COMPONENTE_DUPLICADO")
+    if (duplicado?.ativo === 1) {
+      throw new Error('COMPONENTE_DUPLICADO')
     }
 
-    db.prepare(`
-      UPDATE componentes
-      SET codigo = ?, nome = ?
-      WHERE id = ?
-    `).run(codigoFormatado, nomeFormatado, id)
+    if (duplicado?.ativo === 0) {
+      throw new Error(
+        'Já existe um componente inativo com este código. Altere o código ou restaure o componente inativo.'
+      )
+    }
 
-    this.atualizarPreco(id, precoAtual)
+    const executar = db.transaction(() => {
+      db.prepare(
+        `
+        UPDATE componentes
+        SET
+          codigo = ?,
+          nome = ?,
+          updated_at = datetime('now','localtime'),
+          updated_by = ?
+        WHERE id = ?
+      `
+      ).run(codigoFormatado, nomeFormatado, usuarioId, id)
+
+      this.atualizarPreco(id, precoAtual)
+    })
+
+    executar()
   }
 
   atualizarPreco(componenteId: number, valorUnitario: number): void {
     const valor = Number(valorUnitario) || 0
 
     const precoAtual = db
-      .prepare(`
-        SELECT id, valor_unitario as valorUnitario
+      .prepare(
+        `
+        SELECT id, valor_unitario AS valorUnitario
         FROM componentes_precos
         WHERE componente_id = ?
           AND ativo = 1
           AND vigencia_fim IS NULL
         ORDER BY id DESC
         LIMIT 1
-      `)
-      .get(componenteId) as
-      | { id: number; valorUnitario: number }
-      | undefined
+      `
+      )
+      .get(componenteId) as { id: number; valorUnitario: number } | undefined
 
     if (precoAtual && Number(precoAtual.valorUnitario) === valor) {
       return
     }
 
     if (precoAtual) {
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE componentes_precos
         SET
           ativo = 0,
           vigencia_fim = date('now','localtime')
         WHERE id = ?
-      `).run(precoAtual.id)
+      `
+      ).run(precoAtual.id)
     }
 
     if (valor > 0) {
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO componentes_precos (
+          uuid,
           componente_id,
           valor_unitario,
           vigencia_inicio,
           vigencia_fim,
-          ativo
-        ) VALUES (
-          ?,
-          ?,
-          date('now','localtime'),
-          NULL,
-          1
+          ativo,
+          criado_em
         )
-      `).run(componenteId, valor)
+        VALUES (?, ?, ?, date('now','localtime'), NULL, 1, datetime('now','localtime'))
+      `
+      ).run(IdGenerator.generate(), componenteId, valor)
     }
   }
 
-  excluir(id: number): void {
-    db.prepare(`
+  excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+    db.prepare(
+      `
       UPDATE componentes
-      SET ativo = 0
+      SET
+        ativo = 0,
+        updated_at = datetime('now','localtime'),
+        updated_by = ?,
+        deleted_at = datetime('now','localtime'),
+        deleted_by = ?
       WHERE id = ?
-    `).run(id)
+    `
+    ).run(usuarioId, usuarioId, id)
   }
 
-  restaurar(id: number): void {
-    db.prepare(`
+  restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+    db.prepare(
+      `
       UPDATE componentes
-      SET ativo = 1
+      SET
+        ativo = 1,
+        updated_at = datetime('now','localtime'),
+        updated_by = ?,
+        deleted_at = NULL,
+        deleted_by = NULL
       WHERE id = ?
-    `).run(id)
+    `
+    ).run(usuarioId, id)
   }
 
   excluirPermanente(id: number): void {
-    const emUso = db
-      .prepare(`
-        SELECT COUNT(*) as total
+    const vinculos = [
+      db
+        .prepare(
+          `
+        SELECT COUNT(*) AS total
         FROM circuito_componentes
         WHERE componente_id = ?
-      `)
-      .get(id) as { total: number } | undefined
+      `
+        )
+        .get(id) as { total: number },
+      db
+        .prepare(
+          `
+        SELECT COUNT(*) AS total
+        FROM circuito_posto_componentes
+        WHERE componente_id = ?
+      `
+        )
+        .get(id) as { total: number },
+      db
+        .prepare(
+          `
+        SELECT COUNT(*) AS total
+        FROM refugo_itens
+        WHERE componente_id = ?
+      `
+        )
+        .get(id) as { total: number }
+    ]
 
-    if (Number(emUso?.total ?? 0) > 0) {
-      throw new Error("COMPONENTE_EM_USO")
+    if (vinculos.some((item) => Number(item.total) > 0)) {
+      throw new Error('COMPONENTE_EM_USO')
     }
 
-    db.prepare(`
-      DELETE FROM componentes_precos
-      WHERE componente_id = ?
-    `).run(id)
+    db.transaction(() => {
+      db.prepare(
+        `
+        DELETE FROM componentes_precos
+        WHERE componente_id = ?
+      `
+      ).run(id)
 
-    db.prepare(`
-      DELETE FROM componentes
-      WHERE id = ?
-        AND ativo = 0
-    `).run(id)
+      db.prepare(
+        `
+        DELETE FROM componentes
+        WHERE id = ?
+          AND ativo = 0
+      `
+      ).run(id)
+    })()
   }
 }

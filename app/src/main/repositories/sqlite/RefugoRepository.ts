@@ -1,4 +1,5 @@
-import db from "../../database/database"
+import db from '../../database/database'
+import { IdGenerator } from '../../shared/ids/IdGenerator'
 
 export interface RefugoItemInput {
   componenteId: number
@@ -22,7 +23,8 @@ export interface CriarRefugoInput {
 export class RefugoRepository {
   private buscarPrecoAtualComponente(componenteId: number): number {
     const preco = db
-      .prepare(`
+      .prepare(
+        `
         SELECT valor_unitario as valorUnitario
         FROM componentes_precos
         WHERE componente_id = ?
@@ -30,7 +32,8 @@ export class RefugoRepository {
           AND vigencia_fim IS NULL
         ORDER BY id DESC
         LIMIT 1
-      `)
+      `
+      )
       .get(componenteId) as { valorUnitario: number } | undefined
 
     return preco?.valorUnitario ?? 0
@@ -40,40 +43,46 @@ export class RefugoRepository {
     const ano = new Date().getFullYear()
 
     const setor = db
-      .prepare(`
+      .prepare(
+        `
         SELECT nome, sigla
         FROM setores
         WHERE id = ?
-      `)
+      `
+      )
       .get(input.setorId) as { nome: string; sigla: string | null }
 
     if (!setor) {
-      throw new Error("Setor não encontrado.")
+      throw new Error('Setor não encontrado.')
     }
 
     const sigla =
-      setor.sigla && setor.sigla.trim() !== ""
+      setor.sigla && setor.sigla.trim() !== ''
         ? setor.sigla.trim().toUpperCase()
         : setor.nome.substring(0, 3).toUpperCase()
 
     const ultimaSequencia = db
-      .prepare(`
+      .prepare(
+        `
         SELECT MAX(sequencia) AS seq
         FROM refugos
         WHERE ano = ?
           AND sigla_setor = ?
-      `)
+      `
+      )
       .get(ano, sigla) as { seq: number | null }
 
     const sequencia = (ultimaSequencia.seq ?? 0) + 1
-    const numeroRefugo = `${sigla}-${ano}-${String(sequencia).padStart(6, "0")}`
+    const numeroRefugo = `${sigla}-${ano}-${String(sequencia).padStart(6, '0')}`
 
     let refugoId: number | null = null
 
     const transaction = db.transaction(() => {
       const resultado = db
-        .prepare(`
+        .prepare(
+          `
           INSERT INTO refugos (
+            uuid,
             numero_refugo,
             sigla_setor,
             ano,
@@ -88,8 +97,11 @@ export class RefugoRepository {
             circuito_id,
             quantidade_produzida,
             observacao,
-            status
+            status,
+            created_by,
+            updated_by
           ) VALUES (
+            ?,
             ?,
             ?,
             ?,
@@ -104,10 +116,14 @@ export class RefugoRepository {
             ?,
             ?,
             ?,
-            'ATIVO'
+            'ATIVO',
+            ?,
+            ?
           )
-        `)
+        `
+        )
         .run(
+          IdGenerator.generate(),
           numeroRefugo,
           sigla,
           ano,
@@ -120,13 +136,16 @@ export class RefugoRepository {
           input.postoId,
           input.circuitoId,
           input.quantidadeProduzida,
-          input.observacao ?? null
+          input.observacao ?? null,
+          input.usuarioId ?? 1,
+          input.usuarioId ?? 1
         )
 
       refugoId = Number(resultado.lastInsertRowid)
 
       const insertItem = db.prepare(`
         INSERT INTO refugo_itens (
+          uuid,
           refugo_id,
           componente_id,
           defeito_id,
@@ -136,31 +155,38 @@ export class RefugoRepository {
           codigo_defeito_snapshot,
           descricao_defeito_snapshot,
           preco_unitario_snapshot,
-          custo_total_snapshot
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          custo_total_snapshot,
+          created_by,
+          updated_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
 
       for (const item of input.itens) {
         const componente = db
-          .prepare(`
+          .prepare(
+            `
             SELECT codigo, nome
             FROM componentes
             WHERE id = ?
-          `)
+          `
+          )
           .get(item.componenteId) as { codigo: string; nome: string }
 
         const defeito = db
-          .prepare(`
+          .prepare(
+            `
             SELECT codigo, descricao
             FROM defeitos
             WHERE id = ?
-          `)
+          `
+          )
           .get(item.defeitoId) as { codigo: string; descricao: string }
 
         const precoUnitario = this.buscarPrecoAtualComponente(item.componenteId)
         const custoTotal = precoUnitario * item.quantidade
 
         insertItem.run(
+          IdGenerator.generate(),
           refugoId,
           item.componenteId,
           item.defeitoId,
@@ -170,7 +196,9 @@ export class RefugoRepository {
           defeito.codigo,
           defeito.descricao,
           precoUnitario,
-          custoTotal
+          custoTotal,
+          input.usuarioId ?? 1,
+          input.usuarioId ?? 1
         )
       }
     })
@@ -178,7 +206,7 @@ export class RefugoRepository {
     transaction()
 
     if (refugoId === null) {
-      throw new Error("Não foi possível criar o refugo.")
+      throw new Error('Não foi possível criar o refugo.')
     }
 
     return {
@@ -187,7 +215,7 @@ export class RefugoRepository {
     }
   }
 
-  listar(busca = "", pagina = 1, limite = 10) {
+  listar(busca = '', pagina = 1, limite = 10) {
     const termo = `%${busca}%`
     const offset = (pagina - 1) * limite
 
@@ -204,23 +232,14 @@ export class RefugoRepository {
       OR d.descricao LIKE ?
     `
 
-    const parametrosFiltro = [
-      busca,
-      termo,
-      termo,
-      termo,
-      termo,
-      termo,
-      termo,
-      termo,
-      termo,
-      termo
-    ]
+    const parametrosFiltro = [busca, termo, termo, termo, termo, termo, termo, termo, termo, termo]
 
     const refugos = db
-      .prepare(`
+      .prepare(
+        `
         SELECT DISTINCT
           r.id,
+          r.uuid,
           r.numero_refugo as numeroRefugo,
           r.data_hora as dataHora,
           r.turno,
@@ -229,6 +248,15 @@ export class RefugoRepository {
           r.observacao,
           r.status,
           r.motivo_cancelamento as motivoCancelamento,
+          r.created_at as createdAt,
+          r.updated_at as updatedAt,
+          r.deleted_at as deletedAt,
+          r.created_by as createdBy,
+          r.updated_by as updatedBy,
+          r.deleted_by as deletedBy,
+          uc.nome as createdByNome,
+          uu.nome as updatedByNome,
+          ud.nome as deletedByNome,
 
           s.nome as setorNome,
           sub.nome as subsetorNome,
@@ -241,6 +269,9 @@ export class RefugoRepository {
         INNER JOIN subsetores sub ON sub.id = r.subsetor_id
         INNER JOIN postos p ON p.id = r.posto_id
         INNER JOIN circuitos c ON c.id = r.circuito_id
+        LEFT JOIN usuarios uc ON uc.id = r.created_by
+        LEFT JOIN usuarios uu ON uu.id = r.updated_by
+        LEFT JOIN usuarios ud ON ud.id = r.deleted_by
         INNER JOIN refugo_itens ri ON ri.refugo_id = r.id
         INNER JOIN defeitos d ON d.id = ri.defeito_id
 
@@ -249,11 +280,13 @@ export class RefugoRepository {
         ORDER BY r.id DESC
         LIMIT ?
         OFFSET ?
-      `)
+      `
+      )
       .all(...parametrosFiltro, limite, offset) as any[]
 
     const total = db
-      .prepare(`
+      .prepare(
+        `
         SELECT COUNT(DISTINCT r.id) as total
 
         FROM refugos r
@@ -265,12 +298,14 @@ export class RefugoRepository {
         INNER JOIN defeitos d ON d.id = ri.defeito_id
 
         WHERE ${filtros}
-      `)
+      `
+      )
       .get(...parametrosFiltro) as { total: number }
 
     const itensStmt = db.prepare(`
       SELECT
         ri.id,
+        ri.uuid,
         ri.defeito_id as defeitoId,
 
         COALESCE(ri.codigo_componente_snapshot, comp.codigo) as componenteCodigo,
@@ -281,7 +316,13 @@ export class RefugoRepository {
 
         ri.quantidade as quantidadeRefugada,
         ri.preco_unitario_snapshot as precoUnitario,
-        ri.custo_total_snapshot as custoTotal
+        ri.custo_total_snapshot as custoTotal,
+        ri.created_at as createdAt,
+        ri.updated_at as updatedAt,
+        ri.deleted_at as deletedAt,
+        ri.created_by as createdBy,
+        ri.updated_by as updatedBy,
+        ri.deleted_by as deletedBy
 
       FROM refugo_itens ri
       INNER JOIN componentes comp ON comp.id = ri.componente_id
@@ -295,7 +336,7 @@ export class RefugoRepository {
     return {
       dados: refugos.map((refugo) => ({
         ...refugo,
-        status: refugo.status ?? "ATIVO",
+        status: refugo.status ?? 'ATIVO',
         itens: itensStmt.all(refugo.id)
       })),
       totalRegistros: total.total,
@@ -309,25 +350,24 @@ export class RefugoRepository {
     turno: string,
     quantidadeProduzida: number,
     observacao: string | undefined,
-    itens: { id: number; defeitoId: number; quantidade: number }[]
+    itens: { id: number; defeitoId: number; quantidade: number }[],
+    usuarioId?: number | null
   ) {
     const transaction = db.transaction(() => {
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE refugos
         SET
           matricula_operador = ?,
           turno = ?,
           quantidade_produzida = ?,
-          observacao = ?
+          observacao = ?,
+          updated_at = datetime('now','localtime'),
+          updated_by = ?
         WHERE id = ?
           AND status = 'ATIVO'
-      `).run(
-        matriculaOperador,
-        turno,
-        quantidadeProduzida,
-        observacao ?? null,
-        id
-      )
+      `
+      ).run(matriculaOperador, turno, quantidadeProduzida, observacao ?? null, usuarioId ?? 1, id)
 
       const updateItem = db.prepare(`
         UPDATE refugo_itens
@@ -336,17 +376,21 @@ export class RefugoRepository {
           quantidade = ?,
           codigo_defeito_snapshot = ?,
           descricao_defeito_snapshot = ?,
-          custo_total_snapshot = preco_unitario_snapshot * ?
+          custo_total_snapshot = preco_unitario_snapshot * ?,
+          updated_at = datetime('now','localtime'),
+          updated_by = ?
         WHERE id = ?
       `)
 
       for (const item of itens) {
         const defeito = db
-          .prepare(`
+          .prepare(
+            `
             SELECT codigo, descricao
             FROM defeitos
             WHERE id = ?
-          `)
+          `
+          )
           .get(item.defeitoId) as { codigo: string; descricao: string }
 
         updateItem.run(
@@ -355,6 +399,7 @@ export class RefugoRepository {
           defeito.codigo,
           defeito.descricao,
           item.quantidade,
+          usuarioId ?? 1,
           item.id
         )
       }
@@ -363,22 +408,41 @@ export class RefugoRepository {
     transaction()
   }
 
-  cancelar(id: number, motivo: string) {
-    db.prepare(`
+  cancelar(id: number, motivo: string, usuarioId?: number | null) {
+    db.prepare(
+      `
       UPDATE refugos
       SET
         status = 'CANCELADO',
-        motivo_cancelamento = ?
+        motivo_cancelamento = ?,
+        updated_at = datetime('now','localtime'),
+        updated_by = ?,
+        deleted_at = datetime('now','localtime'),
+        deleted_by = ?
       WHERE id = ?
         AND status = 'ATIVO'
-    `).run(motivo, id)
+    `
+    ).run(motivo, usuarioId ?? 1, usuarioId ?? 1, id)
+
+    db.prepare(
+      `
+      UPDATE refugo_itens
+      SET updated_at = datetime('now','localtime'),
+          updated_by = ?,
+          deleted_at = datetime('now','localtime'),
+          deleted_by = ?
+      WHERE refugo_id = ?
+    `
+    ).run(usuarioId ?? 1, usuarioId ?? 1, id)
   }
 
   buscarParaImpressao(id: number) {
     const refugo = db
-      .prepare(`
+      .prepare(
+        `
         SELECT
           r.id,
+          r.uuid,
           r.numero_refugo as numeroRefugo,
           r.data_hora as dataHora,
           r.turno,
@@ -387,6 +451,12 @@ export class RefugoRepository {
           r.observacao,
           r.status,
           r.motivo_cancelamento as motivoCancelamento,
+          r.created_at as createdAt,
+          r.updated_at as updatedAt,
+          r.deleted_at as deletedAt,
+          r.created_by as createdBy,
+          r.updated_by as updatedBy,
+          r.deleted_by as deletedBy,
 
           s.nome as setorNome,
           sub.nome as subsetorNome,
@@ -401,15 +471,17 @@ export class RefugoRepository {
         INNER JOIN circuitos c ON c.id = r.circuito_id
 
         WHERE r.id = ?
-      `)
+      `
+      )
       .get(id) as any
 
     if (!refugo) {
-      throw new Error("Refugo não encontrado para impressão.")
+      throw new Error('Refugo não encontrado para impressão.')
     }
 
     const itens = db
-      .prepare(`
+      .prepare(
+        `
         SELECT
           COALESCE(ri.codigo_componente_snapshot, comp.codigo) as componenteCodigo,
           COALESCE(ri.nome_componente_snapshot, comp.nome) as componenteNome,
@@ -417,7 +489,13 @@ export class RefugoRepository {
           COALESCE(ri.descricao_defeito_snapshot, d.descricao) as defeitoDescricao,
           ri.quantidade as quantidadeRefugada,
           ri.preco_unitario_snapshot as precoUnitario,
-          ri.custo_total_snapshot as custoTotal
+          ri.custo_total_snapshot as custoTotal,
+        ri.created_at as createdAt,
+        ri.updated_at as updatedAt,
+        ri.deleted_at as deletedAt,
+        ri.created_by as createdBy,
+        ri.updated_by as updatedBy,
+        ri.deleted_by as deletedBy
 
         FROM refugo_itens ri
         INNER JOIN componentes comp ON comp.id = ri.componente_id
@@ -426,12 +504,13 @@ export class RefugoRepository {
         WHERE ri.refugo_id = ?
 
         ORDER BY comp.codigo
-      `)
+      `
+      )
       .all(id)
 
     return {
       ...refugo,
-      status: refugo.status ?? "ATIVO",
+      status: refugo.status ?? 'ATIVO',
       itens
     }
   }

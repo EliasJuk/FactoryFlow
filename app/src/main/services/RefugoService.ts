@@ -1,11 +1,9 @@
-import {
-  CriarRefugoInput
-} from "../repositories/postgres/RefugoRepository"
+import { CriarRefugoInput } from '../repositories/postgres/RefugoRepository'
 
-import type { ResultadoFiltros } from "../repositories/postgres/ResultadoRepository"
+import type { ResultadoFiltros } from '../repositories/postgres/ResultadoRepository'
 
-import { RepositoryFactory } from "../repositories/factory/RepositoryFactory"
-import { RefugoPrintService } from "./RefugoPrintService"
+import { RepositoryFactory } from '../repositories/factory/RepositoryFactory'
+import { RefugoPrintService } from './RefugoPrintService'
 
 export class RefugoService {
   private repository = RepositoryFactory.refugos()
@@ -19,13 +17,13 @@ export class RefugoService {
       const refugo = await this.repository.buscarParaImpressao(resultado.id)
       await this.printService.imprimir(refugo)
     } catch (error) {
-      console.error("[REFUGO] Erro ao imprimir ficha:", error)
+      console.error('[REFUGO] Erro ao imprimir ficha:', error)
     }
 
     return resultado.numeroRefugo
   }
 
-  async listar(busca = "", pagina = 1, limite = 10) {
+  async listar(busca = '', pagina = 1, limite = 10) {
     return await this.repository.listar(busca, pagina, limite)
   }
 
@@ -35,7 +33,8 @@ export class RefugoService {
     turno: string,
     quantidadeProduzida: number,
     observacao: string | undefined,
-    itens: { id: number; defeitoId: number; quantidade: number }[]
+    itens: { id: number; defeitoId: number; quantidade: number }[],
+    usuarioId?: number | null
   ) {
     return await this.repository.editarCompleto(
       id,
@@ -43,12 +42,13 @@ export class RefugoService {
       turno,
       quantidadeProduzida,
       observacao,
-      itens
+      itens,
+      usuarioId
     )
   }
 
-  async cancelar(id: number, motivo: string) {
-    return await this.repository.cancelar(id, motivo)
+  async cancelar(id: number, motivo: string, usuarioId?: number | null) {
+    return await this.repository.cancelar(id, motivo, usuarioId)
   }
 
   async imprimir(id: number) {

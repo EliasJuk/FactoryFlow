@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Eye, Pencil, Plus, Search } from 'lucide-react'
+import { Plus, RotateCcw, Search } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
 import { Circuito } from '../../models/Circuito'
@@ -10,6 +10,7 @@ import { ui } from '../../theme/ui'
 
 import { RoteiroModal } from './components/RoteiroModal'
 import { RoteiroInfoModal } from './components/RoteiroInfoModal'
+import { VisualizarRoteiroModal } from './components/VisualizarRoteiroModal'
 
 type Subsetor = {
   id: number
@@ -36,6 +37,7 @@ function RoteiroPage() {
   const [subsetores, setSubsetores] = useState<Subsetor[]>([])
   const [postos, setPostos] = useState<Posto[]>([])
   const [circuitos, setCircuitos] = useState<Circuito[]>([])
+  const [roteiros, setRoteiros] = useState<RoteiroComponente[]>([])
 
   const [setorId, setSetorId] = useState<number | ''>('')
   const [subsetorId, setSubsetorId] = useState<number | ''>('')
@@ -47,6 +49,7 @@ function RoteiroPage() {
 
   const [itens, setItens] = useState<RoteiroComponente[]>([])
   const [itemVisualizando, setItemVisualizando] = useState<RoteiroComponente | null>(null)
+  const [modalVisualizacaoAberto, setModalVisualizacaoAberto] = useState(false)
 
   const [modalAberto, setModalAberto] = useState(false)
   const [modalModo, setModalModo] = useState<ModalModo>('novo')
@@ -58,33 +61,99 @@ function RoteiroPage() {
   const [quantidade, setQuantidade] = useState(1)
 
   async function carregarDados() {
-    const [setoresLista, subsetoresLista, postosLista, circuitosLista] = await Promise.all([
-      window.api.setores.listar(),
-      window.api.subsetores.listar(),
-      window.api.postos.listar(),
-      window.api.circuitos.listar()
-    ])
+    const [setoresLista, subsetoresLista, postosLista, circuitosLista, roteirosLista] =
+      await Promise.all([
+        window.api.setores.listar(),
+        window.api.subsetores.listar(),
+        window.api.postos.listar(),
+        window.api.circuitos.listar(),
+        window.api.roteiro.listarTodos()
+      ])
 
     setSetores(setoresLista)
     setSubsetores(subsetoresLista)
     setPostos(postosLista)
     setCircuitos(circuitosLista)
+    setRoteiros(roteirosLista)
   }
 
-  async function carregarCircuitosPorPosto() {
-    if (postoId === '') {
-      setCircuitosDoPosto([])
-      setCircuitoSelecionado(null)
-      setItens([])
-      return
-    }
+  function carregarCircuitosFiltrados() {
+    const termo = buscaCircuito.trim().toLowerCase()
 
-    const lista = await window.api.roteiro.listarCircuitosPorPosto(
-      Number(postoId),
-      buscaCircuito.trim()
+    const subsetoresPermitidos = new Set(
+      subsetores
+        .filter((subsetor) => setorId === '' || subsetor.setorId === Number(setorId))
+        .map((subsetor) => subsetor.id)
     )
 
+    const postosPermitidos = new Set(
+      postos
+        .filter((posto) => {
+          if (postoId !== '') return posto.id === Number(postoId)
+          if (subsetorId !== '') return posto.subsetorId === Number(subsetorId)
+          if (setorId !== '') return subsetoresPermitidos.has(posto.subsetorId)
+          return true
+        })
+        .map((posto) => posto.id)
+    )
+
+    const grupos = new Map<string, CircuitoPorPosto>()
+
+    for (const item of roteiros) {
+      if (!postosPermitidos.has(item.postoId)) continue
+
+      const circuito = circuitos.find((circuitoAtual) => circuitoAtual.id === item.circuitoId)
+      const posto = postos.find((postoAtual) => postoAtual.id === item.postoId)
+
+      if (!circuito || !posto) continue
+
+      const correspondeBusca =
+        !termo ||
+        circuito.codigo.toLowerCase().includes(termo) ||
+        circuito.nome.toLowerCase().includes(termo) ||
+        posto.nome.toLowerCase().includes(termo) ||
+        posto.subsetorNome.toLowerCase().includes(termo)
+
+      if (!correspondeBusca) continue
+
+      const chave = `${item.circuitoId}:${item.postoId}`
+      const existente = grupos.get(chave)
+
+      if (existente) {
+        existente.totalComponentes += 1
+        continue
+      }
+
+      grupos.set(chave, {
+        circuitoId: circuito.id,
+        codigoCircuito: circuito.codigo,
+        nomeCircuito: circuito.nome,
+        postoId: posto.id,
+        postoNome: posto.nome,
+        subsetorNome: posto.subsetorNome,
+        totalComponentes: 1
+      })
+    }
+
+    const lista = Array.from(grupos.values()).sort((a, b) => {
+      const porPosto = a.postoNome.localeCompare(b.postoNome, 'pt-BR')
+      if (porPosto !== 0) return porPosto
+      return a.codigoCircuito.localeCompare(b.codigoCircuito, 'pt-BR')
+    })
+
     setCircuitosDoPosto(lista)
+
+    if (
+      circuitoSelecionado &&
+      !lista.some(
+        (item) =>
+          item.circuitoId === circuitoSelecionado.circuitoId &&
+          item.postoId === circuitoSelecionado.postoId
+      )
+    ) {
+      setCircuitoSelecionado(null)
+      setItens([])
+    }
   }
 
   async function carregarComponentesDoRoteiro(circuitoId: number, postoSelecionadoId: number) {
@@ -113,8 +182,8 @@ function RoteiroPage() {
   }, [])
 
   useEffect(() => {
-    carregarCircuitosPorPosto()
-  }, [postoId, buscaCircuito])
+    carregarCircuitosFiltrados()
+  }, [buscaCircuito, circuitos, postoId, postos, roteiros, setorId, subsetorId, subsetores])
 
   const subsetoresFiltrados = useMemo(() => {
     if (setorId === '') return []
@@ -134,10 +203,10 @@ function RoteiroPage() {
     setSetorId(novoSetorId)
     setSubsetorId('')
     setPostoId('')
-    setBuscaCircuito('')
     setCircuitosDoPosto([])
     setCircuitoSelecionado(null)
     setItens([])
+    setModalVisualizacaoAberto(false)
   }
 
   function alterarSubsetor(valor: string) {
@@ -145,24 +214,25 @@ function RoteiroPage() {
 
     setSubsetorId(novoSubsetorId)
     setPostoId('')
-    setBuscaCircuito('')
     setCircuitosDoPosto([])
     setCircuitoSelecionado(null)
     setItens([])
+    setModalVisualizacaoAberto(false)
   }
 
   function alterarPosto(valor: string) {
     const novoPostoId = valor === '' ? '' : Number(valor)
 
     setPostoId(novoPostoId)
-    setBuscaCircuito('')
     setCircuitoSelecionado(null)
     setItens([])
+    setModalVisualizacaoAberto(false)
   }
 
   async function selecionarCircuito(circuito: CircuitoPorPosto) {
     setCircuitoSelecionado(circuito)
     await carregarComponentesDoRoteiro(circuito.circuitoId, circuito.postoId)
+    setModalVisualizacaoAberto(true)
   }
 
   async function abrirNovoRoteiro() {
@@ -178,7 +248,7 @@ function RoteiroPage() {
   }
 
   async function abrirEditarRoteiro() {
-    if (!circuitoSelecionado || postoId === '') return
+    if (!circuitoSelecionado) return
 
     setModalModo('editar')
     setModalCircuitoId(circuitoSelecionado.circuitoId)
@@ -187,7 +257,7 @@ function RoteiroPage() {
     setModalAberto(true)
 
     await Promise.all([
-      carregarModalItens(circuitoSelecionado.circuitoId, Number(postoId)),
+      carregarModalItens(circuitoSelecionado.circuitoId, circuitoSelecionado.postoId),
       carregarComponentesDoCircuito(circuitoSelecionado.circuitoId)
     ])
   }
@@ -210,9 +280,12 @@ function RoteiroPage() {
     setComponenteId('')
     setQuantidade(1)
 
-    if (novoCircuitoId !== '' && postoId !== '') {
+    const postoAtualId =
+      modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId
+
+    if (novoCircuitoId !== '' && postoAtualId !== '' && postoAtualId !== undefined) {
       await Promise.all([
-        carregarModalItens(Number(novoCircuitoId), Number(postoId)),
+        carregarModalItens(Number(novoCircuitoId), Number(postoAtualId)),
         carregarComponentesDoCircuito(Number(novoCircuitoId))
       ])
     }
@@ -223,12 +296,18 @@ function RoteiroPage() {
   }
 
   async function adicionarComponenteNoModal() {
-    if (postoId === '' || modalCircuitoId === '' || componenteId === '') return
+    const postoAtualId =
+      modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId
+
+    if (postoAtualId === '' || postoAtualId === undefined || modalCircuitoId === '' || componenteId === '') {
+      return
+    }
+
     if (quantidade < 1) return
 
     await window.api.roteiro.adicionar(
       Number(modalCircuitoId),
-      Number(postoId),
+      Number(postoAtualId),
       Number(componenteId),
       quantidade
     )
@@ -236,7 +315,7 @@ function RoteiroPage() {
     setComponenteId('')
     setQuantidade(1)
 
-    await carregarModalItens(Number(modalCircuitoId), Number(postoId))
+    await carregarModalItens(Number(modalCircuitoId), Number(postoAtualId))
   }
 
   async function alterarQuantidadeModal(id: number, novaQuantidade: number) {
@@ -244,46 +323,68 @@ function RoteiroPage() {
 
     await window.api.roteiro.editarQuantidade(id, novaQuantidade)
 
-    if (postoId !== '' && modalCircuitoId !== '') {
-      await carregarModalItens(Number(modalCircuitoId), Number(postoId))
+    const postoAtualId =
+      modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId
+
+    if (postoAtualId !== '' && postoAtualId !== undefined && modalCircuitoId !== '') {
+      await carregarModalItens(Number(modalCircuitoId), Number(postoAtualId))
     }
   }
 
   async function removerComponenteModal(id: number) {
     await window.api.roteiro.remover(id)
 
-    if (postoId !== '' && modalCircuitoId !== '') {
-      await carregarModalItens(Number(modalCircuitoId), Number(postoId))
+    const postoAtualId =
+      modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId
+
+    if (postoAtualId !== '' && postoAtualId !== undefined && modalCircuitoId !== '') {
+      await carregarModalItens(Number(modalCircuitoId), Number(postoAtualId))
     }
   }
 
   async function salvarAlteracoesModal() {
     const circuitoIdAtual = modalCircuitoId
-    const totalItens = modalItens.length
+    const postoAtualId =
+      modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId
 
     fecharModal()
-    await carregarCircuitosPorPosto()
+    await carregarDados()
 
-    if (postoId !== '' && circuitoIdAtual !== '') {
+    if (postoAtualId !== '' && postoAtualId !== undefined && circuitoIdAtual !== '') {
       const circuitoAtualizado = circuitos.find(
         (circuito) => circuito.id === Number(circuitoIdAtual)
       )
+      const postoAtualizado = postos.find((posto) => posto.id === Number(postoAtualId))
 
-      if (circuitoAtualizado) {
+      if (circuitoAtualizado && postoAtualizado) {
+        const itensAtualizados = await window.api.roteiro.listarPorCircuitoEPosto(
+          Number(circuitoIdAtual),
+          Number(postoAtualId)
+        )
+
         const resumo: CircuitoPorPosto = {
           circuitoId: circuitoAtualizado.id,
           codigoCircuito: circuitoAtualizado.codigo,
           nomeCircuito: circuitoAtualizado.nome,
-          postoId: Number(postoId),
-          postoNome: postoSelecionado?.nome ?? '',
-          subsetorNome: postoSelecionado?.subsetorNome ?? '',
-          totalComponentes: totalItens
+          postoId: Number(postoAtualId),
+          postoNome: postoAtualizado.nome,
+          subsetorNome: postoAtualizado.subsetorNome,
+          totalComponentes: itensAtualizados.length
         }
 
         setCircuitoSelecionado(resumo)
-        await carregarComponentesDoRoteiro(Number(circuitoIdAtual), Number(postoId))
+        setItens(itensAtualizados)
       }
     }
+  }
+
+  function limparFiltros() {
+    setBuscaCircuito('')
+    setSetorId('')
+    setSubsetorId('')
+    setPostoId('')
+    setCircuitoSelecionado(null)
+    setItens([])
   }
 
   return (
@@ -295,7 +396,35 @@ function RoteiroPage() {
 
       <section className={ui.section}>
         <div className={ui.card}>
-          <div className="grid gap-3 md:grid-cols-4">
+          <div>
+            <label className={ui.label}>Pesquisar roteiro</label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search
+                  size={16}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  value={buscaCircuito}
+                  onChange={(event) => setBuscaCircuito(event.target.value)}
+                  placeholder="Pesquise por código, circuito, posto ou subsetor..."
+                  className={`${ui.input} pl-9`}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={limparFiltros}
+                className={`${ui.buttonSecondary} whitespace-nowrap`}
+                title="Limpar pesquisa e filtros"
+              >
+                <RotateCcw size={16} />
+                Limpar
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
             <div>
               <label className={ui.label}>Setor</label>
               <select
@@ -303,7 +432,7 @@ function RoteiroPage() {
                 onChange={(event) => alterarSetor(event.target.value)}
                 className={ui.select}
               >
-                <option value="">Selecione...</option>
+                <option value="">Todos</option>
 
                 {setores.map((setor) => (
                   <option key={setor.id} value={setor.id}>
@@ -321,7 +450,7 @@ function RoteiroPage() {
                 disabled={setorId === ''}
                 className={ui.select}
               >
-                <option value="">Selecione...</option>
+                <option value="">Todos</option>
 
                 {subsetoresFiltrados.map((subsetor) => (
                   <option key={subsetor.id} value={subsetor.id}>
@@ -339,7 +468,7 @@ function RoteiroPage() {
                 disabled={subsetorId === ''}
                 className={ui.select}
               >
-                <option value="">Selecione...</option>
+                <option value="">Todos</option>
 
                 {postosFiltrados.map((posto) => (
                   <option key={posto.id} value={posto.id}>
@@ -348,27 +477,15 @@ function RoteiroPage() {
                 ))}
               </select>
             </div>
-
-            <div>
-              <label className={ui.label}>Pesquisar circuito</label>
-              <div className="flex gap-2">
-                <input
-                  value={buscaCircuito}
-                  onChange={(event) => setBuscaCircuito(event.target.value)}
-                  disabled={postoId === ''}
-                  placeholder="Código ou nome..."
-                  className={ui.input}
-                />
-
-                <button className={ui.buttonSecondary} disabled={postoId === ''}>
-                  <Search size={16} />
-                </button>
-              </div>
-            </div>
           </div>
+
+          <p className="mt-3 text-xs text-slate-500">
+            A pesquisa funciona sem selecionar os filtros. Setor, subsetor e posto apenas refinam os
+            resultados.
+          </p>
         </div>
 
-        {postoId === '' && (
+        {postoId === '' && buscaCircuito.trim() === '' && setorId === '' && (
           <div className={ui.card}>
             <div className="rounded-lg border border-amber-300 bg-amber-50 p-8">
               <div className="flex items-start gap-4">
@@ -410,27 +527,33 @@ function RoteiroPage() {
           </div>
         )}
 
-        {postoId !== '' && (
+        {(buscaCircuito.trim() !== '' || setorId !== '' || subsetorId !== '' || postoId !== '') && (
           <div className={ui.card}>
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <h2 className={ui.title}>Circuitos do posto</h2>
-                <p className={ui.subtitle}>{postoSelecionado?.nome ?? 'Posto selecionado'}</p>
+                <h2 className={ui.title}>Roteiros encontrados</h2>
+                <p className={ui.subtitle}>
+                  {postoSelecionado?.nome ?? 'Pesquisa em todos os postos'}
+                </p>
               </div>
 
-              <button onClick={abrirNovoRoteiro} className={ui.buttonPrimary}>
-                <Plus size={16} />
-                Novo Roteiro
-              </button>
+              {postoId !== '' && (
+                <button onClick={abrirNovoRoteiro} className={ui.buttonPrimary}>
+                  <Plus size={16} />
+                  Novo Roteiro
+                </button>
+              )}
             </div>
 
             <div className="grid gap-3 md:grid-cols-4">
               {circuitosDoPosto.map((circuito) => {
-                const ativo = circuitoSelecionado?.circuitoId === circuito.circuitoId
+                const ativo =
+                  circuitoSelecionado?.circuitoId === circuito.circuitoId &&
+                  circuitoSelecionado?.postoId === circuito.postoId
 
                 return (
                   <button
-                    key={circuito.circuitoId}
+                    key={`${circuito.circuitoId}-${circuito.postoId}`}
                     onClick={() => selecionarCircuito(circuito)}
                     className={`rounded-lg border p-4 text-left transition ${
                       ativo
@@ -444,7 +567,11 @@ function RoteiroPage() {
 
                     <div className="mt-1 text-sm text-slate-700">{circuito.nomeCircuito}</div>
 
-                    <div className="mt-3 text-xs font-semibold text-slate-500">
+                    <div className="mt-3 text-xs text-slate-500">
+                      {circuito.subsetorNome} · {circuito.postoNome}
+                    </div>
+
+                    <div className="mt-1 text-xs font-semibold text-slate-500">
                       {circuito.totalComponentes} componente(s)
                     </div>
                   </button>
@@ -460,67 +587,17 @@ function RoteiroPage() {
           </div>
         )}
 
-        {circuitoSelecionado && (
-          <div className="overflow-hidden rounded-lg bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b px-4 py-3">
-              <div>
-                <h2 className={ui.title}>
-                  {circuitoSelecionado.codigoCircuito} - {circuitoSelecionado.nomeCircuito}
-                </h2>
-
-                <p className={ui.subtitle}>Posto: {circuitoSelecionado.postoNome}</p>
-              </div>
-
-              <button onClick={abrirEditarRoteiro} className={ui.buttonSecondary}>
-                <Pencil size={16} />
-                Editar Roteiro
-              </button>
-            </div>
-
-            <table className={ui.table}>
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className={ui.tableHeader}>Código</th>
-                  <th className={ui.tableHeader}>Componente</th>
-                  <th className={ui.tableHeader}>Qtde</th>
-                  <th className={ui.tableHeaderRight}>Ações</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {itens.map((item) => (
-                  <tr key={item.uuid} className="border-t">
-                    <td className={ui.tableCellStrong}>{item.codigoComponente}</td>
-
-                    <td className={ui.tableCell}>{item.nomeComponente}</td>
-
-                    <td className={ui.tableCell}>{item.quantidade}</td>
-
-                    <td className={ui.tableCell}>
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => setItemVisualizando(item)}
-                          className={ui.buttonSecondary}
-                          title="Informações"
-                        >
-                          <Eye size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-
-                {itens.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className={ui.empty}>
-                      Nenhum componente vinculado a este roteiro.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+        {modalVisualizacaoAberto && circuitoSelecionado && (
+          <VisualizarRoteiroModal
+            roteiro={circuitoSelecionado}
+            itens={itens}
+            onFechar={() => setModalVisualizacaoAberto(false)}
+            onEditar={() => {
+              setModalVisualizacaoAberto(false)
+              abrirEditarRoteiro()
+            }}
+            onVisualizarItem={setItemVisualizando}
+          />
         )}
 
         {itemVisualizando && (
@@ -530,7 +607,11 @@ function RoteiroPage() {
         {modalAberto && (
           <RoteiroModal
             modalModo={modalModo}
-            postoNome={postoSelecionado?.nome ?? 'Posto selecionado'}
+            postoNome={
+              modalModo === 'editar'
+                ? circuitoSelecionado?.postoNome ?? 'Posto selecionado'
+                : postoSelecionado?.nome ?? 'Posto selecionado'
+            }
             circuitos={circuitos}
             modalCircuitoId={modalCircuitoId}
             componentesDoCircuito={componentesDoCircuito}

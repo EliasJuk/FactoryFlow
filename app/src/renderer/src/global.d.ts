@@ -174,6 +174,7 @@ type RoteiroComponenteApi = {
 
 type RefugoListagemApi = {
   id: number
+  uuid: string
   numeroRefugo: string
   dataHora: string
   turno: string
@@ -183,6 +184,16 @@ type RefugoListagemApi = {
   status: string
   motivoCancelamento?: string | null
 
+  createdAt?: string | null
+  updatedAt?: string | null
+  deletedAt?: string | null
+  createdBy?: number | null
+  updatedBy?: number | null
+  deletedBy?: number | null
+  createdByNome?: string | null
+  updatedByNome?: string | null
+  deletedByNome?: string | null
+
   setorNome: string
   subsetorNome: string
   postoNome: string
@@ -191,12 +202,19 @@ type RefugoListagemApi = {
 
   itens: {
     id: number
+    uuid: string
     defeitoId: number
     componenteCodigo: string
     componenteNome: string
     defeitoCodigo: string
     defeitoDescricao: string
     quantidadeRefugada: number
+    createdAt?: string | null
+    updatedAt?: string | null
+    deletedAt?: string | null
+    createdBy?: number | null
+    updatedBy?: number | null
+    deletedBy?: number | null
   }[]
 }
 
@@ -512,10 +530,11 @@ declare global {
           turno: string,
           quantidadeProduzida: number,
           observacao: string | undefined,
-          itens: { id: number; defeitoId: number; quantidade: number }[]
+          itens: { id: number; defeitoId: number; quantidade: number }[],
+          usuarioId?: number | null
         ) => Promise<void>
 
-        cancelar: (id: number, motivo: string) => Promise<void>
+        cancelar: (id: number, motivo: string, usuarioId?: number | null) => Promise<void>
 
         imprimir: (id: number) => Promise<void>
 

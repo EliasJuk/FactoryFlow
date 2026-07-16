@@ -13,6 +13,8 @@ type RefugoInput = {
   subsetorId: number
   postoId: number
   circuitoId: number
+  turno: string
+  quantidadeProduzida: number
   observacao?: string
   itens: RefugoItemInput[]
 }
@@ -35,23 +37,13 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   auth: {
-    login: (matricula: string, senha: string) =>
-      ipcRenderer.invoke('auth:login', matricula, senha),
+    login: (matricula: string, senha: string) => ipcRenderer.invoke('auth:login', matricula, senha),
 
     solicitarRedefinicao: (matricula: string) =>
       ipcRenderer.invoke('auth:solicitar-redefinicao', matricula),
 
-    alterarSenhaObrigatoria: (
-      usuarioId: number,
-      senhaAtual: string,
-      novaSenha: string
-    ) =>
-      ipcRenderer.invoke(
-        'auth:alterar-senha-obrigatoria',
-        usuarioId,
-        senhaAtual,
-        novaSenha
-      )
+    alterarSenhaObrigatoria: (usuarioId: number, senhaAtual: string, novaSenha: string) =>
+      ipcRenderer.invoke('auth:alterar-senha-obrigatoria', usuarioId, senhaAtual, novaSenha)
   },
 
   setores: {
@@ -202,7 +194,8 @@ contextBridge.exposeInMainWorld('api', {
       turno: string,
       quantidadeProduzida: number,
       observacao: string | undefined,
-      itens: { id: number; defeitoId: number; quantidade: number }[]
+      itens: { id: number; defeitoId: number; quantidade: number }[],
+      usuarioId?: number | null
     ) =>
       ipcRenderer.invoke(
         'refugos:editar-completo',
@@ -211,10 +204,12 @@ contextBridge.exposeInMainWorld('api', {
         turno,
         quantidadeProduzida,
         observacao,
-        itens
+        itens,
+        usuarioId
       ),
 
-    cancelar: (id: number, motivo: string) => ipcRenderer.invoke('refugos:cancelar', id, motivo),
+    cancelar: (id: number, motivo: string, usuarioId?: number | null) =>
+      ipcRenderer.invoke('refugos:cancelar', id, motivo, usuarioId),
 
     imprimir: (id: number) => ipcRenderer.invoke('refugos:imprimir', id),
 
@@ -279,22 +274,13 @@ contextBridge.exposeInMainWorld('api', {
     remover: (id: number, usuarioId?: number | null) =>
       ipcRenderer.invoke('usuarios:remover', id, usuarioId),
 
-    listarSolicitacoesSenha: () =>
-      ipcRenderer.invoke('usuarios:listar-solicitacoes-senha'),
+    listarSolicitacoesSenha: () => ipcRenderer.invoke('usuarios:listar-solicitacoes-senha'),
 
     atenderSolicitacaoSenha: (solicitacaoId: number, atendenteId: number) =>
-      ipcRenderer.invoke(
-        'usuarios:atender-solicitacao-senha',
-        solicitacaoId,
-        atendenteId
-      ),
+      ipcRenderer.invoke('usuarios:atender-solicitacao-senha', solicitacaoId, atendenteId),
 
     cancelarSolicitacaoSenha: (solicitacaoId: number, responsavelId: number) =>
-      ipcRenderer.invoke(
-        'usuarios:cancelar-solicitacao-senha',
-        solicitacaoId,
-        responsavelId
-      )
+      ipcRenderer.invoke('usuarios:cancelar-solicitacao-senha', solicitacaoId, responsavelId)
   },
 
   importacao: {

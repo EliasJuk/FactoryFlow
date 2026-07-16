@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, RotateCcw } from 'lucide-react'
+import { Lightbulb, Plus, RotateCcw } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
 import { SearchBar } from '../../components/Crud/SearchBar/SearchBar'
@@ -289,8 +289,20 @@ function ComposicaoCircuitosPage() {
         title="Composição de Circuitos"
         subtitle="Visualize e gerencie os componentes utilizados em cada circuito."
       />
-
       <section className={ui.section}>
+      <div className="rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 text-amber-950 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Lightbulb size={18} className="shrink-0 text-amber-500" />
+
+          <p className="text-sm leading-5">
+            <span className="font-bold">Nota:</span>{' '}
+            Cadastre todos os componentes que podem ser encontrados ou que estejam relacionados ao
+            circuito. Esses componentes poderão ser utilizados posteriormente nos roteiros e nos
+            lançamentos de refugo.
+          </p>
+        </div>
+      </div>
+
         {mensagemSucesso && (
           <div className="rounded-md bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
             {mensagemSucesso}
@@ -318,8 +330,8 @@ function ComposicaoCircuitosPage() {
             página.
           </p>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-4">
-            <div>
+          <div className="mt-4 grid gap-3 md:grid-cols-12">
+            <div className="md:col-span-3">
               <label className={ui.label}>Setor</label>
               <select
                 value={setorId}
@@ -340,7 +352,7 @@ function ComposicaoCircuitosPage() {
               </select>
             </div>
 
-            <div>
+            <div className="md:col-span-3">
               <label className={ui.label}>Subsetor</label>
               <select
                 value={subsetorId}
@@ -360,7 +372,7 @@ function ComposicaoCircuitosPage() {
               </select>
             </div>
 
-            <div>
+            <div className="md:col-span-3">
               <label className={ui.label}>Posto de trabalho</label>
               <select
                 value={postoId}
@@ -379,7 +391,7 @@ function ComposicaoCircuitosPage() {
               </select>
             </div>
 
-            <div>
+            <div className="md:col-span-2">
               <label className={ui.label}>Componentes</label>
               <select
                 value={filtroComponentes}
@@ -391,13 +403,18 @@ function ComposicaoCircuitosPage() {
                 <option value="sem">Sem componentes</option>
               </select>
             </div>
-          </div>
 
-          <div className="mt-3 flex justify-end">
-            <button type="button" onClick={limparFiltros} className={ui.buttonSecondary}>
-              <RotateCcw size={15} />
-              Limpar filtros
-            </button>
+            <div className="flex items-end md:col-span-1">
+              <button
+                type="button"
+                onClick={limparFiltros}
+                className={`${ui.buttonSecondary} w-full justify-center whitespace-nowrap px-3`}
+                title="Limpar filtros"
+              >
+                <RotateCcw size={15} />
+                <span className="md:hidden xl:inline">Limpar</span>
+              </button>
+            </div>
           </div>
 
           {(setorId !== '' || subsetorId !== '' || postoId !== '') && (

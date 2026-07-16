@@ -179,6 +179,7 @@ export async function runPostgresMigrations() {
 
     CREATE TABLE IF NOT EXISTS refugos (
       id SERIAL PRIMARY KEY,
+      uuid UUID NOT NULL UNIQUE,
 
       numero_refugo TEXT NOT NULL,
       sigla_setor TEXT NOT NULL,
@@ -199,11 +200,19 @@ export async function runPostgresMigrations() {
       observacao TEXT,
 
       status TEXT NOT NULL DEFAULT 'ATIVO',
-      motivo_cancelamento TEXT
+      motivo_cancelamento TEXT,
+
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMP NULL,
+      created_by INTEGER NULL REFERENCES usuarios(id),
+      updated_by INTEGER NULL REFERENCES usuarios(id),
+      deleted_by INTEGER NULL REFERENCES usuarios(id)
     );
 
     CREATE TABLE IF NOT EXISTS refugo_itens (
       id SERIAL PRIMARY KEY,
+      uuid UUID NOT NULL UNIQUE,
       refugo_id INTEGER NOT NULL REFERENCES refugos(id),
       componente_id INTEGER NOT NULL REFERENCES componentes(id),
       defeito_id INTEGER NOT NULL REFERENCES defeitos(id),
@@ -214,7 +223,14 @@ export async function runPostgresMigrations() {
       codigo_defeito_snapshot TEXT,
       descricao_defeito_snapshot TEXT,
       preco_unitario_snapshot NUMERIC(12, 4),
-      custo_total_snapshot NUMERIC(12, 4)
+      custo_total_snapshot NUMERIC(12, 4),
+
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMP NULL,
+      created_by INTEGER NULL REFERENCES usuarios(id),
+      updated_by INTEGER NULL REFERENCES usuarios(id),
+      deleted_by INTEGER NULL REFERENCES usuarios(id)
     );
   `)
 
@@ -1066,5 +1082,113 @@ export async function runPostgresMigrations() {
       COALESCE((SELECT MAX(id) FROM usuarios), 1),
       true
     );
+  `)
+
+  if (!(await columnExists('refugos', 'uuid'))) {
+    await pool.query(`ALTER TABLE refugos ADD COLUMN uuid UUID;`)
+  }
+
+  const refugosSemUuid = await pool.query<{ id: number }>(`
+    SELECT id FROM refugos WHERE uuid IS NULL
+  `)
+
+  for (const refugo of refugosSemUuid.rows) {
+    await pool.query(`UPDATE refugos SET uuid = $1 WHERE id = $2`, [
+      IdGenerator.generate(),
+      refugo.id
+    ])
+  }
+
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_refugos_uuid ON refugos(uuid);`)
+
+  const colunasAuditoriaRefugos = [
+    {
+      nome: 'created_at',
+      sql: 'ALTER TABLE refugos ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+    },
+    {
+      nome: 'updated_at',
+      sql: 'ALTER TABLE refugos ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+    },
+    { nome: 'deleted_at', sql: 'ALTER TABLE refugos ADD COLUMN deleted_at TIMESTAMP NULL;' },
+    {
+      nome: 'created_by',
+      sql: 'ALTER TABLE refugos ADD COLUMN created_by INTEGER NULL REFERENCES usuarios(id);'
+    },
+    {
+      nome: 'updated_by',
+      sql: 'ALTER TABLE refugos ADD COLUMN updated_by INTEGER NULL REFERENCES usuarios(id);'
+    },
+    {
+      nome: 'deleted_by',
+      sql: 'ALTER TABLE refugos ADD COLUMN deleted_by INTEGER NULL REFERENCES usuarios(id);'
+    }
+  ]
+
+  for (const coluna of colunasAuditoriaRefugos) {
+    if (!(await columnExists('refugos', coluna.nome))) await pool.query(coluna.sql)
+  }
+
+  await pool.query(`
+    UPDATE refugos
+    SET created_at = COALESCE(created_at, data_hora, CURRENT_TIMESTAMP),
+        updated_at = COALESCE(updated_at, created_at, data_hora, CURRENT_TIMESTAMP),
+        created_by = COALESCE(created_by, usuario_id, 1),
+        updated_by = COALESCE(updated_by, created_by, usuario_id, 1)
+  `)
+
+  if (!(await columnExists('refugo_itens', 'uuid'))) {
+    await pool.query(`ALTER TABLE refugo_itens ADD COLUMN uuid UUID;`)
+  }
+
+  const itensRefugoSemUuid = await pool.query<{ id: number }>(`
+    SELECT id FROM refugo_itens WHERE uuid IS NULL
+  `)
+
+  for (const item of itensRefugoSemUuid.rows) {
+    await pool.query(`UPDATE refugo_itens SET uuid = $1 WHERE id = $2`, [
+      IdGenerator.generate(),
+      item.id
+    ])
+  }
+
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_refugo_itens_uuid ON refugo_itens(uuid);`)
+
+  const colunasAuditoriaItensRefugo = [
+    {
+      nome: 'created_at',
+      sql: 'ALTER TABLE refugo_itens ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+    },
+    {
+      nome: 'updated_at',
+      sql: 'ALTER TABLE refugo_itens ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+    },
+    { nome: 'deleted_at', sql: 'ALTER TABLE refugo_itens ADD COLUMN deleted_at TIMESTAMP NULL;' },
+    {
+      nome: 'created_by',
+      sql: 'ALTER TABLE refugo_itens ADD COLUMN created_by INTEGER NULL REFERENCES usuarios(id);'
+    },
+    {
+      nome: 'updated_by',
+      sql: 'ALTER TABLE refugo_itens ADD COLUMN updated_by INTEGER NULL REFERENCES usuarios(id);'
+    },
+    {
+      nome: 'deleted_by',
+      sql: 'ALTER TABLE refugo_itens ADD COLUMN deleted_by INTEGER NULL REFERENCES usuarios(id);'
+    }
+  ]
+
+  for (const coluna of colunasAuditoriaItensRefugo) {
+    if (!(await columnExists('refugo_itens', coluna.nome))) await pool.query(coluna.sql)
+  }
+
+  await pool.query(`
+    UPDATE refugo_itens ri
+    SET created_at = COALESCE(ri.created_at, r.created_at, CURRENT_TIMESTAMP),
+        updated_at = COALESCE(ri.updated_at, ri.created_at, r.updated_at, CURRENT_TIMESTAMP),
+        created_by = COALESCE(ri.created_by, r.created_by, 1),
+        updated_by = COALESCE(ri.updated_by, ri.created_by, r.updated_by, 1)
+    FROM refugos r
+    WHERE r.id = ri.refugo_id
   `)
 }

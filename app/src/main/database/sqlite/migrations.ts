@@ -213,6 +213,7 @@ export function runMigrations() {
 
     CREATE TABLE IF NOT EXISTS refugos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT NOT NULL UNIQUE,
 
       numero_refugo TEXT NOT NULL,
       sigla_setor TEXT NOT NULL,
@@ -231,16 +232,29 @@ export function runMigrations() {
 
       quantidade_produzida INTEGER NOT NULL DEFAULT 0,
       observacao TEXT,
+      status TEXT NOT NULL DEFAULT 'ATIVO',
+      motivo_cancelamento TEXT,
+
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TEXT,
+      created_by INTEGER,
+      updated_by INTEGER,
+      deleted_by INTEGER,
 
       FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
       FOREIGN KEY (setor_id) REFERENCES setores(id),
       FOREIGN KEY (subsetor_id) REFERENCES subsetores(id),
       FOREIGN KEY (posto_id) REFERENCES postos(id),
-      FOREIGN KEY (circuito_id) REFERENCES circuitos(id)
+      FOREIGN KEY (circuito_id) REFERENCES circuitos(id),
+      FOREIGN KEY (created_by) REFERENCES usuarios(id),
+      FOREIGN KEY (updated_by) REFERENCES usuarios(id),
+      FOREIGN KEY (deleted_by) REFERENCES usuarios(id)
     );
 
     CREATE TABLE IF NOT EXISTS refugo_itens (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT NOT NULL UNIQUE,
       refugo_id INTEGER NOT NULL,
       componente_id INTEGER NOT NULL,
       defeito_id INTEGER NOT NULL,
@@ -253,9 +267,19 @@ export function runMigrations() {
       preco_unitario_snapshot REAL NOT NULL DEFAULT 0,
       custo_total_snapshot REAL NOT NULL DEFAULT 0,
 
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TEXT,
+      created_by INTEGER,
+      updated_by INTEGER,
+      deleted_by INTEGER,
+
       FOREIGN KEY (refugo_id) REFERENCES refugos(id),
       FOREIGN KEY (componente_id) REFERENCES componentes(id),
-      FOREIGN KEY (defeito_id) REFERENCES defeitos(id)
+      FOREIGN KEY (defeito_id) REFERENCES defeitos(id),
+      FOREIGN KEY (created_by) REFERENCES usuarios(id),
+      FOREIGN KEY (updated_by) REFERENCES usuarios(id),
+      FOREIGN KEY (deleted_by) REFERENCES usuarios(id)
     );
   `)
 
@@ -1107,4 +1131,96 @@ export function runMigrations() {
       WHERE id = 1
     `
   ).run(senhaInicialHash)
+
+  if (!columnExists('refugos', 'uuid')) db.exec(`ALTER TABLE refugos ADD COLUMN uuid TEXT;`)
+
+  const refugosSemUuid = db
+    .prepare(
+      `
+    SELECT id FROM refugos WHERE uuid IS NULL OR TRIM(uuid) = ''
+  `
+    )
+    .all() as Array<{ id: number }>
+
+  const atualizarUuidRefugo = db.prepare(`UPDATE refugos SET uuid = ? WHERE id = ?`)
+  db.transaction((registros: Array<{ id: number }>) => {
+    for (const registro of registros) atualizarUuidRefugo.run(IdGenerator.generate(), registro.id)
+  })(refugosSemUuid)
+
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_refugos_uuid ON refugos(uuid);`)
+
+  for (const coluna of [
+    ['created_at', `ALTER TABLE refugos ADD COLUMN created_at TEXT;`],
+    ['updated_at', `ALTER TABLE refugos ADD COLUMN updated_at TEXT;`],
+    ['deleted_at', `ALTER TABLE refugos ADD COLUMN deleted_at TEXT;`],
+    ['created_by', `ALTER TABLE refugos ADD COLUMN created_by INTEGER;`],
+    ['updated_by', `ALTER TABLE refugos ADD COLUMN updated_by INTEGER;`],
+    ['deleted_by', `ALTER TABLE refugos ADD COLUMN deleted_by INTEGER;`]
+  ] as const) {
+    if (!columnExists('refugos', coluna[0])) db.exec(coluna[1])
+  }
+
+  db.exec(`
+    UPDATE refugos
+    SET created_at = COALESCE(created_at, data_hora, datetime('now','localtime')),
+        updated_at = COALESCE(updated_at, created_at, data_hora, datetime('now','localtime')),
+        created_by = COALESCE(created_by, usuario_id, 1),
+        updated_by = COALESCE(updated_by, created_by, usuario_id, 1)
+  `)
+
+  if (!columnExists('refugo_itens', 'uuid'))
+    db.exec(`ALTER TABLE refugo_itens ADD COLUMN uuid TEXT;`)
+
+  const itensRefugoSemUuid = db
+    .prepare(
+      `
+    SELECT id FROM refugo_itens WHERE uuid IS NULL OR TRIM(uuid) = ''
+  `
+    )
+    .all() as Array<{ id: number }>
+
+  const atualizarUuidItemRefugo = db.prepare(`UPDATE refugo_itens SET uuid = ? WHERE id = ?`)
+  db.transaction((registros: Array<{ id: number }>) => {
+    for (const registro of registros)
+      atualizarUuidItemRefugo.run(IdGenerator.generate(), registro.id)
+  })(itensRefugoSemUuid)
+
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_refugo_itens_uuid ON refugo_itens(uuid);`)
+
+  for (const coluna of [
+    ['created_at', `ALTER TABLE refugo_itens ADD COLUMN created_at TEXT;`],
+    ['updated_at', `ALTER TABLE refugo_itens ADD COLUMN updated_at TEXT;`],
+    ['deleted_at', `ALTER TABLE refugo_itens ADD COLUMN deleted_at TEXT;`],
+    ['created_by', `ALTER TABLE refugo_itens ADD COLUMN created_by INTEGER;`],
+    ['updated_by', `ALTER TABLE refugo_itens ADD COLUMN updated_by INTEGER;`],
+    ['deleted_by', `ALTER TABLE refugo_itens ADD COLUMN deleted_by INTEGER;`]
+  ] as const) {
+    if (!columnExists('refugo_itens', coluna[0])) db.exec(coluna[1])
+  }
+
+  db.exec(`
+    UPDATE refugo_itens
+    SET created_at = COALESCE(
+          created_at,
+          (SELECT r.created_at FROM refugos r WHERE r.id = refugo_itens.refugo_id),
+          datetime('now','localtime')
+        ),
+        updated_at = COALESCE(
+          updated_at,
+          created_at,
+          (SELECT r.updated_at FROM refugos r WHERE r.id = refugo_itens.refugo_id),
+          datetime('now','localtime')
+        ),
+        created_by = COALESCE(
+          created_by,
+          (SELECT r.created_by FROM refugos r WHERE r.id = refugo_itens.refugo_id),
+          1
+        ),
+        updated_by = COALESCE(
+          updated_by,
+          created_by,
+          (SELECT r.updated_by FROM refugos r WHERE r.id = refugo_itens.refugo_id),
+          1
+        )
+  `)
 }

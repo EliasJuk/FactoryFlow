@@ -1,14 +1,15 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState } from 'react'
 
-import PageHeader from "../../components/PageHeader/PageHeader"
-import { Setor } from "../../models/Setor"
-import { Subsetor } from "../../models/Subsetor"
-import { Posto } from "../../models/Posto"
-import { Circuito } from "../../models/Circuito"
-import { Defeito } from "../../models/Defeitos"
-import { ui } from "../../theme/ui"
+import PageHeader from '../../components/PageHeader/PageHeader'
+import { Setor } from '../../models/Setor'
+import { Subsetor } from '../../models/Subsetor'
+import { Posto } from '../../models/Posto'
+import { Circuito } from '../../models/Circuito'
+import { Defeito } from '../../models/Defeitos'
+import { ui } from '../../theme/ui'
+import { useApp } from '../../contexts/AppContext'
 
-type Quantidade = number | ""
+type Quantidade = number | ''
 
 type RoteiroComponente = {
   id: number
@@ -25,33 +26,33 @@ type ItemLancamento = {
   componenteId: number
   codigoComponente: string
   nomeComponente: string
-  defeitoId: number | ""
+  defeitoId: number | ''
   quantidade: Quantidade
 }
 
 function LancarRefugoPage() {
+  const { usuario } = useApp()
   const [setores, setSetores] = useState<Setor[]>([])
   const [subsetores, setSubsetores] = useState<Subsetor[]>([])
   const [postos, setPostos] = useState<Posto[]>([])
   const [circuitos, setCircuitos] = useState<Circuito[]>([])
   const [defeitos, setDefeitos] = useState<Defeito[]>([])
 
-  const [setorId, setSetorId] = useState<number | "">("")
-  const [subsetorId, setSubsetorId] = useState<number | "">("")
-  const [postoId, setPostoId] = useState<number | "">("")
-  const [circuitoId, setCircuitoId] = useState<number | "">("")
-  const [turno, setTurno] = useState<"A" | "B" | "C">("A")
+  const [setorId, setSetorId] = useState<number | ''>('')
+  const [subsetorId, setSubsetorId] = useState<number | ''>('')
+  const [postoId, setPostoId] = useState<number | ''>('')
+  const [circuitoId, setCircuitoId] = useState<number | ''>('')
+  const [turno, setTurno] = useState<'A' | 'B' | 'C'>('A')
 
-  const [matriculaOperador, setMatriculaOperador] = useState("")
+  const [matriculaOperador, setMatriculaOperador] = useState('')
   const [quantidadeProduzida, setQuantidadeProduzida] = useState<Quantidade>(0)
-  const [observacao, setObservacao] = useState("")
+  const [observacao, setObservacao] = useState('')
   const [itens, setItens] = useState<ItemLancamento[]>([])
-  const [mensagem, setMensagem] = useState("")
-  const [tipoMensagem, setTipoMensagem] =
-    useState<"sucesso" | "erro" | "info">("info")
+  const [mensagem, setMensagem] = useState('')
+  const [tipoMensagem, setTipoMensagem] = useState<'sucesso' | 'erro' | 'info'>('info')
   const [salvando, setSalvando] = useState(false)
 
-  const dataAtual = new Date().toLocaleString("pt-BR")
+  const dataAtual = new Date().toLocaleString('pt-BR')
 
   async function carregarDados() {
     const [setoresLista, subsetoresLista, postosLista, circuitosLista, defeitosLista] =
@@ -74,58 +75,51 @@ function LancarRefugoPage() {
     carregarDados()
   }, [])
 
-  const subsetoresFiltrados = subsetores.filter(
-    (subsetor) => subsetor.setorId === setorId
-  )
+  const subsetoresFiltrados = subsetores.filter((subsetor) => subsetor.setorId === setorId)
 
-  const postosFiltrados = postos.filter(
-    (posto) => posto.subsetorId === subsetorId
-  )
+  const postosFiltrados = postos.filter((posto) => posto.subsetorId === subsetorId)
 
-  function mostrarMensagem(
-    texto: string,
-    tipo: "sucesso" | "erro" | "info" = "info"
-  ) {
+  function mostrarMensagem(texto: string, tipo: 'sucesso' | 'erro' | 'info' = 'info') {
     setMensagem(texto)
     setTipoMensagem(tipo)
 
     setTimeout(() => {
-      setMensagem("")
+      setMensagem('')
     }, 3500)
   }
 
   function alterarSetor(valor: string) {
-    setSetorId(valor === "" ? "" : Number(valor))
-    setSubsetorId("")
-    setPostoId("")
-    setCircuitoId("")
+    setSetorId(valor === '' ? '' : Number(valor))
+    setSubsetorId('')
+    setPostoId('')
+    setCircuitoId('')
     setItens([])
-    setMensagem("")
+    setMensagem('')
   }
 
   function alterarSubsetor(valor: string) {
-    setSubsetorId(valor === "" ? "" : Number(valor))
-    setPostoId("")
-    setCircuitoId("")
+    setSubsetorId(valor === '' ? '' : Number(valor))
+    setPostoId('')
+    setCircuitoId('')
     setItens([])
-    setMensagem("")
+    setMensagem('')
   }
 
   function alterarPosto(valor: string) {
-    setPostoId(valor === "" ? "" : Number(valor))
-    setCircuitoId("")
+    setPostoId(valor === '' ? '' : Number(valor))
+    setCircuitoId('')
     setItens([])
-    setMensagem("")
+    setMensagem('')
   }
 
   function alterarCircuito(valor: string) {
-    setCircuitoId(valor === "" ? "" : Number(valor))
+    setCircuitoId(valor === '' ? '' : Number(valor))
     setItens([])
-    setMensagem("")
+    setMensagem('')
   }
 
   async function carregarComponentesPermitidos() {
-    if (postoId === "" || circuitoId === "") {
+    if (postoId === '' || circuitoId === '') {
       setItens([])
       return
     }
@@ -140,7 +134,7 @@ function LancarRefugoPage() {
         componenteId: item.componenteId,
         codigoComponente: item.codigoComponente,
         nomeComponente: item.nomeComponente,
-        defeitoId: "",
+        defeitoId: '',
         quantidade: 0
       }))
     )
@@ -150,7 +144,7 @@ function LancarRefugoPage() {
     carregarComponentesPermitidos()
   }, [postoId, circuitoId])
 
-  function alterarDefeito(componenteId: number, defeitoId: number | "") {
+  function alterarDefeito(componenteId: number, defeitoId: number | '') {
     setItens((itensAtuais) =>
       itensAtuais.map((item) =>
         item.componenteId === componenteId ? { ...item, defeitoId } : item
@@ -167,52 +161,51 @@ function LancarRefugoPage() {
   }
 
   function limparAposSalvar() {
-    setPostoId("")
-    setCircuitoId("")
-    setMatriculaOperador("")
+    setPostoId('')
+    setCircuitoId('')
+    setMatriculaOperador('')
     setQuantidadeProduzida(0)
-    setObservacao("")
+    setObservacao('')
     setItens([])
   }
 
   async function salvarRefugo() {
     try {
       setSalvando(true)
-      setMensagem("")
+      setMensagem('')
 
       const itensValidos = itens
-        .filter((item) => item.defeitoId !== "")
+        .filter((item) => item.defeitoId !== '')
         .map((item) => ({
           componenteId: item.componenteId,
           defeitoId: Number(item.defeitoId),
-          quantidade: item.quantidade === "" ? 0 : item.quantidade
+          quantidade: item.quantidade === '' ? 0 : item.quantidade
         }))
 
       if (
         !matriculaOperador.trim() ||
-        setorId === "" ||
-        subsetorId === "" ||
-        postoId === "" ||
-        circuitoId === "" ||
+        setorId === '' ||
+        subsetorId === '' ||
+        postoId === '' ||
+        circuitoId === '' ||
         itensValidos.length === 0
       ) {
         mostrarMensagem(
-          "Preencha matrícula, local, posto, circuito e selecione ao menos um defeito.",
-          "erro"
+          'Preencha matrícula, local, posto, circuito e selecione ao menos um defeito.',
+          'erro'
         )
         return
       }
 
       const numeroRefugo = await window.api.refugos.criar({
         matriculaOperador,
-        usuarioId: null,
+        usuarioId: usuario.id ?? null,
         setorId: Number(setorId),
         subsetorId: Number(subsetorId),
         postoId: Number(postoId),
         circuitoId: Number(circuitoId),
         turno,
-        quantidadeProduzida:
-          quantidadeProduzida === "" ? 0 : quantidadeProduzida,
+        quantidadeProduzida: quantidadeProduzida === '' ? 0 : quantidadeProduzida,
         observacao: observacao.trim() || undefined,
         itens: itensValidos
       })
@@ -221,22 +214,22 @@ function LancarRefugoPage() {
 
       mostrarMensagem(
         `✅ Refugo ${numeroRefugo} salvo com sucesso. Imprimindo documento...`,
-        "sucesso"
+        'sucesso'
       )
     } catch (erro) {
       console.error(erro)
-      mostrarMensagem("❌ Erro ao salvar o refugo.", "erro")
+      mostrarMensagem('❌ Erro ao salvar o refugo.', 'erro')
     } finally {
       setSalvando(false)
     }
   }
 
   const mensagemClasse =
-    tipoMensagem === "sucesso"
-      ? "mt-3 rounded-md bg-green-50 px-3 py-2 text-sm font-semibold text-green-700"
-      : tipoMensagem === "erro"
-        ? "mt-3 rounded-md bg-red-50 px-3 py-2 text-sm font-semibold text-red-700"
-        : "mt-3 rounded-md bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700"
+    tipoMensagem === 'sucesso'
+      ? 'mt-3 rounded-md bg-green-50 px-3 py-2 text-sm font-semibold text-green-700'
+      : tipoMensagem === 'erro'
+        ? 'mt-3 rounded-md bg-red-50 px-3 py-2 text-sm font-semibold text-red-700'
+        : 'mt-3 rounded-md bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700'
 
   return (
     <main className={ui.page}>
@@ -275,7 +268,7 @@ function LancarRefugoPage() {
                 value={subsetorId}
                 onChange={(event) => alterarSubsetor(event.target.value)}
                 className={ui.select}
-                disabled={setorId === ""}
+                disabled={setorId === ''}
               >
                 <option value="">Selecione...</option>
                 {subsetoresFiltrados.map((subsetor) => (
@@ -294,7 +287,7 @@ function LancarRefugoPage() {
                 value={postoId}
                 onChange={(event) => alterarPosto(event.target.value)}
                 className={ui.select}
-                disabled={subsetorId === ""}
+                disabled={subsetorId === ''}
               >
                 <option value="">Selecione...</option>
                 {postosFiltrados.map((posto) => (
@@ -311,7 +304,7 @@ function LancarRefugoPage() {
                 value={circuitoId}
                 onChange={(event) => alterarCircuito(event.target.value)}
                 className={ui.select}
-                disabled={postoId === ""}
+                disabled={postoId === ''}
               >
                 <option value="">Selecione...</option>
                 {circuitos.map((circuito) => (
@@ -337,9 +330,7 @@ function LancarRefugoPage() {
               <label className={ui.label}>Turno</label>
               <select
                 value={turno}
-                onChange={(event) =>
-                  setTurno(event.target.value as "A" | "B" | "C")
-                }
+                onChange={(event) => setTurno(event.target.value as 'A' | 'B' | 'C')}
                 className={ui.select}
               >
                 <option value="A">A</option>
@@ -355,15 +346,15 @@ function LancarRefugoPage() {
                 min={0}
                 value={quantidadeProduzida}
                 onFocus={(event) => {
-                  if (quantidadeProduzida === 0) setQuantidadeProduzida("")
+                  if (quantidadeProduzida === 0) setQuantidadeProduzida('')
                   event.target.select()
                 }}
                 onBlur={() => {
-                  if (quantidadeProduzida === "") setQuantidadeProduzida(0)
+                  if (quantidadeProduzida === '') setQuantidadeProduzida(0)
                 }}
                 onChange={(event) =>
                   setQuantidadeProduzida(
-                    event.target.value === "" ? "" : Number(event.target.value)
+                    event.target.value === '' ? '' : Number(event.target.value)
                   )
                 }
                 className={ui.input}
@@ -391,9 +382,7 @@ function LancarRefugoPage() {
                 <tr key={item.componenteId} className="border-t">
                   <td className={ui.tableCellStrong}>
                     <div>{item.codigoComponente}</div>
-                    <div className="text-xs font-normal text-slate-500">
-                      {item.nomeComponente}
-                    </div>
+                    <div className="text-xs font-normal text-slate-500">{item.nomeComponente}</div>
                   </td>
 
                   <td className={ui.tableCell}>
@@ -402,9 +391,7 @@ function LancarRefugoPage() {
                       onChange={(event) =>
                         alterarDefeito(
                           item.componenteId,
-                          event.target.value === ""
-                            ? ""
-                            : Number(event.target.value)
+                          event.target.value === '' ? '' : Number(event.target.value)
                         )
                       }
                       className={ui.select}
@@ -425,21 +412,19 @@ function LancarRefugoPage() {
                       value={item.quantidade}
                       onFocus={(event) => {
                         if (item.quantidade === 0) {
-                          alterarQuantidade(item.componenteId, "")
+                          alterarQuantidade(item.componenteId, '')
                         }
                         event.target.select()
                       }}
                       onBlur={() => {
-                        if (item.quantidade === "") {
+                        if (item.quantidade === '') {
                           alterarQuantidade(item.componenteId, 0)
                         }
                       }}
                       onChange={(event) =>
                         alterarQuantidade(
                           item.componenteId,
-                          event.target.value === ""
-                            ? ""
-                            : Number(event.target.value)
+                          event.target.value === '' ? '' : Number(event.target.value)
                         )
                       }
                       className={`${ui.input} text-center`}
@@ -475,11 +460,9 @@ function LancarRefugoPage() {
           <button
             onClick={salvarRefugo}
             disabled={salvando}
-            className={`mt-4 ${ui.buttonPrimary} ${
-              salvando ? "opacity-60" : ""
-            }`}
+            className={`mt-4 ${ui.buttonPrimary} ${salvando ? 'opacity-60' : ''}`}
           >
-            {salvando ? "Salvando..." : "Salvar Refugo"}
+            {salvando ? 'Salvando...' : 'Salvar Refugo'}
           </button>
         </div>
       </section>

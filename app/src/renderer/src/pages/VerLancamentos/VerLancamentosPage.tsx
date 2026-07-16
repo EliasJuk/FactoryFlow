@@ -1,19 +1,14 @@
-import { useEffect, useState } from "react"
-import {
-  ChevronDown,
-  ChevronUp,
-  Pencil,
-  Printer,
-  Search,
-  Trash2
-} from "lucide-react"
+import { useEffect, useState } from 'react'
+import { ChevronDown, ChevronUp, Pencil, Printer, Search, Trash2 } from 'lucide-react'
 
-import PageHeader from "../../components/PageHeader/PageHeader"
-import { Defeito } from "../../models/Defeitos"
-import { ui } from "../../theme/ui"
+import PageHeader from '../../components/PageHeader/PageHeader'
+import { Defeito } from '../../models/Defeitos'
+import { ui } from '../../theme/ui'
+import { useApp } from '../../contexts/AppContext'
 
 type RefugoItemListagem = {
   id: number
+  uuid: string
   defeitoId: number
   componenteCodigo: string
   componenteNome: string
@@ -24,6 +19,7 @@ type RefugoItemListagem = {
 
 type RefugoListagem = {
   id: number
+  uuid: string
   numeroRefugo: string
   dataHora: string
   turno: string
@@ -51,9 +47,10 @@ type EditItem = {
 }
 
 function VerLancamentosPage() {
+  const { usuario } = useApp()
   const [lancamentos, setLancamentos] = useState<RefugoListagem[]>([])
   const [defeitos, setDefeitos] = useState<Defeito[]>([])
-  const [busca, setBusca] = useState("")
+  const [busca, setBusca] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [abertos, setAbertos] = useState<number[]>([])
   const [paginaAtual, setPaginaAtual] = useState(1)
@@ -61,14 +58,14 @@ function VerLancamentosPage() {
 
   const [editando, setEditando] = useState<RefugoListagem | null>(null)
   const [confirmarEdicao, setConfirmarEdicao] = useState(false)
-  const [editMatricula, setEditMatricula] = useState("")
-  const [editTurno, setEditTurno] = useState<"A" | "B" | "C">("A")
+  const [editMatricula, setEditMatricula] = useState('')
+  const [editTurno, setEditTurno] = useState<'A' | 'B' | 'C'>('A')
   const [editQuantidadeProduzida, setEditQuantidadeProduzida] = useState(0)
-  const [editObservacao, setEditObservacao] = useState("")
+  const [editObservacao, setEditObservacao] = useState('')
   const [editItens, setEditItens] = useState<EditItem[]>([])
 
   const [cancelando, setCancelando] = useState<RefugoListagem | null>(null)
-  const [motivoCancelamento, setMotivoCancelamento] = useState("")
+  const [motivoCancelamento, setMotivoCancelamento] = useState('')
 
   const limite = 10
 
@@ -76,11 +73,7 @@ function VerLancamentosPage() {
     setCarregando(true)
 
     try {
-      const resultado = await window.api.refugos.listar(
-        busca.trim(),
-        pagina,
-        limite
-      )
+      const resultado = await window.api.refugos.listar(busca.trim(), pagina, limite)
 
       setLancamentos(resultado.dados ?? [])
       setTotalPaginas(resultado.totalPaginas || 1)
@@ -102,9 +95,7 @@ function VerLancamentosPage() {
 
   function alternarAberto(id: number) {
     setAbertos((atuais) =>
-      atuais.includes(id)
-        ? atuais.filter((item) => item !== id)
-        : [...atuais, id]
+      atuais.includes(id) ? atuais.filter((item) => item !== id) : [...atuais, id]
     )
   }
 
@@ -118,9 +109,9 @@ function VerLancamentosPage() {
     setEditando(refugo)
     setConfirmarEdicao(false)
     setEditMatricula(refugo.matriculaOperador)
-    setEditTurno(refugo.turno as "A" | "B" | "C")
+    setEditTurno(refugo.turno as 'A' | 'B' | 'C')
     setEditQuantidadeProduzida(refugo.quantidadeProduzida)
-    setEditObservacao(refugo.observacao ?? "")
+    setEditObservacao(refugo.observacao ?? '')
 
     setEditItens(
       itens.map((item) => ({
@@ -143,9 +134,7 @@ function VerLancamentosPage() {
 
   function alterarQuantidadeItem(id: number, quantidade: number) {
     setEditItens((atuais) =>
-      atuais.map((item) =>
-        item.id === id ? { ...item, quantidade } : item
-      )
+      atuais.map((item) => (item.id === id ? { ...item, quantidade } : item))
     )
   }
 
@@ -179,7 +168,8 @@ function VerLancamentosPage() {
         id: item.id,
         defeitoId: item.defeitoId,
         quantidade: item.quantidade
-      }))
+      })),
+      usuario.id ?? null
     )
 
     fecharEdicao()
@@ -188,20 +178,17 @@ function VerLancamentosPage() {
 
   function abrirCancelamento(refugo: RefugoListagem) {
     setCancelando(refugo)
-    setMotivoCancelamento("")
+    setMotivoCancelamento('')
   }
 
   async function confirmarCancelamento() {
     if (!cancelando) return
-    if (motivoCancelamento.trim() === "") return
+    if (motivoCancelamento.trim() === '') return
 
-    await window.api.refugos.cancelar(
-      cancelando.id,
-      motivoCancelamento.trim()
-    )
+    await window.api.refugos.cancelar(cancelando.id, motivoCancelamento.trim(), usuario.id ?? null)
 
     setCancelando(null)
-    setMotivoCancelamento("")
+    setMotivoCancelamento('')
     await carregarLancamentos(paginaAtual)
   }
 
@@ -249,7 +236,7 @@ function VerLancamentosPage() {
                 value={busca}
                 onChange={(event) => setBusca(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && !carregando) carregarLancamentos(1)
+                  if (event.key === 'Enter' && !carregando) carregarLancamentos(1)
                 }}
                 placeholder="Número, matrícula, circuito, posto ou defeito..."
                 className={ui.input}
@@ -261,7 +248,7 @@ function VerLancamentosPage() {
               <button
                 onClick={() => carregarLancamentos(1)}
                 disabled={carregando}
-                className={`${ui.buttonPrimary} ${carregando ? "opacity-60" : ""}`}
+                className={`${ui.buttonPrimary} ${carregando ? 'opacity-60' : ''}`}
                 title="Buscar"
               >
                 <Search size={16} />
@@ -273,16 +260,16 @@ function VerLancamentosPage() {
         <div className="space-y-3">
           {carregando && (
             <div className={ui.card}>
-                <p className="text-xs font-semibold text-[var(--text-light)]">
-                  Atualizando lançamentos...
-                </p>
+              <p className="text-xs font-semibold text-[var(--text-light)]">
+                Atualizando lançamentos...
+              </p>
             </div>
           )}
 
           {!carregando &&
             lancamentos.map((refugo) => {
               const aberto = abertos.includes(refugo.id)
-              const cancelado = refugo.status === "CANCELADO"
+              const cancelado = refugo.status === 'CANCELADO'
               const itens = refugo.itens ?? []
 
               const totalRefugado = itens.reduce(
@@ -295,11 +282,11 @@ function VerLancamentosPage() {
                   key={refugo.id}
                   className={`${ui.card} ${
                     cancelado
-                      /*
+                      ? /*
                       ? "border border-slate-400 bg-slate-200 opacity-75"
                       : ""*/
-                      ? "border border-slate-500 bg-slate-350 opacity-70"
-                      : ""
+                        'border border-slate-500 bg-slate-350 opacity-70'
+                      : ''
                   }`}
                 >
                   <div className="flex items-start justify-between gap-4">
@@ -307,33 +294,26 @@ function VerLancamentosPage() {
                       <h2 className={ui.title}>{refugo.numeroRefugo}</h2>
 
                       <p className={ui.subtitle}>
-                        {refugo.dataHora} • Turno {refugo.turno} • Matrícula{" "}
+                        {refugo.dataHora} • Turno {refugo.turno} • Matrícula{' '}
                         {refugo.matriculaOperador}
                       </p>
 
                       <p className="mt-1 text-xs text-[var(--text-light)]">
-                        {refugo.setorNome} / {refugo.subsetorNome} /{" "}
-                        {refugo.postoNome}
+                        {refugo.setorNome} / {refugo.subsetorNome} / {refugo.postoNome}
                       </p>
 
                       <p className="mt-1 text-xs font-semibold text-[var(--text)]">
-                        Circuito: {refugo.circuitoCodigo} -{" "}
-                        {refugo.circuitoNome}
+                        Circuito: {refugo.circuitoCodigo} - {refugo.circuitoNome}
                       </p>
 
                       <p className="mt-1 text-xs text-[var(--text-light)]">
-                        Produzido: {refugo.quantidadeProduzida} • Refugado:{" "}
-                        {totalRefugado}
+                        Produzido: {refugo.quantidadeProduzida} • Refugado: {totalRefugado}
                       </p>
 
                       <p className="mt-1 text-xs font-bold">
-                        Status:{" "}
-                        <span
-                          className={
-                            cancelado ? "text-red-700" : "text-green-700"
-                          }
-                        >
-                          {cancelado ? "CANCELADO" : "ATIVO"}
+                        Status:{' '}
+                        <span className={cancelado ? 'text-red-700' : 'text-green-700'}>
+                          {cancelado ? 'CANCELADO' : 'ATIVO'}
                         </span>
                       </p>
 
@@ -388,10 +368,7 @@ function VerLancamentosPage() {
 
                         <tbody>
                           {itens.map((item) => (
-                            <tr
-                              key={item.id}
-                              className="border-t border-[var(--border)]"
-                            >
+                            <tr key={item.id} className="border-t border-[var(--border)]">
                               <td className={ui.tableCellStrong}>
                                 <div>{item.componenteCodigo}</div>
                                 <div className="text-xs font-normal text-[var(--text-light)]">
@@ -403,9 +380,7 @@ function VerLancamentosPage() {
                                 {item.defeitoCodigo} - {item.defeitoDescricao}
                               </td>
 
-                              <td
-                                className={`${ui.tableCell} text-right font-bold`}
-                              >
+                              <td className={`${ui.tableCell} text-right font-bold`}>
                                 {item.quantidadeRefugada}
                               </td>
                             </tr>
@@ -440,10 +415,7 @@ function VerLancamentosPage() {
           <div className="flex items-center justify-center gap-2 pt-2">
             {paginasVisiveis().map((pagina, index) =>
               pagina < 0 ? (
-                <span
-                  key={`ellipsis-${index}`}
-                  className="px-2 text-sm text-[var(--text-light)]"
-                >
+                <span key={`ellipsis-${index}`} className="px-2 text-sm text-[var(--text-light)]">
                   ...
                 </span>
               ) : (
@@ -452,8 +424,8 @@ function VerLancamentosPage() {
                   onClick={() => carregarLancamentos(pagina)}
                   className={`rounded-md border px-3 py-1 text-sm font-semibold ${
                     pagina === paginaAtual
-                      ? "border-[var(--primary)] bg-[var(--primary)] text-white"
-                      : "border-[var(--border)] bg-white text-[var(--text)] hover:bg-[var(--soft)]"
+                      ? 'border-[var(--primary)] bg-[var(--primary)] text-white'
+                      : 'border-[var(--border)] bg-white text-[var(--text)] hover:bg-[var(--soft)]'
                   }`}
                 >
                   {pagina}
@@ -486,9 +458,7 @@ function VerLancamentosPage() {
                   <label className={ui.label}>Turno</label>
                   <select
                     value={editTurno}
-                    onChange={(event) =>
-                      setEditTurno(event.target.value as "A" | "B" | "C")
-                    }
+                    onChange={(event) => setEditTurno(event.target.value as 'A' | 'B' | 'C')}
                     className={ui.select}
                   >
                     <option value="A">A</option>
@@ -496,16 +466,14 @@ function VerLancamentosPage() {
                     <option value="C">C</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className={ui.label}>Qtd. produzida</label>
                   <input
                     type="number"
                     min={0}
                     value={editQuantidadeProduzida}
-                    onChange={(event) =>
-                      setEditQuantidadeProduzida(Number(event.target.value))
-                    }
+                    onChange={(event) => setEditQuantidadeProduzida(Number(event.target.value))}
                     className={ui.input}
                   />
                 </div>
@@ -536,9 +504,7 @@ function VerLancamentosPage() {
                             {item.componenteCodigo}
                           </span>
 
-                          <span className="text-sm text-[var(--text)]">
-                            {item.componenteNome}
-                          </span>
+                          <span className="text-sm text-[var(--text)]">{item.componenteNome}</span>
                         </div>
                       </div>
 
@@ -561,10 +527,7 @@ function VerLancamentosPage() {
                         min={0}
                         value={item.quantidade}
                         onChange={(event) =>
-                          alterarQuantidadeItem(
-                            item.id,
-                            Number(event.target.value)
-                          )
+                          alterarQuantidadeItem(item.id, Number(event.target.value))
                         }
                         className={`${ui.input} text-center`}
                       />
@@ -579,10 +542,7 @@ function VerLancamentosPage() {
                 Cancelar
               </button>
 
-              <button
-                onClick={() => setConfirmarEdicao(true)}
-                className={ui.buttonPrimary}
-              >
+              <button onClick={() => setConfirmarEdicao(true)} className={ui.buttonPrimary}>
                 Salvar Alterações
               </button>
             </div>
@@ -596,27 +556,21 @@ function VerLancamentosPage() {
             <h2 className={ui.title}>Confirmar alterações</h2>
 
             <p className="mt-3 text-sm text-[var(--text)]">
-              Deseja realmente salvar as alterações do lançamento{" "}
+              Deseja realmente salvar as alterações do lançamento{' '}
               <strong>{editando.numeroRefugo}</strong>?
             </p>
 
             <p className="mt-2 text-xs text-[var(--text-light)]">
-              Essa ação alterará os dados do lançamento, incluindo defeito e
-              quantidade dos componentes.
+              Essa ação alterará os dados do lançamento, incluindo defeito e quantidade dos
+              componentes.
             </p>
 
             <div className="mt-5 flex justify-end gap-2">
-              <button
-                onClick={() => setConfirmarEdicao(false)}
-                className={ui.buttonSecondary}
-              >
+              <button onClick={() => setConfirmarEdicao(false)} className={ui.buttonSecondary}>
                 Voltar
               </button>
 
-              <button
-                onClick={salvarEdicaoConfirmada}
-                className={ui.buttonPrimary}
-              >
+              <button onClick={salvarEdicaoConfirmada} className={ui.buttonPrimary}>
                 Confirmar e salvar
               </button>
             </div>
@@ -632,8 +586,8 @@ function VerLancamentosPage() {
             <p className={ui.subtitle}>{cancelando.numeroRefugo}</p>
 
             <p className="mt-3 text-sm text-[var(--text)]">
-              O lançamento não será apagado. Ele ficará no histórico como{" "}
-              <strong>CANCELADO</strong>.
+              O lançamento não será apagado. Ele ficará no histórico como <strong>CANCELADO</strong>
+              .
             </p>
 
             <div className="mt-4">
@@ -651,7 +605,7 @@ function VerLancamentosPage() {
               <button
                 onClick={() => {
                   setCancelando(null)
-                  setMotivoCancelamento("")
+                  setMotivoCancelamento('')
                 }}
                 className={ui.buttonSecondary}
               >
@@ -660,9 +614,9 @@ function VerLancamentosPage() {
 
               <button
                 onClick={confirmarCancelamento}
-                disabled={motivoCancelamento.trim() === ""}
+                disabled={motivoCancelamento.trim() === ''}
                 className={`${ui.buttonDanger} px-4 py-2 text-sm font-semibold ${
-                  motivoCancelamento.trim() === "" ? "opacity-60" : ""
+                  motivoCancelamento.trim() === '' ? 'opacity-60' : ''
                 }`}
               >
                 Confirmar cancelamento

@@ -431,7 +431,17 @@ declare global {
           componenteId: number,
           quantidade: number,
           usuarioId?: number | null
-        ) => Promise<void>
+        ) => Promise<
+          | {
+              sucesso: true
+              mensagem: string
+            }
+          | {
+              sucesso: false
+              codigo: 'QUANTIDADE_INVALIDA' | 'COMPONENTE_JA_VINCULADO'
+              mensagem: string
+            }
+        >
         editarQuantidade: (
           id: number,
           quantidade: number,

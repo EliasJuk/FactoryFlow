@@ -3,6 +3,17 @@ import { IdGenerator } from '../../shared/ids/IdGenerator'
 
 const USUARIO_SISTEMA_ID = 1
 
+export type AdicionarCircuitoComponenteResultado =
+  | {
+      sucesso: true
+      mensagem: string
+    }
+  | {
+      sucesso: false
+      codigo: 'QUANTIDADE_INVALIDA' | 'COMPONENTE_JA_VINCULADO'
+      mensagem: string
+    }
+
 export interface CircuitoComponente {
   id: number
   uuid: string
@@ -64,9 +75,13 @@ export class CircuitoComponenteRepository {
     componenteId: number,
     quantidade: number,
     usuarioId: number = USUARIO_SISTEMA_ID
-  ): Promise<void> {
+  ): Promise<AdicionarCircuitoComponenteResultado> {
     if (!Number.isInteger(quantidade) || quantidade <= 0) {
-      throw new Error('QUANTIDADE_INVALIDA')
+      return {
+        sucesso: false,
+        codigo: 'QUANTIDADE_INVALIDA',
+        mensagem: 'Informe uma quantidade inteira maior que zero.'
+      }
     }
 
     const existente = await pool.query<{ id: number; ativo: boolean }>(
@@ -83,7 +98,11 @@ export class CircuitoComponenteRepository {
     const vinculo = existente.rows[0]
 
     if (vinculo?.ativo) {
-      throw new Error('COMPONENTE_JA_VINCULADO')
+      return {
+        sucesso: false,
+        codigo: 'COMPONENTE_JA_VINCULADO',
+        mensagem: 'Este componente já está vinculado ao circuito selecionado.'
+      }
     }
 
     if (vinculo) {
@@ -101,7 +120,10 @@ export class CircuitoComponenteRepository {
       `,
         [quantidade, usuarioId, vinculo.id]
       )
-      return
+      return {
+        sucesso: true,
+        mensagem: 'Componente restaurado e vinculado ao circuito com sucesso.'
+      }
     }
 
     await pool.query(
@@ -114,6 +136,11 @@ export class CircuitoComponenteRepository {
     `,
       [IdGenerator.generate(), circuitoId, componenteId, quantidade, usuarioId]
     )
+
+    return {
+      sucesso: true,
+      mensagem: 'Componente vinculado ao circuito com sucesso.'
+    }
   }
 
   async editarQuantidade(

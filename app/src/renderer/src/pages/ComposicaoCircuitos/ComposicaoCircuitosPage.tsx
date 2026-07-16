@@ -49,6 +49,7 @@ function ComposicaoCircuitosPage() {
   const [codigo, setCodigo] = useState('')
   const [nome, setNome] = useState('')
   const [mensagemErro, setMensagemErro] = useState('')
+  const [erroAdicionarComponente, setErroAdicionarComponente] = useState('')
   const [mensagemSucesso, setMensagemSucesso] = useState('')
   const [processando, setProcessando] = useState(false)
 
@@ -214,13 +215,19 @@ function ComposicaoCircuitosPage() {
     if (!circuitoSelecionado || processando) return
 
     setProcessando(true)
+    setErroAdicionarComponente('')
 
     try {
-      await window.api.circuitoComponentes.adicionar(
+      const resultado = await window.api.circuitoComponentes.adicionar(
         circuitoSelecionado.id,
         componenteId,
         quantidade
       )
+
+      if (!resultado.sucesso) {
+        setErroAdicionarComponente(resultado.mensagem)
+        return
+      }
 
       const itens = await window.api.circuitoComponentes.listarPorCircuito(circuitoSelecionado.id)
 
@@ -230,7 +237,12 @@ function ComposicaoCircuitosPage() {
       }))
 
       setModalAdicionarAberto(false)
+      setErroAdicionarComponente('')
       await carregarDados()
+    } catch {
+      setErroAdicionarComponente(
+        'Não foi possível adicionar o componente. Verifique os dados e tente novamente.'
+      )
     } finally {
       setProcessando(false)
     }
@@ -437,6 +449,7 @@ function ComposicaoCircuitosPage() {
               onVisualizar={setItemVisualizando}
               onAdicionar={() => {
                 setCircuitoSelecionado(circuito)
+                setErroAdicionarComponente('')
                 setModalAdicionarAberto(true)
               }}
               onEditarQuantidade={(id, quantidade) => editarQuantidade(circuito.id, id, quantidade)}
@@ -485,7 +498,11 @@ function ComposicaoCircuitosPage() {
           <AdicionarComponenteModal
             componentes={componentes}
             processando={processando}
-            onFechar={() => setModalAdicionarAberto(false)}
+            mensagemErro={erroAdicionarComponente}
+            onFechar={() => {
+              setModalAdicionarAberto(false)
+              setErroAdicionarComponente('')
+            }}
             onAdicionar={adicionarComponente}
           />
         )}

@@ -14,6 +14,7 @@ type Componente = {
 type Props = {
   componentes: Componente[]
   processando: boolean
+  mensagemErro?: string
   onFechar: () => void
   onAdicionar: (componenteId: number, quantidade: number) => Promise<void>
 }
@@ -21,6 +22,7 @@ type Props = {
 export function AdicionarComponenteModal({
   componentes,
   processando,
+  mensagemErro,
   onFechar,
   onAdicionar
 }: Props) {
@@ -59,6 +61,12 @@ export function AdicionarComponenteModal({
             <X size={16} />
           </button>
         </div>
+
+        {mensagemErro && (
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {mensagemErro}
+          </div>
+        )}
 
         <div className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-white px-3 py-2">
           <Search size={16} className="text-[var(--text-light)]" />

@@ -24,6 +24,7 @@ function SubsetoresPage() {
   const [subsetoresInativos, setSubsetoresInativos] = useState<Subsetor[]>([])
 
   const [busca, setBusca] = useState('')
+  const [filtroSetorId, setFiltroSetorId] = useState<number | ''>('')
   const [paginaAtual, setPaginaAtual] = useState(1)
   const [mostrarInativos, setMostrarInativos] = useState(false)
 
@@ -69,15 +70,18 @@ function SubsetoresPage() {
   const subsetoresFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase()
 
-    if (!termo) return subsetores
-
     return subsetores.filter((subsetor) => {
-      return (
+      const correspondeBusca =
+        !termo ||
         subsetor.nome.toLowerCase().includes(termo) ||
         subsetor.setorNome.toLowerCase().includes(termo)
-      )
+
+      const correspondeSetor =
+        filtroSetorId === '' || subsetor.setorId === Number(filtroSetorId)
+
+      return correspondeBusca && correspondeSetor
     })
-  }, [busca, subsetores])
+  }, [busca, filtroSetorId, subsetores])
 
   const totalPaginas = Math.max(1, Math.ceil(subsetoresFiltrados.length / ITENS_POR_PAGINA))
 
@@ -88,7 +92,7 @@ function SubsetoresPage() {
 
   useEffect(() => {
     setPaginaAtual(1)
-  }, [busca])
+  }, [busca, filtroSetorId])
 
   useEffect(() => {
     if (paginaAtual > totalPaginas) {
@@ -263,6 +267,11 @@ function SubsetoresPage() {
     }
   }
 
+  function limparFiltros() {
+    setBusca('')
+    setFiltroSetorId('')
+  }
+
   const podeSalvar = nome.trim().length > 0 && setorId !== ''
 
   return (
@@ -292,11 +301,45 @@ function SubsetoresPage() {
           disabled={processando}
           onNovo={abrirNovoSubsetor}
         >
-          <SearchBar
-            value={busca}
-            onChange={setBusca}
-            placeholder="Pesquisar por setor ou subsetor..."
-          />
+          <div className="space-y-3">
+            <SearchBar
+              value={busca}
+              onChange={setBusca}
+              placeholder="Pesquisar por setor ou subsetor..."
+            />
+
+            <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+              <div>
+                <label className={ui.label}>Setor</label>
+                <select
+                  value={filtroSetorId}
+                  onChange={(event) => {
+                    const valor = event.target.value
+                    setFiltroSetorId(valor === '' ? '' : Number(valor))
+                  }}
+                  className={ui.select}
+                >
+                  <option value="">Todos</option>
+                  {setores.map((setor) => (
+                    <option key={setor.uuid} value={setor.id}>
+                      {setor.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={limparFiltros}
+                  className={`${ui.buttonSecondary} whitespace-nowrap`}
+                >
+                  <RotateCcw size={15} />
+                  Limpar filtros
+                </button>
+              </div>
+            </div>
+          </div>
         </CrudHeader>
 
         <div className="overflow-hidden rounded-lg bg-white shadow-sm">

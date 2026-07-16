@@ -3,6 +3,7 @@ import { Eye, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
 import type { Posto } from '../../models/Posto'
+import type { Setor } from '../../models/Setor'
 import type { Subsetor } from '../../models/Subsetor'
 import { ui } from '../../theme/ui'
 
@@ -21,11 +22,14 @@ type ModalModo = 'novo' | 'editar'
 const ITENS_POR_PAGINA = 10
 
 function PostosPage() {
+  const [setores, setSetores] = useState<Setor[]>([])
   const [subsetores, setSubsetores] = useState<Subsetor[]>([])
   const [postos, setPostos] = useState<Posto[]>([])
   const [postosInativos, setPostosInativos] = useState<Posto[]>([])
 
   const [busca, setBusca] = useState('')
+  const [filtroSetorId, setFiltroSetorId] = useState<number | ''>('')
+  const [filtroSubsetorId, setFiltroSubsetorId] = useState<number | ''>('')
   const [paginaAtual, setPaginaAtual] = useState(1)
   const [mostrarInativos, setMostrarInativos] = useState(false)
 
@@ -35,6 +39,7 @@ function PostosPage() {
   const [postoVisualizando, setPostoVisualizando] = useState<Posto | null>(null)
 
   const [nome, setNome] = useState('')
+  const [modalSetorId, setModalSetorId] = useState<number | ''>('')
   const [subsetorId, setSubsetorId] = useState<number | ''>('')
   const [mensagemErro, setMensagemErro] = useState('')
   const [mensagemSucesso, setMensagemSucesso] = useState('')
@@ -50,12 +55,14 @@ function PostosPage() {
   } | null>(null)
 
   async function carregarDados() {
-    const [subsetoresLista, postosLista, inativosLista] = await Promise.all([
+    const [setoresLista, subsetoresLista, postosLista, inativosLista] = await Promise.all([
+      window.api.setores.listar(),
       window.api.subsetores.listar(),
       window.api.postos.listar(),
       window.api.postos.listarInativos()
     ])
 
+    setSetores(setoresLista)
     setSubsetores(subsetoresLista)
     setPostos(postosLista)
     setPostosInativos(inativosLista)
@@ -65,19 +72,42 @@ function PostosPage() {
     carregarDados()
   }, [])
 
+  const subsetoresFiltro = useMemo(() => {
+    if (filtroSetorId === '') return subsetores
+
+    return subsetores.filter((subsetor) => subsetor.setorId === Number(filtroSetorId))
+  }, [filtroSetorId, subsetores])
+
+  const subsetoresModal = useMemo(() => {
+    if (modalSetorId === '') return []
+
+    return subsetores.filter((subsetor) => subsetor.setorId === Number(modalSetorId))
+  }, [modalSetorId, subsetores])
+
   const postosFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase()
 
-    if (!termo) return postos
-
     return postos.filter((posto) => {
-      return (
+      const subsetorDoPosto = subsetores.find(
+        (subsetor) => subsetor.id === posto.subsetorId
+      )
+
+      const correspondeBusca =
+        !termo ||
         posto.nome.toLowerCase().includes(termo) ||
         posto.subsetorNome.toLowerCase().includes(termo) ||
         posto.setorNome.toLowerCase().includes(termo)
-      )
+
+      const correspondeSetor =
+        filtroSetorId === '' ||
+        subsetorDoPosto?.setorId === Number(filtroSetorId)
+
+      const correspondeSubsetor =
+        filtroSubsetorId === '' || posto.subsetorId === Number(filtroSubsetorId)
+
+      return correspondeBusca && correspondeSetor && correspondeSubsetor
     })
-  }, [busca, postos])
+  }, [busca, filtroSetorId, filtroSubsetorId, postos, subsetores])
 
   const totalPaginas = Math.max(1, Math.ceil(postosFiltrados.length / ITENS_POR_PAGINA))
 
@@ -88,7 +118,7 @@ function PostosPage() {
 
   useEffect(() => {
     setPaginaAtual(1)
-  }, [busca])
+  }, [busca, filtroSetorId, filtroSubsetorId])
 
   useEffect(() => {
     if (paginaAtual > totalPaginas) {
@@ -108,7 +138,20 @@ function PostosPage() {
     setModalModo('novo')
     setPostoEditando(null)
     setNome('')
-    setSubsetorId(subsetores[0]?.id ?? '')
+
+    const primeiroSetor = setores[0]
+
+    const primeiroSetorId: number | '' = primeiroSetor?.id ?? ''
+
+    setModalSetorId(primeiroSetorId)
+
+    const primeiroSubsetor = primeiroSetor
+      ? subsetores.find(
+          (subsetor) => subsetor.setorId === primeiroSetor.id
+        )
+      : undefined
+
+    setSubsetorId(primeiroSubsetor?.id ?? '')
     setModalAberto(true)
   }
 
@@ -119,7 +162,11 @@ function PostosPage() {
     setModalModo('editar')
     setPostoEditando(posto)
     setNome(posto.nome)
+
+    const subsetorAtual = subsetores.find((subsetor) => subsetor.id === posto.subsetorId)
+    setModalSetorId(subsetorAtual?.setorId ?? '')
     setSubsetorId(posto.subsetorId)
+
     setModalAberto(true)
   }
 
@@ -129,6 +176,7 @@ function PostosPage() {
     setModalAberto(false)
     setPostoEditando(null)
     setNome('')
+    setModalSetorId('')
     setSubsetorId('')
     setMensagemErro('')
   }
@@ -261,6 +309,12 @@ function PostosPage() {
     }
   }
 
+  function limparFiltros() {
+    setBusca('')
+    setFiltroSetorId('')
+    setFiltroSubsetorId('')
+  }
+
   const podeSalvar = nome.trim().length > 0 && subsetorId !== ''
 
   return (
@@ -290,11 +344,66 @@ function PostosPage() {
           disabled={processando}
           onNovo={abrirNovoPosto}
         >
-          <SearchBar
-            value={busca}
-            onChange={setBusca}
-            placeholder="Pesquisar por setor, subsetor ou posto..."
-          />
+          <div className="space-y-3">
+            <SearchBar
+              value={busca}
+              onChange={setBusca}
+              placeholder="Pesquisar por setor, subsetor ou posto..."
+            />
+
+            <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+              <div>
+                <label className={ui.label}>Setor</label>
+                <select
+                  value={filtroSetorId}
+                  onChange={(event) => {
+                    const valor = event.target.value
+                    setFiltroSetorId(valor === '' ? '' : Number(valor))
+                    setFiltroSubsetorId('')
+                  }}
+                  className={ui.select}
+                >
+                  <option value="">Todos</option>
+                  {setores.map((setor) => (
+                    <option key={setor.uuid} value={setor.id}>
+                      {setor.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className={ui.label}>Subsetor</label>
+                <select
+                  value={filtroSubsetorId}
+                  onChange={(event) => {
+                    const valor = event.target.value
+                    setFiltroSubsetorId(valor === '' ? '' : Number(valor))
+                  }}
+                  disabled={filtroSetorId === ''}
+                  className={ui.select}
+                >
+                  <option value="">Todos</option>
+                  {subsetoresFiltro.map((subsetor) => (
+                    <option key={subsetor.uuid} value={subsetor.id}>
+                      {subsetor.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={limparFiltros}
+                  className={`${ui.buttonSecondary} whitespace-nowrap`}
+                >
+                  <RotateCcw size={15} />
+                  Limpar filtros
+                </button>
+              </div>
+            </div>
+          </div>
         </CrudHeader>
 
         <div className="overflow-hidden rounded-lg bg-white shadow-sm">
@@ -448,7 +557,7 @@ function PostosPage() {
         {modalAberto && (
           <CrudModal
             titulo={modalModo === 'novo' ? 'Novo Posto' : 'Editar Posto'}
-            subtitulo="Informe o subsetor e o nome do posto de trabalho."
+            subtitulo="Selecione o setor, o subsetor e informe o nome do posto de trabalho."
             mensagemErro={mensagemErro}
             processando={processando}
             onFechar={fecharModal}
@@ -472,7 +581,38 @@ function PostosPage() {
               </>
             }
           >
-            <div className="grid gap-3 md:grid-cols-[260px_1fr]">
+            <div className="grid gap-3 md:grid-cols-3">
+              <div>
+                <label className={ui.label}>Setor</label>
+                <select
+                  value={modalSetorId}
+                  onChange={(event) => {
+                    const valor = event.target.value
+                    const novoSetorId = valor === '' ? '' : Number(valor)
+
+                    setModalSetorId(novoSetorId)
+
+                    const primeiroSubsetor =
+                      novoSetorId === ''
+                        ? undefined
+                        : subsetores.find(
+                            (subsetor) => subsetor.setorId === Number(novoSetorId)
+                          )
+
+                    setSubsetorId(primeiroSubsetor?.id ?? '')
+                  }}
+                  disabled={processando}
+                  className={ui.select}
+                >
+                  <option value="">Selecione...</option>
+                  {setores.map((setor) => (
+                    <option key={setor.uuid} value={setor.id}>
+                      {setor.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className={ui.label}>Subsetor</label>
                 <select
@@ -480,14 +620,13 @@ function PostosPage() {
                   onChange={(event) =>
                     setSubsetorId(event.target.value === '' ? '' : Number(event.target.value))
                   }
-                  disabled={processando}
+                  disabled={processando || modalSetorId === ''}
                   className={ui.select}
                 >
                   <option value="">Selecione...</option>
-
-                  {subsetores.map((subsetor) => (
+                  {subsetoresModal.map((subsetor) => (
                     <option key={subsetor.uuid} value={subsetor.id}>
-                      {subsetor.setorNome} - {subsetor.nome}
+                      {subsetor.nome}
                     </option>
                   ))}
                 </select>

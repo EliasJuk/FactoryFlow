@@ -73,7 +73,13 @@ export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
 <style>
   @page {
     size: A6 portrait;
-    margin: 2.5mm;
+    margin: 3mm;
+  }
+
+  html {
+    width: auto;
+    min-height: auto;
+    background: #fff;
   }
 
   * {
@@ -81,19 +87,23 @@ export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
   }
 
   body {
+    width: auto;
+    min-height: auto;
     margin: 0;
     padding: 0;
     background: #fff;
     color: #000;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 6.2px;
+    font-size: 7px;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 
   .ficha {
     width: 100%;
     height: auto;
-    border: 0.1px solid #000;
-    overflow: hidden;
+    border: 0.55px solid #000;
+    overflow: visible;
   }
 
   table {
@@ -105,10 +115,11 @@ export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
   td,
   th {
     border: 0.55px solid #000;
-    padding: 0.6px 1.3px;
+    padding: 0.5px 1px;
     vertical-align: middle;
     overflow: hidden;
     white-space: nowrap;
+    text-overflow: clip;
   }
 
   .topo td {
@@ -116,24 +127,24 @@ export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
   }
 
   .marca {
-    width: 23mm;
-    font-size: 7.5px;
+    width: 23%;
+    font-size: 8.2px;
     font-weight: bold;
     text-align: center;
   }
 
   .titulo {
-    width: 57mm;
+    width: 57%;
     text-align: center;
-    font-size: 8.5px;
+    font-size: 9.2px;
     font-weight: 900;
     letter-spacing: 0.1px;
   }
 
   .id {
-    width: 20mm;
+    width: 20%;
     text-align: center;
-    font-size: 7px;
+    font-size: 7.6px;
     font-weight: bold;
   }
 
@@ -141,12 +152,12 @@ export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
     border-top: 0.55px solid #000;
     margin: 1px -1.3px -0.6px;
     padding-top: 1px;
-    font-size: 7px;
+    font-size: 7.6px;
   }
 
   .info td {
-    height: 4mm;
-    font-size: 6.4px;
+    height: 4.2mm;
+    font-size: 7px;
   }
 
   .label {
@@ -159,22 +170,33 @@ export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
   }
 
   .ctf-produzido {
-    font-size: 6.5px;
+    font-size: 6.8px;
     font-weight: 900;
     text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .tabela-defeitos th {
-    height: 4mm;
+    height: 4.5mm;
     background: #e9e9e9;
-    font-size: 6.4px;
+    font-size: 8.6px;
     font-weight: 900;
     text-align: left;
+    padding: 0.85px 1.45px;
   }
 
   .tabela-defeitos td {
-    height: 4mm;
-    font-size: 5px;
+    height: 4.3mm;
+    font-size: 7.8px;
+    line-height: 1.08;
+    padding: 0.75px 1.45px;
+    font-weight: 600;
+  }
+
+  .tabela-defeitos td.col-defeito {
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .col-ctf {
@@ -192,7 +214,8 @@ export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
 
   .qtd {
     text-align: center;
-    font-weight: 700;
+    font-weight: 900;
+    font-size: 8.2px;
   }
 
   .rodape-area {
@@ -202,17 +225,17 @@ export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
 
   .instrucoes {
     width: 41%;
-    height: 37mm;
+    height: 38mm;
     vertical-align: top;
     white-space: normal;
-    font-size: 4.8px;
-    line-height: 1.17;
+    font-size: 5.25px;
+    line-height: 1.14;
     padding: 1.5px 2px;
   }
 
   .justificativa-area {
     width: 59%;
-    height: 37mm;
+    height: 38mm;
     padding: 0;
     vertical-align: top;
   }
@@ -221,21 +244,21 @@ export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
     height: 4.5mm;
     border-bottom: 0.55px solid #000;
     text-align: center;
-    font-size: 6.8px;
+    font-size: 7.3px;
     font-weight: normal;
     padding-top: 1px;
   }
 
   .just-box {
-    height: 15.5mm;
+    height: 15mm;
     border-bottom: 0.55px solid #000;
     white-space: normal;
     padding: 1px 2px;
-    font-size: 5.8px;
+    font-size: 6.3px;
   }
 
   .assinaturas {
-    height: 17mm;
+    height: 18mm;
     padding: 0 4px;
   }
 
@@ -250,7 +273,7 @@ export function gerarFichaRefugoHtml(refugo: RefugoPrintData) {
     border: none;
     text-align: center;
     vertical-align: bottom;
-    font-size: 4.9px;
+    font-size: 5.35px;
     height: 7mm;
     padding: 0;
   }

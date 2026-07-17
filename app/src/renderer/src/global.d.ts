@@ -720,6 +720,12 @@ declare global {
             }[]
             registroExistenteId?: number
           }[]
+          avisos: {
+            tipo: 'DEPENDENCIA_INATIVA'
+            titulo: string
+            mensagem: string
+            itens: string[]
+          }[]
         }>
 
         importarRegistros: (

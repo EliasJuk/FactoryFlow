@@ -32,7 +32,8 @@ export async function importarSubsetores(registros: RegistroCsv[]) {
     }
 
     if (!setor.ativo) {
-      await setoresRepository.restaurar(setor.id)
+      ignorados++
+      continue
     }
 
     const subsetores = [

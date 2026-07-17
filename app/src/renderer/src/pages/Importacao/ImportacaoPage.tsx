@@ -24,6 +24,13 @@ type AbaImportacao = {
   colunas: string[]
 }
 
+type AvisoImportacao = {
+  tipo: 'DEPENDENCIA_INATIVA'
+  titulo: string
+  mensagem: string
+  itens: string[]
+}
+
 type RegistroPreview = {
   id: number
   linha: number
@@ -104,6 +111,7 @@ function ImportacaoPage() {
   const [modalAberto, setModalAberto] = useState(false)
   const [confirmacaoAberta, setConfirmacaoAberta] = useState(false)
   const [registrosPreview, setRegistrosPreview] = useState<RegistroPreview[]>([])
+  const [avisosImportacao, setAvisosImportacao] = useState<AvisoImportacao[]>([])
 
   const aba = abas.find((item) => item.id === abaAtiva) ?? abas[0]
 
@@ -132,6 +140,7 @@ function ImportacaoPage() {
       }
 
       setRegistrosPreview(resultado.registros)
+      setAvisosImportacao(resultado.avisos ?? [])
       setModalAberto(true)
     } finally {
       setCarregando(false)
@@ -158,9 +167,7 @@ function ImportacaoPage() {
     )
   }
 
-  const registrosSelecionados = registrosPreview.filter(
-    (registro) => registro.selecionado
-  )
+  const registrosSelecionados = registrosPreview.filter((registro) => registro.selecionado)
 
   function solicitarConfirmacaoImportacao() {
     if (registrosSelecionados.length === 0) return
@@ -187,6 +194,7 @@ function ImportacaoPage() {
       setConfirmacaoAberta(false)
       setModalAberto(false)
       setRegistrosPreview([])
+      setAvisosImportacao([])
     } finally {
       setCarregando(false)
     }
@@ -209,6 +217,7 @@ function ImportacaoPage() {
                   setAbaAtiva(item.id)
                   setMensagem('')
                   setRegistrosPreview([])
+                  setAvisosImportacao([])
                 }}
                 className={`border-r border-[var(--border)] px-4 py-3 text-sm font-semibold ${
                   abaAtiva === item.id
@@ -309,8 +318,12 @@ function ImportacaoPage() {
           titulo={aba.titulo}
           colunas={aba.colunas}
           registros={registrosPreview}
+          avisos={avisosImportacao}
           carregando={carregando}
-          onFechar={() => setModalAberto(false)}
+          onFechar={() => {
+            setModalAberto(false)
+            setAvisosImportacao([])
+          }}
           onToggleTodos={alternarTodos}
           onToggleLinha={alternarLinha}
           onConfirmar={solicitarConfirmacaoImportacao}

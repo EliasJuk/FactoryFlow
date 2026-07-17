@@ -2,7 +2,11 @@ import { dialog } from 'electron'
 import { writeFileSync } from 'fs'
 
 import { lerCsv } from './importacao.csv'
-import { analisarSetores, validarColunasObrigatorias } from './importacao.validation'
+import {
+  analisarSetores,
+  analisarSubsetores,
+  validarColunasObrigatorias
+} from './importacao.validation'
 import type {
   RegistroCsv,
   RegistroPreview,
@@ -189,7 +193,8 @@ export class ImportacaoService {
         return {
           sucesso: false,
           mensagem: estrutura.erros.join(' '),
-          registros: [] as RegistroPreview[]
+          registros: [] as RegistroPreview[],
+          avisos: []
         }
       }
 
@@ -198,7 +203,30 @@ export class ImportacaoService {
       return {
         sucesso: true,
         mensagem: 'Arquivo analisado com sucesso.',
-        registros: registrosAnalisados
+        registros: registrosAnalisados,
+        avisos: []
+      }
+    }
+
+    if (tipo === 'subsetores') {
+      const estrutura = validarColunasObrigatorias(registros, ['setor_sigla', 'nome'])
+
+      if (!estrutura.valido) {
+        return {
+          sucesso: false,
+          mensagem: estrutura.erros.join(' '),
+          registros: [] as RegistroPreview[],
+          avisos: []
+        }
+      }
+
+      const analise = await analisarSubsetores(registros)
+
+      return {
+        sucesso: true,
+        mensagem: 'Arquivo analisado com sucesso.',
+        registros: analise.registros,
+        avisos: analise.avisos
       }
     }
 
@@ -214,7 +242,8 @@ export class ImportacaoService {
         resumo: 'Registro ainda não possui análise enriquecida.',
         mensagens: [],
         alteracoes: []
-      }))
+      })),
+      avisos: []
     }
   }
 

@@ -1,6 +1,11 @@
 import { RepositoryFactory } from '../../repositories/factory/RepositoryFactory'
 import { normalizar, normalizarCodigo } from './importacao.csv'
-import type { AlteracaoCampoImportacao, RegistroCsv, RegistroPreview } from './importacao.types'
+import type {
+  AlteracaoCampoImportacao,
+  AvisoImportacao,
+  RegistroCsv,
+  RegistroPreview
+} from './importacao.types'
 
 export type ResultadoValidacaoEstrutural = {
   valido: boolean
@@ -172,4 +177,175 @@ export async function analisarSetores(registros: RegistroCsv[]): Promise<Registr
       registroExistenteId: existente.id
     }
   })
+}
+
+export type ResultadoAnaliseSubsetores = {
+  registros: RegistroPreview[]
+  avisos: AvisoImportacao[]
+}
+
+export async function analisarSubsetores(
+  registros: RegistroCsv[]
+): Promise<ResultadoAnaliseSubsetores> {
+  const setoresRepository = RepositoryFactory.setores()
+  const subsetoresRepository = RepositoryFactory.subsetores()
+
+  const [setoresAtivos, setoresInativos, subsetoresAtivos, subsetoresInativos] = await Promise.all([
+    setoresRepository.listar(),
+    setoresRepository.listarInativos(),
+    subsetoresRepository.listar(),
+    subsetoresRepository.listarInativos()
+  ])
+
+  const setoresPorSigla = new Map(
+    [...setoresAtivos, ...setoresInativos].map((setor) => [normalizarCodigo(setor.sigla), setor])
+  )
+
+  const subsetoresPorChave = new Map(
+    [...subsetoresAtivos, ...subsetoresInativos].map((subsetor) => [
+      `${subsetor.setorId}::${normalizarComparacao(subsetor.nome)}`,
+      subsetor
+    ])
+  )
+
+  const ocorrenciasPorChave = new Map<string, number>()
+  const setoresInativosUsados = new Map<string, string>()
+
+  for (const registro of registros) {
+    const setorSigla = normalizarCodigo(registro.setor_sigla)
+    const nome = normalizar(registro.nome)
+
+    if (!setorSigla || !nome) continue
+
+    const chave = `${setorSigla}::${normalizarComparacao(nome)}`
+    ocorrenciasPorChave.set(chave, (ocorrenciasPorChave.get(chave) ?? 0) + 1)
+  }
+
+  const registrosAnalisados = registros.map((registro, index) => {
+    const linha = Number(registro.__linha ?? index + 2)
+    const setorSigla = normalizarCodigo(registro.setor_sigla)
+    const nome = normalizar(registro.nome)
+    const mensagens: string[] = []
+    const alteracoes: AlteracaoCampoImportacao[] = []
+
+    if (!setorSigla) {
+      mensagens.push('A sigla do setor é obrigatória.')
+    }
+
+    if (!nome) {
+      mensagens.push('O nome do subsetor é obrigatório.')
+    }
+
+    const chaveArquivo = setorSigla && nome ? `${setorSigla}::${normalizarComparacao(nome)}` : ''
+
+    if (chaveArquivo && (ocorrenciasPorChave.get(chaveArquivo) ?? 0) > 1) {
+      mensagens.push(
+        `O subsetor ${nome} aparece mais de uma vez para o setor ${setorSigla} neste arquivo.`
+      )
+    }
+
+    const setor = setorSigla ? setoresPorSigla.get(setorSigla) : undefined
+
+    if (setorSigla && !setor) {
+      mensagens.push(`O setor ${setorSigla} não está cadastrado.`)
+    }
+
+    if (setor && !setor.ativo) {
+      mensagens.push(`O setor ${setor.sigla} está inativo. Reative o setor para continuar.`)
+      setoresInativosUsados.set(
+        normalizarCodigo(setor.sigla),
+        `${setor.nome} (${normalizarCodigo(setor.sigla)})`
+      )
+    }
+
+    if (mensagens.length > 0) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: false,
+        dados: {
+          ...registro,
+          setor_sigla: setorSigla,
+          nome
+        },
+        status: 'ERRO' as const,
+        resumo: 'A linha possui erros e não poderá ser importada.',
+        mensagens,
+        alteracoes
+      }
+    }
+
+    const existente = subsetoresPorChave.get(`${setor!.id}::${normalizarComparacao(nome)}`)
+
+    if (!existente) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados: {
+          ...registro,
+          setor_sigla: setorSigla,
+          nome
+        },
+        status: 'NOVO' as const,
+        resumo: `O subsetor ${nome} será criado em ${setor!.nome} (${setorSigla}).`,
+        mensagens,
+        alteracoes
+      }
+    }
+
+    if (!existente.ativo) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados: {
+          ...registro,
+          setor_sigla: setorSigla,
+          nome
+        },
+        status: 'RESTAURAR' as const,
+        resumo: `O subsetor ${nome} existe, mas está inativo e será restaurado.`,
+        mensagens,
+        alteracoes,
+        registroExistenteId: existente.id
+      }
+    }
+
+    return {
+      id: index + 1,
+      linha,
+      selecionado: false,
+      dados: {
+        ...registro,
+        setor_sigla: setorSigla,
+        nome
+      },
+      status: 'SEM_ALTERACAO' as const,
+      resumo: `O subsetor ${nome} já existe em ${setor!.nome}.`,
+      mensagens,
+      alteracoes,
+      registroExistenteId: existente.id
+    }
+  })
+
+  const itens = [...setoresInativosUsados.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+
+  const avisos: AvisoImportacao[] =
+    itens.length > 0
+      ? [
+          {
+            tipo: 'DEPENDENCIA_INATIVA',
+            titulo: 'Há setores inativos necessários para esta importação',
+            mensagem:
+              'Reative os setores abaixo no cadastro de setores e analise o arquivo novamente:',
+            itens
+          }
+        ]
+      : []
+
+  return {
+    registros: registrosAnalisados,
+    avisos
+  }
 }

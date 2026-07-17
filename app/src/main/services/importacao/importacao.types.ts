@@ -29,6 +29,13 @@ export type AlteracaoCampoImportacao = {
   novoValor: string | null
 }
 
+export type AvisoImportacao = {
+  tipo: 'DEPENDENCIA_INATIVA'
+  titulo: string
+  mensagem: string
+  itens: string[]
+}
+
 export type RegistroPreview = {
   id: number
   linha: number

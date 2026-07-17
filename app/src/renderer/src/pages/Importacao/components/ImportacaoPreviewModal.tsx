@@ -5,6 +5,13 @@ import { ui } from '../../../theme/ui'
 
 type StatusRegistroImportacao = 'NOVO' | 'ATUALIZAR' | 'RESTAURAR' | 'SEM_ALTERACAO' | 'ERRO'
 
+type AvisoImportacao = {
+  tipo: 'DEPENDENCIA_INATIVA'
+  titulo: string
+  mensagem: string
+  itens: string[]
+}
+
 type RegistroPreview = {
   id: number
   linha: number
@@ -25,6 +32,7 @@ type Props = {
   titulo: string
   colunas: string[]
   registros: RegistroPreview[]
+  avisos: AvisoImportacao[]
   carregando: boolean
   onFechar: () => void
   onToggleTodos: (selecionado: boolean) => void
@@ -59,6 +67,7 @@ export function ImportacaoPreviewModal({
   titulo,
   colunas,
   registros,
+  avisos,
   carregando,
   onFechar,
   onToggleTodos,
@@ -138,6 +147,29 @@ export function ImportacaoPreviewModal({
             </div>
           ))}
         </div>
+
+        {avisos.map((aviso) => (
+          <div
+            key={`${aviso.tipo}-${aviso.titulo}`}
+            className="border-b border-amber-200 bg-amber-50 px-5 py-4"
+          >
+            <div className="flex items-start gap-3">
+              <AlertCircle size={20} className="mt-0.5 shrink-0 text-amber-600" />
+
+              <div>
+                <h3 className="text-sm font-bold text-amber-900">{aviso.titulo}</h3>
+
+                <p className="mt-1 text-sm text-amber-800">{aviso.mensagem}</p>
+
+                <ul className="mt-2 space-y-1 text-sm font-semibold text-amber-900">
+                  {aviso.itens.map((item) => (
+                    <li key={item}>• {item}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        ))}
 
         <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3">
           <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-[var(--text)]">

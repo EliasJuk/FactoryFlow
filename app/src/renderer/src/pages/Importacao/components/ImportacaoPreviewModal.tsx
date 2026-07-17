@@ -211,7 +211,15 @@ export function ImportacaoPreviewModal({
                       ))}
 
                       <td className={ui.tableCell}>
-                        <div className="max-w-sm text-sm">{registro.resumo}</div>
+                        <div
+                          className={`max-w-sm text-sm ${
+                            registro.status === 'SEM_ALTERACAO'
+                              ? 'font-medium text-amber-600'
+                              : 'text-[var(--text)]'
+                          }`}
+                        >
+                          {registro.resumo}
+                        </div>
                       </td>
 
                       <td className={ui.tableCell}>

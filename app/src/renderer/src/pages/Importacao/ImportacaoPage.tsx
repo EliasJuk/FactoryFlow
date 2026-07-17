@@ -3,6 +3,7 @@ import { Download, FileSpreadsheet, Upload } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
 import { ui } from '../../theme/ui'
+import { ConfirmarImportacaoModal } from './components/ConfirmarImportacaoModal'
 import { ImportacaoPreviewModal } from './components/ImportacaoPreviewModal'
 
 type TipoImportacao =
@@ -101,6 +102,7 @@ function ImportacaoPage() {
   const [mensagem, setMensagem] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [modalAberto, setModalAberto] = useState(false)
+  const [confirmacaoAberta, setConfirmacaoAberta] = useState(false)
   const [registrosPreview, setRegistrosPreview] = useState<RegistroPreview[]>([])
 
   const aba = abas.find((item) => item.id === abaAtiva) ?? abas[0]
@@ -156,14 +158,18 @@ function ImportacaoPage() {
     )
   }
 
+  const registrosSelecionados = registrosPreview.filter(
+    (registro) => registro.selecionado
+  )
+
+  function solicitarConfirmacaoImportacao() {
+    if (registrosSelecionados.length === 0) return
+
+    setConfirmacaoAberta(true)
+  }
+
   async function importarSelecionados() {
-    const selecionados = registrosPreview.filter((registro) => registro.selecionado)
-
-    const confirmar = confirm(
-      `Deseja importar ${selecionados.length} registro(s) de ${aba.titulo}?`
-    )
-
-    if (!confirmar) return
+    if (registrosSelecionados.length === 0) return
 
     setCarregando(true)
     setMensagem('')
@@ -171,13 +177,14 @@ function ImportacaoPage() {
     try {
       const resultado = await window.api.importacao.importarRegistros(
         aba.id,
-        selecionados.map((registro) => registro.dados)
+        registrosSelecionados.map((registro) => registro.dados)
       )
 
       setMensagem(
         `${resultado.mensagem} Inseridos: ${resultado.inseridos} | Atualizados: ${resultado.atualizados} | Ignorados: ${resultado.ignorados}`
       )
 
+      setConfirmacaoAberta(false)
       setModalAberto(false)
       setRegistrosPreview([])
     } finally {
@@ -306,6 +313,16 @@ function ImportacaoPage() {
           onFechar={() => setModalAberto(false)}
           onToggleTodos={alternarTodos}
           onToggleLinha={alternarLinha}
+          onConfirmar={solicitarConfirmacaoImportacao}
+        />
+      )}
+
+      {confirmacaoAberta && (
+        <ConfirmarImportacaoModal
+          titulo={aba.titulo}
+          registros={registrosSelecionados}
+          carregando={carregando}
+          onCancelar={() => setConfirmacaoAberta(false)}
           onConfirmar={importarSelecionados}
         />
       )}

@@ -211,6 +211,29 @@ export function runMigrations() {
       FOREIGN KEY (deleted_by) REFERENCES usuarios(id)
     );
 
+    CREATE TABLE IF NOT EXISTS posto_defeitos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT NOT NULL UNIQUE,
+      posto_id INTEGER NOT NULL,
+      defeito_id INTEGER NOT NULL,
+      ativo INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TEXT,
+      created_by INTEGER,
+      updated_by INTEGER,
+      deleted_by INTEGER,
+      UNIQUE (posto_id, defeito_id),
+      FOREIGN KEY (posto_id) REFERENCES postos(id),
+      FOREIGN KEY (defeito_id) REFERENCES defeitos(id),
+      FOREIGN KEY (created_by) REFERENCES usuarios(id),
+      FOREIGN KEY (updated_by) REFERENCES usuarios(id),
+      FOREIGN KEY (deleted_by) REFERENCES usuarios(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_posto_defeitos_posto_ativo
+    ON posto_defeitos(posto_id, ativo);
+
     CREATE TABLE IF NOT EXISTS refugos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       uuid TEXT NOT NULL UNIQUE,

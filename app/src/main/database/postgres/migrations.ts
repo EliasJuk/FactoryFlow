@@ -177,6 +177,24 @@ export async function runPostgresMigrations() {
       deleted_by INTEGER NULL REFERENCES usuarios(id)
     );
 
+    CREATE TABLE IF NOT EXISTS posto_defeitos (
+      id SERIAL PRIMARY KEY,
+      uuid UUID NOT NULL UNIQUE,
+      posto_id INTEGER NOT NULL REFERENCES postos(id),
+      defeito_id INTEGER NOT NULL REFERENCES defeitos(id),
+      ativo BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMP NULL,
+      created_by INTEGER NULL REFERENCES usuarios(id),
+      updated_by INTEGER NULL REFERENCES usuarios(id),
+      deleted_by INTEGER NULL REFERENCES usuarios(id),
+      CONSTRAINT uq_posto_defeitos UNIQUE (posto_id, defeito_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_posto_defeitos_posto_ativo
+    ON posto_defeitos(posto_id, ativo);
+
     CREATE TABLE IF NOT EXISTS refugos (
       id SERIAL PRIMARY KEY,
       uuid UUID NOT NULL UNIQUE,

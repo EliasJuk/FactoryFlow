@@ -80,20 +80,17 @@ function LancarRefugoPage() {
   const podeAlterarDataHora = PERFIS_QUE_PODEM_ALTERAR_DATA_HORA.has(usuario.perfil)
 
   async function carregarDados() {
-    const [setoresLista, subsetoresLista, postosLista, circuitosLista, defeitosLista] =
-      await Promise.all([
-        window.api.setores.listar(),
-        window.api.subsetores.listar(),
-        window.api.postos.listar(),
-        window.api.circuitos.listar(),
-        window.api.defeitos.listar()
-      ])
+    const [setoresLista, subsetoresLista, postosLista, circuitosLista] = await Promise.all([
+      window.api.setores.listar(),
+      window.api.subsetores.listar(),
+      window.api.postos.listar(),
+      window.api.circuitos.listar()
+    ])
 
     setSetores(setoresLista)
     setSubsetores(subsetoresLista)
     setPostos(postosLista)
     setCircuitos(circuitosLista)
-    setDefeitos(defeitosLista)
   }
 
   useEffect(() => {
@@ -133,6 +130,7 @@ function LancarRefugoPage() {
   function alterarPosto(valor: string) {
     setPostoId(valor === '' ? '' : Number(valor))
     setCircuitoId('')
+    setDefeitos([])
     setItens([])
     setMensagem('')
   }
@@ -168,6 +166,28 @@ function LancarRefugoPage() {
   useEffect(() => {
     carregarComponentesPermitidos()
   }, [postoId, circuitoId])
+
+  useEffect(() => {
+    async function carregarDefeitosPermitidos() {
+      if (postoId === '') {
+        setDefeitos([])
+        return
+      }
+
+      const permitidos = await window.api.postoDefeitos.listarPermitidosPorPosto(Number(postoId))
+      setDefeitos(
+        permitidos.map((item) => ({
+          id: item.defeitoId,
+          uuid: item.uuid,
+          codigo: item.codigoDefeito,
+          descricao: item.descricaoDefeito,
+          ativo: item.ativo
+        }))
+      )
+    }
+
+    carregarDefeitosPermitidos()
+  }, [postoId])
 
   function alterarDefeito(componenteId: number, defeitoId: number | '') {
     setItens((itensAtuais) =>

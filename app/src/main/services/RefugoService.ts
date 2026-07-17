@@ -10,6 +10,7 @@ export class RefugoService {
   private resultadoRepository = RepositoryFactory.resultados()
   private printService = new RefugoPrintService()
   private usuarioRepository = RepositoryFactory.usuarios()
+  private postoDefeitoRepository = RepositoryFactory.postoDefeitos()
 
   private async validarPermissaoAlteracao(usuarioId?: number | null) {
     if (!usuarioId) {
@@ -24,29 +25,15 @@ export class RefugoService {
     }
   }
 
-  private async validarDataHoraPersonalizada(input: CriarRefugoInput) {
-    if (!input.dataHora) return
-
-    if (!input.usuarioId) {
-      throw new Error('USUARIO_NAO_IDENTIFICADO')
-    }
-
-    const dataHora = new Date(input.dataHora)
-
-    if (Number.isNaN(dataHora.getTime())) {
-      throw new Error('DATA_HORA_INVALIDA')
-    }
-
-    const usuario = await this.usuarioRepository.buscarPerfilPorId(input.usuarioId)
-    const perfisPermitidos = new Set(['ADMIN', 'TECNICO', 'QUALIDADE', 'LIDER', 'SUPERVISOR'])
-
-    if (!usuario || !usuario.ativo || !perfisPermitidos.has(usuario.perfil)) {
-      throw new Error('SEM_PERMISSAO_DATA_HORA_REFUGO')
-    }
-  }
-
   async criar(input: CriarRefugoInput) {
-    await this.validarDataHoraPersonalizada(input)
+    const defeitosValidos = await this.postoDefeitoRepository.defeitosPertencemAoPosto(
+      input.postoId,
+      input.itens.map((item) => item.defeitoId)
+    )
+
+    if (!defeitosValidos) {
+      throw new Error('DEFEITO_NAO_PERMITIDO_NO_POSTO')
+    }
 
     const resultado = await this.repository.criar(input)
 

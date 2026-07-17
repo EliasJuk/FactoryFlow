@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Lock, LockOpen } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
 import { Setor } from '../../models/Setor'
@@ -10,6 +11,28 @@ import { ui } from '../../theme/ui'
 import { useApp } from '../../contexts/AppContext'
 
 type Quantidade = number | ''
+
+const PERFIS_QUE_PODEM_ALTERAR_DATA_HORA = new Set([
+  'TECNICO',
+  'LIDER',
+  'SUPERVISOR',
+  'QUALIDADE',
+  'ADMIN'
+])
+
+function formatarDataHoraLocal(data: Date): string {
+  const ano = data.getFullYear()
+  const mes = String(data.getMonth() + 1).padStart(2, '0')
+  const dia = String(data.getDate()).padStart(2, '0')
+  const hora = String(data.getHours()).padStart(2, '0')
+  const minuto = String(data.getMinutes()).padStart(2, '0')
+  return `${ano}-${mes}-${dia}T${hora}:${minuto}`
+}
+
+function formatarDataHoraExibicao(valor: string): string {
+  const data = new Date(valor)
+  return Number.isNaN(data.getTime()) ? valor : data.toLocaleString('pt-BR')
+}
 
 type RoteiroComponente = {
   id: number
@@ -51,8 +74,10 @@ function LancarRefugoPage() {
   const [mensagem, setMensagem] = useState('')
   const [tipoMensagem, setTipoMensagem] = useState<'sucesso' | 'erro' | 'info'>('info')
   const [salvando, setSalvando] = useState(false)
+  const [dataHora, setDataHora] = useState(() => formatarDataHoraLocal(new Date()))
+  const [dataHoraDesbloqueada, setDataHoraDesbloqueada] = useState(false)
 
-  const dataAtual = new Date().toLocaleString('pt-BR')
+  const podeAlterarDataHora = PERFIS_QUE_PODEM_ALTERAR_DATA_HORA.has(usuario.perfil)
 
   async function carregarDados() {
     const [setoresLista, subsetoresLista, postosLista, circuitosLista, defeitosLista] =
@@ -167,6 +192,8 @@ function LancarRefugoPage() {
     setQuantidadeProduzida(0)
     setObservacao('')
     setItens([])
+    setDataHora(formatarDataHoraLocal(new Date()))
+    setDataHoraDesbloqueada(false)
   }
 
   async function salvarRefugo() {
@@ -200,6 +227,7 @@ function LancarRefugoPage() {
       const numeroRefugo = await window.api.refugos.criar({
         matriculaOperador,
         usuarioId: usuario.id ?? null,
+        dataHora: dataHoraDesbloqueada ? dataHora : undefined,
         setorId: Number(setorId),
         subsetorId: Number(subsetorId),
         postoId: Number(postoId),
@@ -243,7 +271,47 @@ function LancarRefugoPage() {
           <div className="grid gap-3 md:grid-cols-3">
             <div>
               <label className={ui.label}>Data / Hora</label>
-              <input value={dataAtual} disabled className={ui.input} />
+
+              <div className="relative">
+                {dataHoraDesbloqueada ? (
+                  <input
+                    type="datetime-local"
+                    value={dataHora}
+                    onChange={(event) => setDataHora(event.target.value)}
+                    className={`${ui.input} pr-10`}
+                  />
+                ) : (
+                  <input
+                    value={formatarDataHoraExibicao(dataHora)}
+                    disabled
+                    className={`${ui.input} pr-10`}
+                  />
+                )}
+
+                {podeAlterarDataHora && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dataHoraDesbloqueada) {
+                        setDataHora(formatarDataHoraLocal(new Date()))
+                      }
+
+                      setDataHoraDesbloqueada((atual) => !atual)
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500"
+                    aria-label={
+                      dataHoraDesbloqueada
+                        ? 'Bloquear alteração da data e hora'
+                        : 'Permitir alteração da data e hora'
+                    }
+                    title={
+                      dataHoraDesbloqueada ? 'Bloquear data e hora' : 'Desbloquear data e hora'
+                    }
+                  >
+                    {dataHoraDesbloqueada ? <LockOpen size={15} /> : <Lock size={15} />}
+                  </button>
+                )}
+              </div>
             </div>
 
             <div>

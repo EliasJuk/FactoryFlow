@@ -10,6 +10,7 @@ export interface RefugoItemInput {
 export interface CriarRefugoInput {
   matriculaOperador: string
   usuarioId?: number | null
+  dataHora?: string
   setorId: number
   subsetorId: number
   postoId: number
@@ -106,7 +107,7 @@ export class RefugoRepository {
             ?,
             ?,
             ?,
-            datetime('now','localtime'),
+            COALESCE(?, datetime('now','localtime')),
             ?,
             ?,
             ?,
@@ -128,6 +129,7 @@ export class RefugoRepository {
           sigla,
           ano,
           sequencia,
+          input.dataHora ? `${input.dataHora.replace('T', ' ')}:00` : null,
           input.turno,
           input.matriculaOperador,
           input.usuarioId ?? 1,

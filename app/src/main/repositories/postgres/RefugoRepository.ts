@@ -10,6 +10,7 @@ export interface RefugoItemInput {
 export interface CriarRefugoInput {
   matriculaOperador: string
   usuarioId?: number | null
+  dataHora?: string
   setorId: number
   subsetorId: number
   postoId: number
@@ -117,8 +118,7 @@ export class RefugoRepository {
             $3,
             $4,
             $5,
-            NOW(),
-            $6,
+            COALESCE($6::timestamp, NOW()),
             $7,
             $8,
             $9,
@@ -127,9 +127,10 @@ export class RefugoRepository {
             $12,
             $13,
             $14,
-            'ATIVO',
             $15,
-            $15
+            'ATIVO',
+            $16,
+            $16
           )
           RETURNING id, uuid
         `,
@@ -139,6 +140,7 @@ export class RefugoRepository {
           sigla,
           ano,
           sequencia,
+          input.dataHora ?? null,
           input.turno,
           input.matriculaOperador,
           input.usuarioId ?? 1,

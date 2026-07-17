@@ -138,6 +138,7 @@ type RefugoItemInput = {
 type RefugoInput = {
   matriculaOperador: string
   usuarioId?: number | null
+  dataHora?: string
   setorId: number
   subsetorId: number
   postoId: number

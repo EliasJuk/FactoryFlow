@@ -24,7 +24,30 @@ export class RefugoService {
     }
   }
 
+  private async validarDataHoraPersonalizada(input: CriarRefugoInput) {
+    if (!input.dataHora) return
+
+    if (!input.usuarioId) {
+      throw new Error('USUARIO_NAO_IDENTIFICADO')
+    }
+
+    const dataHora = new Date(input.dataHora)
+
+    if (Number.isNaN(dataHora.getTime())) {
+      throw new Error('DATA_HORA_INVALIDA')
+    }
+
+    const usuario = await this.usuarioRepository.buscarPerfilPorId(input.usuarioId)
+    const perfisPermitidos = new Set(['ADMIN', 'TECNICO', 'QUALIDADE', 'LIDER', 'SUPERVISOR'])
+
+    if (!usuario || !usuario.ativo || !perfisPermitidos.has(usuario.perfil)) {
+      throw new Error('SEM_PERMISSAO_DATA_HORA_REFUGO')
+    }
+  }
+
   async criar(input: CriarRefugoInput) {
+    await this.validarDataHoraPersonalizada(input)
+
     const resultado = await this.repository.criar(input)
 
     try {

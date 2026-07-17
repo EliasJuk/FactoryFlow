@@ -164,6 +164,19 @@ contextBridge.exposeInMainWorld('api', {
     excluirPermanente: (id: number) => ipcRenderer.invoke('postos:excluir-permanente', id)
   },
 
+  postoDefeitos: {
+    listarPorPosto: (postoId: number, incluirInativos = false) =>
+      ipcRenderer.invoke('posto-defeitos:listar-por-posto', postoId, incluirInativos),
+    listarPermitidosPorPosto: (postoId: number) =>
+      ipcRenderer.invoke('posto-defeitos:listar-permitidos-por-posto', postoId),
+    adicionar: (postoId: number, defeitoId: number, usuarioId?: number | null) =>
+      ipcRenderer.invoke('posto-defeitos:adicionar', postoId, defeitoId, usuarioId),
+    remover: (id: number, usuarioId?: number | null) =>
+      ipcRenderer.invoke('posto-defeitos:remover', id, usuarioId),
+    restaurar: (id: number, usuarioId?: number | null) =>
+      ipcRenderer.invoke('posto-defeitos:restaurar', id, usuarioId)
+  },
+
   defeitos: {
     listar: () => ipcRenderer.invoke('defeitos:listar'),
 

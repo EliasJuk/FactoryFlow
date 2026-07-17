@@ -10,6 +10,7 @@ import { registerComponenteIpc } from './ipc/componente.ipc'
 import { registerCircuitoIpc } from './ipc/circuito.ipc'
 import { registerCircuitoComponenteIpc } from './ipc/circuitoComponente.ipc'
 import { registerPostoIpc } from './ipc/posto.ipc'
+import { registerPostoDefeitoIpc } from './ipc/postoDefeito.ipc'
 import { registerDefeitoIpc } from './ipc/defeito.ipc'
 import { registerRefugoIpc } from './ipc/refugo.ipc'
 import { registerRoteiroIpc } from './ipc/roteiro.ipc'
@@ -80,6 +81,7 @@ function registerDatabaseIpcHandlers(): void {
   registerCircuitoIpc()
   registerCircuitoComponenteIpc()
   registerPostoIpc()
+  registerPostoDefeitoIpc()
   registerDefeitoIpc()
   registerRoteiroIpc()
   registerRefugoIpc()

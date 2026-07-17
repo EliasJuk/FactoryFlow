@@ -109,6 +109,25 @@ type PostoApi = {
   deletedByNome?: string | null
 }
 
+type PostoDefeitoApi = {
+  id: number
+  uuid: string
+  postoId: number
+  defeitoId: number
+  codigoDefeito: string
+  descricaoDefeito: string
+  ativo: boolean
+  createdAt?: string | null
+  updatedAt?: string | null
+  deletedAt?: string | null
+  createdBy?: number | null
+  updatedBy?: number | null
+  deletedBy?: number | null
+  createdByNome?: string | null
+  updatedByNome?: string | null
+  deletedByNome?: string | null
+}
+
 type DefeitoApi = {
   id: number
   uuid: string
@@ -487,6 +506,21 @@ declare global {
         restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
 
         excluirPermanente: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+      }
+
+      postoDefeitos: {
+        listarPorPosto: (postoId: number, incluirInativos?: boolean) => Promise<PostoDefeitoApi[]>
+        listarPermitidosPorPosto: (postoId: number) => Promise<PostoDefeitoApi[]>
+        adicionar: (
+          postoId: number,
+          defeitoId: number,
+          usuarioId?: number | null
+        ) => Promise<
+          | { sucesso: true; mensagem: string }
+          | { sucesso: false; codigo: 'DEFEITO_JA_VINCULADO'; mensagem: string }
+        >
+        remover: (id: number, usuarioId?: number | null) => Promise<void>
+        restaurar: (id: number, usuarioId?: number | null) => Promise<void>
       }
 
       defeitos: {

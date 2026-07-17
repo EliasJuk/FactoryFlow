@@ -275,6 +275,27 @@ export class UsuarioRepository {
     ).run(usuarioId, usuarioId, id)
   }
 
+  buscarPerfilPorId(id: number): { perfil: string; ativo: boolean } | undefined {
+    const usuario = db
+      .prepare(
+        `
+          SELECT perfil, ativo
+          FROM usuarios
+          WHERE id = ?
+            AND deleted_at IS NULL
+          LIMIT 1
+        `
+      )
+      .get(id) as { perfil: string; ativo: number } | undefined
+
+    if (!usuario) return undefined
+
+    return {
+      perfil: usuario.perfil,
+      ativo: Boolean(usuario.ativo)
+    }
+  }
+
   buscarCredenciaisPorMatricula(matricula: string): UsuarioCredenciais | undefined {
     return db
       .prepare(

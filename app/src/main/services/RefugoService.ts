@@ -9,6 +9,20 @@ export class RefugoService {
   private repository = RepositoryFactory.refugos()
   private resultadoRepository = RepositoryFactory.resultados()
   private printService = new RefugoPrintService()
+  private usuarioRepository = RepositoryFactory.usuarios()
+
+  private async validarPermissaoAlteracao(usuarioId?: number | null) {
+    if (!usuarioId) {
+      throw new Error('USUARIO_NAO_IDENTIFICADO')
+    }
+
+    const usuario = await this.usuarioRepository.buscarPerfilPorId(usuarioId)
+    const perfisPermitidos = new Set(['ADMIN', 'TECNICO', 'QUALIDADE', 'LIDER'])
+
+    if (!usuario || !usuario.ativo || !perfisPermitidos.has(usuario.perfil)) {
+      throw new Error('SEM_PERMISSAO_REFUGO')
+    }
+  }
 
   async criar(input: CriarRefugoInput) {
     const resultado = await this.repository.criar(input)
@@ -36,6 +50,8 @@ export class RefugoService {
     itens: { id: number; defeitoId: number; quantidade: number }[],
     usuarioId?: number | null
   ) {
+    await this.validarPermissaoAlteracao(usuarioId)
+
     return await this.repository.editarCompleto(
       id,
       matricula,
@@ -48,6 +64,7 @@ export class RefugoService {
   }
 
   async cancelar(id: number, motivo: string, usuarioId?: number | null) {
+    await this.validarPermissaoAlteracao(usuarioId)
     return await this.repository.cancelar(id, motivo, usuarioId)
   }
 

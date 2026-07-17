@@ -273,6 +273,21 @@ export class UsuarioRepository {
     )
   }
 
+  async buscarPerfilPorId(id: number): Promise<{ perfil: string; ativo: boolean } | null> {
+    const result = await pool.query<{ perfil: string; ativo: boolean }>(
+      `
+        SELECT perfil, ativo
+        FROM usuarios
+        WHERE id = $1
+          AND deleted_at IS NULL
+        LIMIT 1
+      `,
+      [id]
+    )
+
+    return result.rows[0] ?? null
+  }
+
   async buscarCredenciaisPorMatricula(matricula: string): Promise<UsuarioCredenciais | null> {
     const result = await pool.query<UsuarioCredenciais>(
       `

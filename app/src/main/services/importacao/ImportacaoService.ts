@@ -2,6 +2,7 @@ import { dialog } from 'electron'
 import { writeFileSync } from 'fs'
 
 import { lerCsv } from './importacao.csv'
+import { analisarSetores, validarColunasObrigatorias } from './importacao.validation'
 import type {
   RegistroCsv,
   RegistroPreview,
@@ -164,7 +165,7 @@ export class ImportacaoService {
     }
   }
 
-  async preVisualizar(_tipo: TipoImportacao) {
+  async preVisualizar(tipo: TipoImportacao) {
     const resultado = await dialog.showOpenDialog({
       title: 'Selecionar arquivo CSV',
       properties: ['openFile'],
@@ -181,6 +182,26 @@ export class ImportacaoService {
 
     const registros = lerCsv(resultado.filePaths[0])
 
+    if (tipo === 'setores') {
+      const estrutura = validarColunasObrigatorias(registros, ['nome', 'sigla'])
+
+      if (!estrutura.valido) {
+        return {
+          sucesso: false,
+          mensagem: estrutura.erros.join(' '),
+          registros: [] as RegistroPreview[]
+        }
+      }
+
+      const registrosAnalisados = await analisarSetores(registros)
+
+      return {
+        sucesso: true,
+        mensagem: 'Arquivo analisado com sucesso.',
+        registros: registrosAnalisados
+      }
+    }
+
     return {
       sucesso: true,
       mensagem: 'Arquivo carregado com sucesso.',
@@ -188,7 +209,11 @@ export class ImportacaoService {
         id: index + 1,
         linha: Number(registro.__linha ?? index + 2),
         selecionado: true,
-        dados: registro
+        dados: registro,
+        status: 'NOVO' as const,
+        resumo: 'Registro ainda não possui análise enriquecida.',
+        mensagens: [],
+        alteracoes: []
       }))
     }
   }

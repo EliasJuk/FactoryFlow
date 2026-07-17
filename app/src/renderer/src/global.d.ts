@@ -710,6 +710,15 @@ declare global {
             linha: number
             selecionado: boolean
             dados: Record<string, string>
+            status: 'NOVO' | 'ATUALIZAR' | 'RESTAURAR' | 'SEM_ALTERACAO' | 'ERRO'
+            resumo: string
+            mensagens: string[]
+            alteracoes: {
+              campo: string
+              valorAtual: string | null
+              novoValor: string | null
+            }[]
+            registroExistenteId?: number
           }[]
         }>
 

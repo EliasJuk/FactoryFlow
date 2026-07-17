@@ -1,20 +1,20 @@
-import { useState } from "react"
-import { Download, FileSpreadsheet, Upload } from "lucide-react"
+import { useState } from 'react'
+import { Download, FileSpreadsheet, Upload } from 'lucide-react'
 
-import PageHeader from "../../components/PageHeader/PageHeader"
-import { ui } from "../../theme/ui"
-import { ImportacaoPreviewModal } from "./components/ImportacaoPreviewModal"
+import PageHeader from '../../components/PageHeader/PageHeader'
+import { ui } from '../../theme/ui'
+import { ImportacaoPreviewModal } from './components/ImportacaoPreviewModal'
 
 type TipoImportacao =
-  | "setores"
-  | "subsetores"
-  | "postos"
-  | "componentes"
-  | "circuitos"
-  | "defeitos"
-  | "usuarios"
-  | "circuitoComponentes"
-  | "roteiros"
+  | 'setores'
+  | 'subsetores'
+  | 'postos'
+  | 'componentes'
+  | 'circuitos'
+  | 'defeitos'
+  | 'usuarios'
+  | 'circuitoComponentes'
+  | 'roteiros'
 
 type AbaImportacao = {
   id: TipoImportacao
@@ -28,68 +28,77 @@ type RegistroPreview = {
   linha: number
   selecionado: boolean
   dados: Record<string, string>
+  status: 'NOVO' | 'ATUALIZAR' | 'RESTAURAR' | 'SEM_ALTERACAO' | 'ERRO'
+  resumo: string
+  mensagens: string[]
+  alteracoes: {
+    campo: string
+    valorAtual: string | null
+    novoValor: string | null
+  }[]
+  registroExistenteId?: number
 }
 
 const abas: AbaImportacao[] = [
   {
-    id: "setores",
-    titulo: "Setores",
-    descricao: "Importe os setores principais da fábrica.",
-    colunas: ["nome", "sigla"]
+    id: 'setores',
+    titulo: 'Setores',
+    descricao: 'Importe os setores principais da fábrica.',
+    colunas: ['nome', 'sigla']
   },
   {
-    id: "subsetores",
-    titulo: "Subsetores",
-    descricao: "Importe subsetores vinculados aos setores.",
-    colunas: ["setor_sigla", "nome"]
+    id: 'subsetores',
+    titulo: 'Subsetores',
+    descricao: 'Importe subsetores vinculados aos setores.',
+    colunas: ['setor_sigla', 'nome']
   },
   {
-    id: "postos",
-    titulo: "Postos",
-    descricao: "Importe postos de trabalho vinculados aos subsetores.",
-    colunas: ["setor_sigla", "subsetor_nome", "nome"]
+    id: 'postos',
+    titulo: 'Postos',
+    descricao: 'Importe postos de trabalho vinculados aos subsetores.',
+    colunas: ['setor_sigla', 'subsetor_nome', 'nome']
   },
   {
-    id: "componentes",
-    titulo: "Componentes",
-    descricao: "Importe componentes e peças.",
-    colunas: ["codigo", "nome", "preco"]
+    id: 'componentes',
+    titulo: 'Componentes',
+    descricao: 'Importe componentes e peças.',
+    colunas: ['codigo', 'nome', 'preco']
   },
   {
-    id: "circuitos",
-    titulo: "Circuitos",
-    descricao: "Importe circuitos/produtos.",
-    colunas: ["codigo", "nome"]
+    id: 'circuitos',
+    titulo: 'Circuitos',
+    descricao: 'Importe circuitos/produtos.',
+    colunas: ['codigo', 'nome']
   },
   {
-    id: "circuitoComponentes",
-    titulo: "Circuito x Componentes",
-    descricao: "Vincule componentes aos circuitos.",
-    colunas: ["circuito_codigo", "componente_codigo", "quantidade"]
+    id: 'circuitoComponentes',
+    titulo: 'Circuito x Componentes',
+    descricao: 'Vincule componentes aos circuitos.',
+    colunas: ['circuito_codigo', 'componente_codigo', 'quantidade']
   },
   {
-    id: "roteiros",
-    titulo: "Roteiros",
-    descricao: "Vincule circuito, posto e componente.",
-    colunas: ["circuito_codigo", "posto_nome", "componente_codigo", "quantidade"]
+    id: 'roteiros',
+    titulo: 'Roteiros',
+    descricao: 'Vincule circuito, posto e componente.',
+    colunas: ['circuito_codigo', 'posto_nome', 'componente_codigo', 'quantidade']
   },
   {
-    id: "defeitos",
-    titulo: "Defeitos",
-    descricao: "Importe códigos e descrições de defeitos.",
-    colunas: ["codigo", "descricao"]
+    id: 'defeitos',
+    titulo: 'Defeitos',
+    descricao: 'Importe códigos e descrições de defeitos.',
+    colunas: ['codigo', 'descricao']
   },
   {
-    id: "usuarios",
-    titulo: "Usuários",
-    descricao: "Importe usuários, perfis e senhas iniciais.",
-    colunas: ["matricula", "nome", "perfil", "senha"]
+    id: 'usuarios',
+    titulo: 'Usuários',
+    descricao: 'Importe usuários, perfis e senhas iniciais.',
+    colunas: ['matricula', 'nome', 'perfil', 'senha']
   }
 ]
 
 function ImportacaoPage() {
-  const [abaAtiva, setAbaAtiva] = useState<TipoImportacao>("setores")
-  const [mensagem, setMensagem] = useState("")
+  const [abaAtiva, setAbaAtiva] = useState<TipoImportacao>('setores')
+  const [mensagem, setMensagem] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [modalAberto, setModalAberto] = useState(false)
   const [registrosPreview, setRegistrosPreview] = useState<RegistroPreview[]>([])
@@ -98,7 +107,7 @@ function ImportacaoPage() {
 
   async function baixarModelo() {
     setCarregando(true)
-    setMensagem("")
+    setMensagem('')
 
     try {
       const resultado = await window.api.importacao.baixarModelo(aba.id)
@@ -110,7 +119,7 @@ function ImportacaoPage() {
 
   async function selecionarArquivo() {
     setCarregando(true)
-    setMensagem("")
+    setMensagem('')
 
     try {
       const resultado = await window.api.importacao.preVisualizar(aba.id)
@@ -131,7 +140,8 @@ function ImportacaoPage() {
     setRegistrosPreview((registros) =>
       registros.map((registro) => ({
         ...registro,
-        selecionado
+        selecionado:
+          registro.status === 'ERRO' || registro.status === 'SEM_ALTERACAO' ? false : selecionado
       }))
     )
   }
@@ -139,7 +149,7 @@ function ImportacaoPage() {
   function alternarLinha(id: number) {
     setRegistrosPreview((registros) =>
       registros.map((registro) =>
-        registro.id === id
+        registro.id === id && registro.status !== 'ERRO' && registro.status !== 'SEM_ALTERACAO'
           ? { ...registro, selecionado: !registro.selecionado }
           : registro
       )
@@ -156,7 +166,7 @@ function ImportacaoPage() {
     if (!confirmar) return
 
     setCarregando(true)
-    setMensagem("")
+    setMensagem('')
 
     try {
       const resultado = await window.api.importacao.importarRegistros(
@@ -190,13 +200,13 @@ function ImportacaoPage() {
                 key={item.id}
                 onClick={() => {
                   setAbaAtiva(item.id)
-                  setMensagem("")
+                  setMensagem('')
                   setRegistrosPreview([])
                 }}
                 className={`border-r border-[var(--border)] px-4 py-3 text-sm font-semibold ${
                   abaAtiva === item.id
-                    ? "bg-white text-[var(--primary)]"
-                    : "text-[var(--text)] hover:bg-white/70"
+                    ? 'bg-white text-[var(--primary)]'
+                    : 'text-[var(--text)] hover:bg-white/70'
                 }`}
               >
                 {item.titulo}
@@ -224,18 +234,14 @@ function ImportacaoPage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-lg border border-[var(--border)] p-4">
-                <h3 className="text-sm font-bold text-[var(--text)]">
-                  Modelo do arquivo
-                </h3>
+                <h3 className="text-sm font-bold text-[var(--text)]">Modelo do arquivo</h3>
 
                 <p className="mt-1 text-xs text-[var(--text-light)]">
                   Baixe o modelo e preencha as colunas obrigatórias.
                 </p>
 
                 <div className="mt-3 rounded-md bg-[var(--soft)] p-3">
-                  <p className="text-xs font-bold text-[var(--text)]">
-                    Colunas esperadas:
-                  </p>
+                  <p className="text-xs font-bold text-[var(--text)]">Colunas esperadas:</p>
 
                   <div className="mt-2 flex flex-wrap gap-2">
                     {aba.colunas.map((coluna) => (
@@ -260,18 +266,15 @@ function ImportacaoPage() {
               </div>
 
               <div className="rounded-lg border border-[var(--border)] p-4">
-                <h3 className="text-sm font-bold text-[var(--text)]">
-                  Importar arquivo
-                </h3>
+                <h3 className="text-sm font-bold text-[var(--text)]">Importar arquivo</h3>
 
                 <p className="mt-1 text-xs text-[var(--text-light)]">
                   Selecione um arquivo CSV para pré-visualizar antes de importar.
                 </p>
 
                 <div className="mt-3 rounded-md bg-[var(--soft)] p-3 text-xs text-[var(--text)]">
-                  O sistema irá carregar o arquivo em uma prévia. Você poderá
-                  selecionar todos os registros ou apenas algumas linhas antes de
-                  confirmar a importação.
+                  O sistema irá carregar o arquivo em uma prévia. Você poderá selecionar todos os
+                  registros ou apenas algumas linhas antes de confirmar a importação.
                 </div>
 
                 <button

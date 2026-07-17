@@ -9,6 +9,7 @@ import ComponentesPage from '../pages/Componentes/ComponentesPage'
 import CircuitosPage from '../pages/Circuitos/CircuitosPage'
 import ComposicaoCircuitosPage from '../pages/ComposicaoCircuitos/ComposicaoCircuitosPage'
 import DefeitosPage from '../pages/Defeitos/DefeitosPage'
+import DefeitosPorPostoPage from '../pages/DefeitosPorPosto/DefeitosPorPostoPage'
 
 import SetoresPage from '../pages/Setores/SetoresPage'
 import Subsetores from '../pages/Subsetores/SubsetoresPage'
@@ -37,6 +38,7 @@ function AppRoutes() {
           <Route path="/circuitos" element={<CircuitosPage />} />
           <Route path="/composicao-circuitos" element={<ComposicaoCircuitosPage />} />
           <Route path="/defeitos" element={<DefeitosPage />} />
+          <Route path="/defeitos-por-posto" element={<DefeitosPorPostoPage />} />
           <Route path="/setores" element={<SetoresPage />} />
           <Route path="/subSetores" element={<Subsetores />} />
           <Route path="/postos" element={<Postos />} />

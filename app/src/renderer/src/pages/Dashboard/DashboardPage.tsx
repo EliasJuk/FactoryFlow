@@ -19,7 +19,8 @@ import {
   Upload,
   BarChart3,
   FileDown,
-  Workflow
+  Workflow,
+  ListChecks
 } from 'lucide-react'
 
 type DashboardCardProps = {
@@ -95,6 +96,12 @@ function DashboardPage() {
                   description="Códigos de defeito"
                   icon={<AlertTriangle size={24} />}
                   onClick={() => navigate('/defeitos')}
+                />
+                <DashboardCard
+                  title="Defeitos por Posto"
+                  description="Definir defeitos permitidos em cada posto"
+                  icon={<ListChecks size={24} />}
+                  onClick={() => navigate('/defeitos-por-posto')}
                 />
                 <DashboardCard
                   title="Componentes"

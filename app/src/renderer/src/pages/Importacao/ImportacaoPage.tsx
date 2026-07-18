@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Download, FileSpreadsheet, Upload } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
+import { useApp } from '../../contexts/AppContext'
 import { ui } from '../../theme/ui'
 import { ConfirmarImportacaoModal } from './components/ConfirmarImportacaoModal'
 import { ImportacaoPreviewModal } from './components/ImportacaoPreviewModal'
@@ -16,6 +17,7 @@ type TipoImportacao =
   | 'usuarios'
   | 'circuitoComponentes'
   | 'roteiros'
+  | 'postoDefeitos'
 
 type AbaImportacao = {
   id: TipoImportacao
@@ -97,6 +99,12 @@ const abas: AbaImportacao[] = [
     colunas: ['codigo', 'descricao']
   },
   {
+    id: 'postoDefeitos',
+    titulo: 'Posto x Defeitos',
+    descricao: 'Vincule os defeitos permitidos a cada posto de trabalho.',
+    colunas: ['setor_sigla', 'subsetor_nome', 'posto_nome', 'defeito_codigo']
+  },
+  {
     id: 'usuarios',
     titulo: 'Usuários',
     descricao: 'Importe usuários, perfis e senhas iniciais.',
@@ -105,6 +113,7 @@ const abas: AbaImportacao[] = [
 ]
 
 function ImportacaoPage() {
+  const { usuario } = useApp()
   const [abaAtiva, setAbaAtiva] = useState<TipoImportacao>('setores')
   const [mensagem, setMensagem] = useState('')
   const [carregando, setCarregando] = useState(false)
@@ -184,7 +193,8 @@ function ImportacaoPage() {
     try {
       const resultado = await window.api.importacao.importarRegistros(
         aba.id,
-        registrosSelecionados.map((registro) => registro.dados)
+        registrosSelecionados.map((registro) => registro.dados),
+        usuario.id ?? null
       )
 
       setMensagem(

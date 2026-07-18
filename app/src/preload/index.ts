@@ -301,10 +301,14 @@ contextBridge.exposeInMainWorld('api', {
 
     preVisualizar: (tipo: string) => ipcRenderer.invoke('importacao:pre-visualizar', tipo),
 
-    importarRegistros: (tipo: string, registros: Record<string, string>[]) =>
-      ipcRenderer.invoke('importacao:importar-registros', tipo, registros),
+    importarRegistros: (
+      tipo: string,
+      registros: Record<string, string>[],
+      usuarioId?: number | null
+    ) => ipcRenderer.invoke('importacao:importar-registros', tipo, registros, usuarioId),
 
-    importar: (tipo: string) => ipcRenderer.invoke('importacao:importar', tipo)
+    importar: (tipo: string, usuarioId?: number | null) =>
+      ipcRenderer.invoke('importacao:importar', tipo, usuarioId)
   },
 
   resultados: (filtros: {

@@ -694,7 +694,10 @@ declare global {
           mensagem: string
         }>
 
-        importar: (tipo: string) => Promise<{
+        importar: (
+          tipo: string,
+          usuarioId?: number | null
+        ) => Promise<{
           sucesso: boolean
           mensagem: string
           inseridos: number
@@ -730,7 +733,8 @@ declare global {
 
         importarRegistros: (
           tipo: string,
-          registros: Record<string, string>[]
+          registros: Record<string, string>[],
+          usuarioId?: number | null
         ) => Promise<{
           sucesso: boolean
           mensagem: string

@@ -3,6 +3,8 @@ import { writeFileSync } from 'fs'
 
 import { lerCsv } from './importacao.csv'
 import {
+  analisarCircuitoComponentes,
+  analisarCircuitos,
   analisarComponentes,
   analisarDefeitos,
   analisarPostoDefeitos,
@@ -110,7 +112,7 @@ async function executarImportacao(
       return importarComponentes(registros, usuarioId)
 
     case 'circuitos':
-      return importarCircuitos(registros)
+      return importarCircuitos(registros, usuarioId)
 
     case 'defeitos':
       return importarDefeitos(registros, usuarioId)
@@ -119,7 +121,7 @@ async function executarImportacao(
       return importarUsuarios(registros)
 
     case 'circuitoComponentes':
-      return importarCircuitoComponentes(registros)
+      return importarCircuitoComponentes(registros, usuarioId)
 
     case 'roteiros':
       return importarRoteiros(registros)
@@ -289,6 +291,54 @@ export class ImportacaoService {
         mensagem: 'Arquivo analisado com sucesso.',
         registros: registrosAnalisados,
         avisos: []
+      }
+    }
+
+    if (tipo === 'circuitos') {
+      const estrutura = validarColunasObrigatorias(registros, ['codigo', 'nome'])
+
+      if (!estrutura.valido) {
+        return {
+          sucesso: false,
+          mensagem: estrutura.erros.join(' '),
+          registros: [] as RegistroPreview[],
+          avisos: []
+        }
+      }
+
+      const registrosAnalisados = await analisarCircuitos(registros)
+
+      return {
+        sucesso: true,
+        mensagem: 'Arquivo analisado com sucesso.',
+        registros: registrosAnalisados,
+        avisos: []
+      }
+    }
+
+    if (tipo === 'circuitoComponentes') {
+      const estrutura = validarColunasObrigatorias(registros, [
+        'circuito_codigo',
+        'componente_codigo',
+        'quantidade'
+      ])
+
+      if (!estrutura.valido) {
+        return {
+          sucesso: false,
+          mensagem: estrutura.erros.join(' '),
+          registros: [] as RegistroPreview[],
+          avisos: []
+        }
+      }
+
+      const analise = await analisarCircuitoComponentes(registros)
+
+      return {
+        sucesso: true,
+        mensagem: 'Arquivo analisado com sucesso.',
+        registros: analise.registros,
+        avisos: analise.avisos
       }
     }
 

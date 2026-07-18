@@ -711,6 +711,346 @@ export async function analisarComponentes(registros: RegistroCsv[]): Promise<Reg
   })
 }
 
+export async function analisarCircuitos(registros: RegistroCsv[]): Promise<RegistroPreview[]> {
+  const repository = RepositoryFactory.circuitos()
+  const [ativos, inativos] = await Promise.all([repository.listar(), repository.listarInativos()])
+
+  const porCodigo = new Map(
+    [...ativos, ...inativos].map((item) => [normalizarCodigo(item.codigo), item])
+  )
+
+  const ocorrencias = new Map<string, number>()
+  for (const registro of registros) {
+    const codigo = normalizarCodigo(registro.codigo)
+    if (codigo) ocorrencias.set(codigo, (ocorrencias.get(codigo) ?? 0) + 1)
+  }
+
+  return registros.map((registro, index) => {
+    const linha = Number(registro.__linha ?? index + 2)
+    const codigo = normalizarCodigo(registro.codigo)
+    const nome = normalizar(registro.nome)
+    const mensagens: string[] = []
+    const alteracoes: AlteracaoCampoImportacao[] = []
+    const dados = { ...registro, codigo, nome }
+
+    if (!codigo) mensagens.push('O código do circuito é obrigatório.')
+    if (!nome) mensagens.push('O nome do circuito é obrigatório.')
+    if (codigo && (ocorrencias.get(codigo) ?? 0) > 1) {
+      mensagens.push(`O código ${codigo} aparece mais de uma vez neste arquivo.`)
+    }
+
+    if (mensagens.length > 0) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: false,
+        dados,
+        status: 'ERRO' as const,
+        resumo: 'A linha possui erros e não poderá ser importada.',
+        mensagens,
+        alteracoes
+      }
+    }
+
+    const existente = porCodigo.get(codigo)
+
+    if (!existente) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'NOVO' as const,
+        resumo: `O circuito ${codigo} será criado.`,
+        mensagens,
+        alteracoes
+      }
+    }
+
+    const nomeAlterado = normalizarComparacao(existente.nome) !== normalizarComparacao(nome)
+
+    if (nomeAlterado) {
+      alteracoes.push({
+        campo: 'Nome',
+        valorAtual: existente.nome,
+        novoValor: nome
+      })
+    }
+
+    if (!existente.ativo) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'RESTAURAR' as const,
+        resumo: nomeAlterado
+          ? `O circuito ${codigo} será restaurado e seu nome será atualizado.`
+          : `O circuito ${codigo} existe, mas está inativo e será restaurado.`,
+        mensagens,
+        alteracoes,
+        registroExistenteId: existente.id
+      }
+    }
+
+    if (nomeAlterado) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'ATUALIZAR' as const,
+        resumo: `O circuito ${codigo} já existe e terá seu nome atualizado.`,
+        mensagens,
+        alteracoes,
+        registroExistenteId: existente.id
+      }
+    }
+
+    return {
+      id: index + 1,
+      linha,
+      selecionado: false,
+      dados,
+      status: 'SEM_ALTERACAO' as const,
+      resumo: `O circuito ${codigo} já existe com os mesmos dados.`,
+      mensagens,
+      alteracoes,
+      registroExistenteId: existente.id
+    }
+  })
+}
+
+export type ResultadoAnaliseCircuitoComponentes = {
+  registros: RegistroPreview[]
+  avisos: AvisoImportacao[]
+}
+
+export async function analisarCircuitoComponentes(
+  registros: RegistroCsv[]
+): Promise<ResultadoAnaliseCircuitoComponentes> {
+  const circuitosRepository = RepositoryFactory.circuitos()
+  const componentesRepository = RepositoryFactory.componentes()
+  const vinculosRepository = RepositoryFactory.circuitoComponentes()
+
+  const [circuitosAtivos, circuitosInativos, componentesAtivos, componentesInativos] =
+    await Promise.all([
+      circuitosRepository.listar(),
+      circuitosRepository.listarInativos(),
+      componentesRepository.listar(),
+      componentesRepository.listarInativos()
+    ])
+
+  const circuitosPorCodigo = new Map(
+    [...circuitosAtivos, ...circuitosInativos].map((circuito) => [
+      normalizarCodigo(circuito.codigo),
+      circuito
+    ])
+  )
+
+  const componentesPorCodigo = new Map(
+    [...componentesAtivos, ...componentesInativos].map((componente) => [
+      normalizarCodigo(componente.codigo),
+      componente
+    ])
+  )
+
+  const ocorrencias = new Map<string, number>()
+  const dependenciasInativas = new Map<string, string>()
+  const vinculosPorCircuito = new Map<
+    number,
+    Awaited<ReturnType<typeof vinculosRepository.listarPorCircuito>>
+  >()
+
+  for (const registro of registros) {
+    const circuitoCodigo = normalizarCodigo(registro.circuito_codigo)
+    const componenteCodigo = normalizarCodigo(registro.componente_codigo)
+
+    if (!circuitoCodigo || !componenteCodigo) continue
+
+    const chave = `${circuitoCodigo}::${componenteCodigo}`
+    ocorrencias.set(chave, (ocorrencias.get(chave) ?? 0) + 1)
+  }
+
+  const registrosAnalisados: RegistroPreview[] = []
+
+  for (let index = 0; index < registros.length; index++) {
+    const registro = registros[index]
+    const linha = Number(registro.__linha ?? index + 2)
+    const circuitoCodigo = normalizarCodigo(registro.circuito_codigo)
+    const componenteCodigo = normalizarCodigo(registro.componente_codigo)
+    const quantidadeTexto = normalizar(registro.quantidade)
+    const quantidade = Number(quantidadeTexto.replace(',', '.'))
+    const mensagens: string[] = []
+    const alteracoes: AlteracaoCampoImportacao[] = []
+
+    if (!circuitoCodigo) {
+      mensagens.push('O código do circuito é obrigatório.')
+    }
+
+    if (!componenteCodigo) {
+      mensagens.push('O código do componente é obrigatório.')
+    }
+
+    if (!quantidadeTexto) {
+      mensagens.push('A quantidade é obrigatória.')
+    } else if (!Number.isInteger(quantidade) || quantidade <= 0) {
+      mensagens.push('A quantidade deve ser um número inteiro maior que zero.')
+    }
+
+    const chaveArquivo =
+      circuitoCodigo && componenteCodigo ? `${circuitoCodigo}::${componenteCodigo}` : ''
+
+    if (chaveArquivo && (ocorrencias.get(chaveArquivo) ?? 0) > 1) {
+      mensagens.push('Este vínculo aparece mais de uma vez no arquivo.')
+    }
+
+    const circuito = circuitoCodigo ? circuitosPorCodigo.get(circuitoCodigo) : undefined
+
+    if (circuitoCodigo && !circuito) {
+      mensagens.push(`O circuito ${circuitoCodigo} não está cadastrado.`)
+    }
+
+    if (circuito && !circuito.ativo) {
+      mensagens.push(`O circuito ${circuito.codigo} está inativo.`)
+      dependenciasInativas.set(
+        `circuito-${circuito.id}`,
+        `Circuito: ${circuito.codigo} — ${circuito.nome}`
+      )
+    }
+
+    const componente = componenteCodigo ? componentesPorCodigo.get(componenteCodigo) : undefined
+
+    if (componenteCodigo && !componente) {
+      mensagens.push(`O componente ${componenteCodigo} não está cadastrado.`)
+    }
+
+    if (componente && !componente.ativo) {
+      mensagens.push(`O componente ${componente.codigo} está inativo.`)
+      dependenciasInativas.set(
+        `componente-${componente.id}`,
+        `Componente: ${componente.codigo} — ${componente.nome}`
+      )
+    }
+
+    const dados = {
+      ...registro,
+      circuito_codigo: circuitoCodigo,
+      componente_codigo: componenteCodigo,
+      quantidade: Number.isFinite(quantidade) ? String(quantidade) : quantidadeTexto
+    }
+
+    if (mensagens.length > 0 || !circuito || !componente) {
+      registrosAnalisados.push({
+        id: index + 1,
+        linha,
+        selecionado: false,
+        dados,
+        status: 'ERRO',
+        resumo: 'A linha possui erros e não poderá ser importada.',
+        mensagens,
+        alteracoes
+      })
+      continue
+    }
+
+    let vinculos = vinculosPorCircuito.get(circuito.id)
+
+    if (!vinculos) {
+      vinculos = await vinculosRepository.listarPorCircuito(circuito.id, true)
+      vinculosPorCircuito.set(circuito.id, vinculos)
+    }
+
+    const existente = vinculos.find((vinculo) => vinculo.componenteId === componente.id)
+
+    if (!existente) {
+      registrosAnalisados.push({
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'NOVO',
+        resumo: `O componente ${componente.codigo} será vinculado ao circuito ${circuito.codigo}.`,
+        mensagens,
+        alteracoes
+      })
+      continue
+    }
+
+    if (existente.quantidade !== quantidade) {
+      alteracoes.push({
+        campo: 'Quantidade',
+        valorAtual: String(existente.quantidade),
+        novoValor: String(quantidade)
+      })
+    }
+
+    if (!existente.ativo) {
+      registrosAnalisados.push({
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'RESTAURAR',
+        resumo:
+          existente.quantidade !== quantidade
+            ? 'O vínculo será restaurado com a nova quantidade.'
+            : 'O vínculo existe, mas está inativo e será restaurado.',
+        mensagens,
+        alteracoes,
+        registroExistenteId: existente.id
+      })
+      continue
+    }
+
+    if (existente.quantidade !== quantidade) {
+      registrosAnalisados.push({
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'ATUALIZAR',
+        resumo: 'O vínculo já existe e terá sua quantidade atualizada.',
+        mensagens,
+        alteracoes,
+        registroExistenteId: existente.id
+      })
+      continue
+    }
+
+    registrosAnalisados.push({
+      id: index + 1,
+      linha,
+      selecionado: false,
+      dados,
+      status: 'SEM_ALTERACAO',
+      resumo: `O componente ${componente.codigo} já está vinculado ao circuito ${circuito.codigo} com a mesma quantidade.`,
+      mensagens,
+      alteracoes,
+      registroExistenteId: existente.id
+    })
+  }
+
+  const itens = [...dependenciasInativas.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+
+  const avisos: AvisoImportacao[] =
+    itens.length > 0
+      ? [
+          {
+            tipo: 'DEPENDENCIA_INATIVA',
+            titulo: 'Há dependências inativas necessárias para esta importação',
+            mensagem: 'Reative os circuitos e componentes abaixo e analise o arquivo novamente:',
+            itens
+          }
+        ]
+      : []
+
+  return {
+    registros: registrosAnalisados,
+    avisos
+  }
+}
+
 export async function analisarDefeitos(registros: RegistroCsv[]): Promise<RegistroPreview[]> {
   const repository = RepositoryFactory.defeitos()
 

@@ -2,8 +2,17 @@ import { RepositoryFactory } from '../../../repositories/factory/RepositoryFacto
 import { normalizar, normalizarCodigo } from '../importacao.csv'
 import type { RegistroCsv } from '../importacao.types'
 
-export async function importarCircuitos(registros: RegistroCsv[]) {
+function normalizarComparacao(valor: unknown) {
+  return normalizar(valor).toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ')
+}
+
+export async function importarCircuitos(registros: RegistroCsv[], usuarioId?: number | null) {
   const repository = RepositoryFactory.circuitos()
+  const [ativos, inativos] = await Promise.all([repository.listar(), repository.listarInativos()])
+
+  const porCodigo = new Map(
+    [...ativos, ...inativos].map((item) => [normalizarCodigo(item.codigo), item])
+  )
 
   let inseridos = 0
   let atualizados = 0
@@ -18,21 +27,56 @@ export async function importarCircuitos(registros: RegistroCsv[]) {
       continue
     }
 
-    const circuitos = [...(await repository.listar()), ...(await repository.listarInativos())]
-
-    const existente = circuitos.find((circuito) => circuito.codigo === codigo)
+    const existente = porCodigo.get(codigo)
 
     if (existente) {
+      const nomeAlterado = normalizarComparacao(existente.nome) !== normalizarComparacao(nome)
+
       if (!existente.ativo) {
-        await repository.restaurar(existente.id)
+        await repository.restaurar(existente.id, usuarioId ?? undefined)
+
+        if (nomeAlterado) {
+          await repository.editar(existente.id, codigo, nome, usuarioId ?? undefined)
+        }
+
+        existente.ativo = true
+        existente.nome = nome
+        atualizados++
+        continue
       }
 
-      await repository.editar(existente.id, codigo, nome)
-      atualizados++
+      if (nomeAlterado) {
+        await repository.editar(existente.id, codigo, nome, usuarioId ?? undefined)
+
+        existente.nome = nome
+        atualizados++
+        continue
+      }
+
+      ignorados++
       continue
     }
 
-    await repository.criar(codigo, nome)
+    await repository.criar(codigo, nome, usuarioId ?? undefined)
+
+    porCodigo.set(codigo, {
+      id: -1,
+      uuid: '',
+      codigo,
+      nome,
+      ativo: true,
+      totalComponentes: 0,
+      createdAt: null,
+      updatedAt: null,
+      deletedAt: null,
+      createdBy: usuarioId ?? 1,
+      updatedBy: usuarioId ?? 1,
+      deletedBy: null,
+      createdByNome: null,
+      updatedByNome: null,
+      deletedByNome: null
+    })
+
     inseridos++
   }
 

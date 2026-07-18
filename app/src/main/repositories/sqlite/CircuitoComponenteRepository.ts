@@ -36,7 +36,7 @@ export interface CircuitoComponente {
 }
 
 export class CircuitoComponenteRepository {
-  listarPorCircuito(circuitoId: number): CircuitoComponente[] {
+  listarPorCircuito(circuitoId: number, incluirInativos = false): CircuitoComponente[] {
     const itens = db
       .prepare(
         `
@@ -64,11 +64,13 @@ export class CircuitoComponenteRepository {
       LEFT JOIN usuarios uu ON uu.id = cc.updated_by
       LEFT JOIN usuarios ud ON ud.id = cc.deleted_by
       WHERE cc.circuito_id = ?
-        AND cc.ativo = 1
+        AND (? = 1 OR cc.ativo = 1)
       ORDER BY c.codigo
     `
       )
-      .all(circuitoId) as Array<Omit<CircuitoComponente, 'ativo'> & { ativo: number }>
+      .all(circuitoId, incluirInativos ? 1 : 0) as Array<
+      Omit<CircuitoComponente, 'ativo'> & { ativo: number }
+    >
 
     return itens.map((item) => ({ ...item, ativo: Boolean(item.ativo) }))
   }

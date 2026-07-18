@@ -35,7 +35,10 @@ export interface CircuitoComponente {
 }
 
 export class CircuitoComponenteRepository {
-  async listarPorCircuito(circuitoId: number): Promise<CircuitoComponente[]> {
+  async listarPorCircuito(
+    circuitoId: number,
+    incluirInativos = false
+  ): Promise<CircuitoComponente[]> {
     const result = await pool.query<CircuitoComponente>(
       `
       SELECT
@@ -61,10 +64,10 @@ export class CircuitoComponenteRepository {
       LEFT JOIN usuarios uc ON uc.id = cc.created_by
       LEFT JOIN usuarios uu ON uu.id = cc.updated_by
       LEFT JOIN usuarios ud ON ud.id = cc.deleted_by
-      WHERE cc.circuito_id = $1 AND cc.ativo = true
+      WHERE cc.circuito_id = $1 AND ($2 = true OR cc.ativo = true)
       ORDER BY c.codigo
     `,
-      [circuitoId]
+      [circuitoId, incluirInativos]
     )
 
     return result.rows.map((item) => ({ ...item, ativo: Boolean(item.ativo) }))

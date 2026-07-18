@@ -555,6 +555,133 @@ export async function analisarPostos(registros: RegistroCsv[]): Promise<Resultad
   }
 }
 
+export async function analisarDefeitos(registros: RegistroCsv[]): Promise<RegistroPreview[]> {
+  const repository = RepositoryFactory.defeitos()
+
+  const [ativos, inativos] = await Promise.all([repository.listar(), repository.listarInativos()])
+
+  const defeitosPorCodigo = new Map(
+    [...ativos, ...inativos].map((defeito) => [normalizarCodigo(defeito.codigo), defeito])
+  )
+
+  const ocorrenciasPorCodigo = new Map<string, number>()
+
+  for (const registro of registros) {
+    const codigo = normalizarCodigo(registro.codigo)
+
+    if (codigo) {
+      ocorrenciasPorCodigo.set(codigo, (ocorrenciasPorCodigo.get(codigo) ?? 0) + 1)
+    }
+  }
+
+  return registros.map((registro, index) => {
+    const linha = Number(registro.__linha ?? index + 2)
+    const codigo = normalizarCodigo(registro.codigo)
+    const descricao = normalizar(registro.descricao)
+    const mensagens: string[] = []
+    const alteracoes: AlteracaoCampoImportacao[] = []
+
+    if (!codigo) {
+      mensagens.push('O código do defeito é obrigatório.')
+    }
+
+    if (!descricao) {
+      mensagens.push('A descrição do defeito é obrigatória.')
+    }
+
+    if (codigo && (ocorrenciasPorCodigo.get(codigo) ?? 0) > 1) {
+      mensagens.push(`O código ${codigo} aparece mais de uma vez neste arquivo.`)
+    }
+
+    const dados = {
+      ...registro,
+      codigo,
+      descricao
+    }
+
+    if (mensagens.length > 0) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: false,
+        dados,
+        status: 'ERRO' as const,
+        resumo: 'A linha possui erros e não poderá ser importada.',
+        mensagens,
+        alteracoes
+      }
+    }
+
+    const existente = defeitosPorCodigo.get(codigo)
+
+    if (!existente) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'NOVO' as const,
+        resumo: `O defeito ${codigo} será criado.`,
+        mensagens,
+        alteracoes
+      }
+    }
+
+    const descricaoAlterada =
+      normalizarComparacao(existente.descricao) !== normalizarComparacao(descricao)
+
+    if (descricaoAlterada) {
+      alteracoes.push({
+        campo: 'Descrição',
+        valorAtual: existente.descricao,
+        novoValor: descricao
+      })
+    }
+
+    if (!existente.ativo) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'RESTAURAR' as const,
+        resumo: descricaoAlterada
+          ? `O defeito ${codigo} será restaurado e sua descrição será atualizada.`
+          : `O defeito ${codigo} existe, mas está inativo e será restaurado.`,
+        mensagens,
+        alteracoes,
+        registroExistenteId: existente.id
+      }
+    }
+
+    if (descricaoAlterada) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'ATUALIZAR' as const,
+        resumo: `O defeito ${codigo} já existe e terá sua descrição atualizada.`,
+        mensagens,
+        alteracoes,
+        registroExistenteId: existente.id
+      }
+    }
+
+    return {
+      id: index + 1,
+      linha,
+      selecionado: false,
+      dados,
+      status: 'SEM_ALTERACAO' as const,
+      resumo: `O defeito ${codigo} já existe com os mesmos dados.`,
+      mensagens,
+      alteracoes,
+      registroExistenteId: existente.id
+    }
+  })
+}
+
 export type ResultadoAnalisePostoDefeitos = {
   registros: RegistroPreview[]
   avisos: AvisoImportacao[]

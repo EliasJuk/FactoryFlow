@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 
 import { ui } from '../../../theme/ui'
 
@@ -215,8 +215,8 @@ export function ImportacaoPreviewModal({
                 const statusConfig = STATUS_CONFIG[registro.status]
 
                 return (
-                  <>
-                    <tr key={registro.id} className="border-t border-[var(--border)] align-top">
+                  <Fragment key={registro.id}>
+                    <tr className="border-t border-[var(--border)] align-top">
                       <td className={ui.tableCell}>
                         <input
                           type="checkbox"
@@ -331,7 +331,7 @@ export function ImportacaoPreviewModal({
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 )
               })}
 

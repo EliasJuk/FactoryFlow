@@ -4,6 +4,7 @@ import { writeFileSync } from 'fs'
 import { lerCsv } from './importacao.csv'
 import {
   analisarPostoDefeitos,
+  analisarPostos,
   analisarSetores,
   analisarSubsetores,
   validarColunasObrigatorias
@@ -101,7 +102,7 @@ async function executarImportacao(
       return importarSubsetores(registros)
 
     case 'postos':
-      return importarPostos(registros)
+      return importarPostos(registros, usuarioId)
 
     case 'componentes':
       return importarComponentes(registros)
@@ -232,6 +233,32 @@ export class ImportacaoService {
       }
 
       const analise = await analisarSubsetores(registros)
+
+      return {
+        sucesso: true,
+        mensagem: 'Arquivo analisado com sucesso.',
+        registros: analise.registros,
+        avisos: analise.avisos
+      }
+    }
+
+    if (tipo === 'postos') {
+      const estrutura = validarColunasObrigatorias(registros, [
+        'setor_sigla',
+        'subsetor_nome',
+        'nome'
+      ])
+
+      if (!estrutura.valido) {
+        return {
+          sucesso: false,
+          mensagem: estrutura.erros.join(' '),
+          registros: [] as RegistroPreview[],
+          avisos: []
+        }
+      }
+
+      const analise = await analisarPostos(registros)
 
       return {
         sucesso: true,

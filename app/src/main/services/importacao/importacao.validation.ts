@@ -350,6 +350,211 @@ export async function analisarSubsetores(
   }
 }
 
+export type ResultadoAnalisePostos = {
+  registros: RegistroPreview[]
+  avisos: AvisoImportacao[]
+}
+
+export async function analisarPostos(registros: RegistroCsv[]): Promise<ResultadoAnalisePostos> {
+  const setoresRepository = RepositoryFactory.setores()
+  const subsetoresRepository = RepositoryFactory.subsetores()
+  const postosRepository = RepositoryFactory.postos()
+
+  const [
+    setoresAtivos,
+    setoresInativos,
+    subsetoresAtivos,
+    subsetoresInativos,
+    postosAtivos,
+    postosInativos
+  ] = await Promise.all([
+    setoresRepository.listar(),
+    setoresRepository.listarInativos(),
+    subsetoresRepository.listar(),
+    subsetoresRepository.listarInativos(),
+    postosRepository.listar(),
+    postosRepository.listarInativos()
+  ])
+
+  const setoresPorSigla = new Map(
+    [...setoresAtivos, ...setoresInativos].map((setor) => [normalizarCodigo(setor.sigla), setor])
+  )
+
+  const subsetoresPorChave = new Map(
+    [...subsetoresAtivos, ...subsetoresInativos].map((subsetor) => [
+      `${subsetor.setorId}::${normalizarComparacao(subsetor.nome)}`,
+      subsetor
+    ])
+  )
+
+  const postosPorChave = new Map(
+    [...postosAtivos, ...postosInativos].map((posto) => [
+      `${posto.subsetorId}::${normalizarComparacao(posto.nome)}`,
+      posto
+    ])
+  )
+
+  const ocorrenciasPorChave = new Map<string, number>()
+  const dependenciasInativas = new Map<string, string>()
+
+  for (const registro of registros) {
+    const setorSigla = normalizarCodigo(registro.setor_sigla)
+    const subsetorNome = normalizar(registro.subsetor_nome)
+    const nome = normalizar(registro.nome)
+
+    if (!setorSigla || !subsetorNome || !nome) continue
+
+    const chave = [setorSigla, normalizarComparacao(subsetorNome), normalizarComparacao(nome)].join(
+      '::'
+    )
+
+    ocorrenciasPorChave.set(chave, (ocorrenciasPorChave.get(chave) ?? 0) + 1)
+  }
+
+  const registrosAnalisados = registros.map((registro, index) => {
+    const linha = Number(registro.__linha ?? index + 2)
+    const setorSigla = normalizarCodigo(registro.setor_sigla)
+    const subsetorNome = normalizar(registro.subsetor_nome)
+    const nome = normalizar(registro.nome)
+    const mensagens: string[] = []
+    const alteracoes: AlteracaoCampoImportacao[] = []
+
+    if (!setorSigla) {
+      mensagens.push('A sigla do setor é obrigatória.')
+    }
+
+    if (!subsetorNome) {
+      mensagens.push('O nome do subsetor é obrigatório.')
+    }
+
+    if (!nome) {
+      mensagens.push('O nome do posto é obrigatório.')
+    }
+
+    const chaveArquivo =
+      setorSigla && subsetorNome && nome
+        ? [setorSigla, normalizarComparacao(subsetorNome), normalizarComparacao(nome)].join('::')
+        : ''
+
+    if (chaveArquivo && (ocorrenciasPorChave.get(chaveArquivo) ?? 0) > 1) {
+      mensagens.push(
+        `O posto ${nome} aparece mais de uma vez no subsetor ${subsetorNome} do setor ${setorSigla}.`
+      )
+    }
+
+    const setor = setorSigla ? setoresPorSigla.get(setorSigla) : undefined
+
+    if (setorSigla && !setor) {
+      mensagens.push(`O setor ${setorSigla} não está cadastrado.`)
+    }
+
+    if (setor && !setor.ativo) {
+      mensagens.push(`O setor ${setor.sigla} está inativo. Reative o setor para continuar.`)
+      dependenciasInativas.set(
+        `setor-${setor.id}`,
+        `Setor: ${setor.nome} (${normalizarCodigo(setor.sigla)})`
+      )
+    }
+
+    const subsetor =
+      setor && subsetorNome
+        ? subsetoresPorChave.get(`${setor.id}::${normalizarComparacao(subsetorNome)}`)
+        : undefined
+
+    if (setor && subsetorNome && !subsetor) {
+      mensagens.push(`O subsetor ${subsetorNome} não está cadastrado no setor ${setorSigla}.`)
+    }
+
+    if (subsetor && !subsetor.ativo) {
+      mensagens.push(`O subsetor ${subsetor.nome} está inativo. Reative o subsetor para continuar.`)
+      dependenciasInativas.set(
+        `subsetor-${subsetor.id}`,
+        `Subsetor: ${subsetor.nome} — setor ${setorSigla}`
+      )
+    }
+
+    const dados = {
+      ...registro,
+      setor_sigla: setorSigla,
+      subsetor_nome: subsetorNome,
+      nome
+    }
+
+    if (mensagens.length > 0 || !setor || !subsetor) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: false,
+        dados,
+        status: 'ERRO' as const,
+        resumo: 'A linha possui erros e não poderá ser importada.',
+        mensagens,
+        alteracoes
+      }
+    }
+
+    const existente = postosPorChave.get(`${subsetor.id}::${normalizarComparacao(nome)}`)
+
+    if (!existente) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'NOVO' as const,
+        resumo: `O posto ${nome} será criado em ${setor.nome} / ${subsetor.nome}.`,
+        mensagens,
+        alteracoes
+      }
+    }
+
+    if (!existente.ativo) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'RESTAURAR' as const,
+        resumo: `O posto ${nome} existe, mas está inativo e será restaurado.`,
+        mensagens,
+        alteracoes,
+        registroExistenteId: existente.id
+      }
+    }
+
+    return {
+      id: index + 1,
+      linha,
+      selecionado: false,
+      dados,
+      status: 'SEM_ALTERACAO' as const,
+      resumo: `O posto ${nome} já existe em ${setor.nome} / ${subsetor.nome}.`,
+      mensagens,
+      alteracoes,
+      registroExistenteId: existente.id
+    }
+  })
+
+  const itens = [...dependenciasInativas.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+
+  const avisos: AvisoImportacao[] =
+    itens.length > 0
+      ? [
+          {
+            tipo: 'DEPENDENCIA_INATIVA',
+            titulo: 'Há dependências inativas necessárias para importar os postos',
+            mensagem: 'Reative os setores e subsetores abaixo e analise o arquivo novamente:',
+            itens
+          }
+        ]
+      : []
+
+  return {
+    registros: registrosAnalisados,
+    avisos
+  }
+}
+
 export type ResultadoAnalisePostoDefeitos = {
   registros: RegistroPreview[]
   avisos: AvisoImportacao[]

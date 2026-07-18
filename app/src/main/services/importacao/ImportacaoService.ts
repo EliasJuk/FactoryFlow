@@ -3,6 +3,7 @@ import { writeFileSync } from 'fs'
 
 import { lerCsv } from './importacao.csv'
 import {
+  analisarPostoDefeitos,
   analisarSetores,
   analisarSubsetores,
   validarColunasObrigatorias
@@ -23,6 +24,7 @@ import { importarDefeitos } from './importadores/importarDefeitos'
 import { importarUsuarios } from './importadores/importarUsuarios'
 import { importarCircuitoComponentes } from './importadores/importarCircuitoComponentes'
 import { importarRoteiros } from './importadores/importarRoteiros'
+import { importarPostoDefeitos } from './importadores/importarPostoDefeitos'
 
 const modelos: Record<TipoImportacao, string> = {
   setores: `nome,sigla
@@ -78,12 +80,18 @@ PROD-0002,COMP-0003,1
 PROD-0001,Posto 01,COMP-0001,1
 PROD-0001,Posto 02,COMP-0002,1
 PROD-0002,Posto Processo 01,COMP-0003,1
+`,
+
+  postoDefeitos: `setor_sigla,subsetor_nome,posto_nome,defeito_codigo
+SA,Área de Montagem,Posto 01,D001
+SA,Área de Montagem,Posto 01,D002
 `
 }
 
 async function executarImportacao(
   tipo: TipoImportacao,
-  registros: RegistroCsv[]
+  registros: RegistroCsv[],
+  usuarioId?: number | null
 ): Promise<ResumoImportacao> {
   switch (tipo) {
     case 'setores':
@@ -112,6 +120,9 @@ async function executarImportacao(
 
     case 'roteiros':
       return importarRoteiros(registros)
+
+    case 'postoDefeitos':
+      return importarPostoDefeitos(registros, usuarioId)
 
     default: {
       const tipoInvalido: never = tipo
@@ -142,7 +153,7 @@ export class ImportacaoService {
     }
   }
 
-  async importar(tipo: TipoImportacao): Promise<ResultadoImportacao> {
+  async importar(tipo: TipoImportacao, usuarioId?: number | null): Promise<ResultadoImportacao> {
     const resultado = await dialog.showOpenDialog({
       title: 'Selecionar arquivo CSV',
       properties: ['openFile'],
@@ -160,7 +171,7 @@ export class ImportacaoService {
     }
 
     const registros = lerCsv(resultado.filePaths[0])
-    const resumo = await executarImportacao(tipo, registros)
+    const resumo = await executarImportacao(tipo, registros, usuarioId)
 
     return {
       sucesso: true,
@@ -230,6 +241,33 @@ export class ImportacaoService {
       }
     }
 
+    if (tipo === 'postoDefeitos') {
+      const estrutura = validarColunasObrigatorias(registros, [
+        'setor_sigla',
+        'subsetor_nome',
+        'posto_nome',
+        'defeito_codigo'
+      ])
+
+      if (!estrutura.valido) {
+        return {
+          sucesso: false,
+          mensagem: estrutura.erros.join(' '),
+          registros: [] as RegistroPreview[],
+          avisos: []
+        }
+      }
+
+      const analise = await analisarPostoDefeitos(registros)
+
+      return {
+        sucesso: true,
+        mensagem: 'Arquivo analisado com sucesso.',
+        registros: analise.registros,
+        avisos: analise.avisos
+      }
+    }
+
     return {
       sucesso: true,
       mensagem: 'Arquivo carregado com sucesso.',
@@ -249,7 +287,8 @@ export class ImportacaoService {
 
   async importarRegistros(
     tipo: TipoImportacao,
-    registros: RegistroCsv[]
+    registros: RegistroCsv[],
+    usuarioId?: number | null
   ): Promise<ResultadoImportacao> {
     const registrosLimpos = registros.map((registro) => {
       const copia = { ...registro }
@@ -257,7 +296,7 @@ export class ImportacaoService {
       return copia
     })
 
-    const resumo = await executarImportacao(tipo, registrosLimpos)
+    const resumo = await executarImportacao(tipo, registrosLimpos, usuarioId)
 
     return {
       sucesso: true,

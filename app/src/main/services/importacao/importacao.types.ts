@@ -8,6 +8,7 @@ export type TipoImportacao =
   | 'usuarios'
   | 'circuitoComponentes'
   | 'roteiros'
+  | 'postoDefeitos'
 
 export type ResultadoImportacao = {
   sucesso: boolean

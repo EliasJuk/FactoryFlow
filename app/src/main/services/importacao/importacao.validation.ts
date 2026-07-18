@@ -39,6 +39,32 @@ function normalizarComparacao(valor: unknown) {
   return normalizar(valor).toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ')
 }
 
+function analisarPrecoImportacao(valor: unknown): { valido: boolean; valor: number } {
+  const original = normalizar(valor)
+  if (!original) return { valido: false, valor: 0 }
+
+  const texto = original.replace(/\s+/g, '')
+  let normalizado = texto
+
+  if (texto.includes(',') && texto.includes('.')) {
+    normalizado =
+      texto.lastIndexOf(',') > texto.lastIndexOf('.')
+        ? texto.replace(/\./g, '').replace(',', '.')
+        : texto.replace(/,/g, '')
+  } else if (texto.includes(',')) {
+    normalizado = texto.replace(',', '.')
+  }
+
+  if (!/^-?\d+(\.\d+)?$/.test(normalizado)) {
+    return { valido: false, valor: 0 }
+  }
+
+  const preco = Number(normalizado)
+  return Number.isFinite(preco) && preco >= 0
+    ? { valido: true, valor: preco }
+    : { valido: false, valor: 0 }
+}
+
 export async function analisarSetores(registros: RegistroCsv[]): Promise<RegistroPreview[]> {
   const repository = RepositoryFactory.setores()
 
@@ -553,6 +579,136 @@ export async function analisarPostos(registros: RegistroCsv[]): Promise<Resultad
     registros: registrosAnalisados,
     avisos
   }
+}
+
+export async function analisarComponentes(registros: RegistroCsv[]): Promise<RegistroPreview[]> {
+  const repository = RepositoryFactory.componentes()
+  const [ativos, inativos] = await Promise.all([repository.listar(), repository.listarInativos()])
+
+  const porCodigo = new Map(
+    [...ativos, ...inativos].map((item) => [normalizarCodigo(item.codigo), item])
+  )
+
+  const ocorrencias = new Map<string, number>()
+  for (const registro of registros) {
+    const codigo = normalizarCodigo(registro.codigo)
+    if (codigo) ocorrencias.set(codigo, (ocorrencias.get(codigo) ?? 0) + 1)
+  }
+
+  return registros.map((registro, index) => {
+    const linha = Number(registro.__linha ?? index + 2)
+    const codigo = normalizarCodigo(registro.codigo)
+    const nome = normalizar(registro.nome)
+    const precoAnalisado = analisarPrecoImportacao(registro.preco ?? registro.preco_atual)
+    const mensagens: string[] = []
+    const alteracoes: AlteracaoCampoImportacao[] = []
+
+    if (!codigo) mensagens.push('O código do componente é obrigatório.')
+    if (!nome) mensagens.push('O nome do componente é obrigatório.')
+
+    const precoOriginal = normalizar(registro.preco ?? registro.preco_atual)
+    if (!precoOriginal) {
+      mensagens.push('O preço do componente é obrigatório.')
+    } else if (!precoAnalisado.valido) {
+      mensagens.push('O preço deve ser um número válido maior ou igual a zero.')
+    }
+
+    if (codigo && (ocorrencias.get(codigo) ?? 0) > 1) {
+      mensagens.push(`O código ${codigo} aparece mais de uma vez neste arquivo.`)
+    }
+
+    const preco = precoAnalisado.valor
+    const dados = { ...registro, codigo, nome, preco: String(preco) }
+
+    if (mensagens.length > 0) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: false,
+        dados,
+        status: 'ERRO' as const,
+        resumo: 'A linha possui erros e não poderá ser importada.',
+        mensagens,
+        alteracoes
+      }
+    }
+
+    const existente = porCodigo.get(codigo)
+    if (!existente) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'NOVO' as const,
+        resumo: `O componente ${codigo} será criado.`,
+        mensagens,
+        alteracoes
+      }
+    }
+
+    const nomeAlterado = normalizarComparacao(existente.nome) !== normalizarComparacao(nome)
+    const precoAlterado = Math.abs(Number(existente.precoAtual) - preco) > 0.0001
+
+    if (nomeAlterado) {
+      alteracoes.push({
+        campo: 'Nome',
+        valorAtual: existente.nome,
+        novoValor: nome
+      })
+    }
+
+    if (precoAlterado) {
+      alteracoes.push({
+        campo: 'Preço',
+        valorAtual: Number(existente.precoAtual).toFixed(2),
+        novoValor: preco.toFixed(2)
+      })
+    }
+
+    if (!existente.ativo) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'RESTAURAR' as const,
+        resumo:
+          nomeAlterado || precoAlterado
+            ? `O componente ${codigo} será restaurado e atualizado.`
+            : `O componente ${codigo} existe, mas está inativo e será restaurado.`,
+        mensagens,
+        alteracoes,
+        registroExistenteId: existente.id
+      }
+    }
+
+    if (nomeAlterado || precoAlterado) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'ATUALIZAR' as const,
+        resumo: `O componente ${codigo} já existe e terá alterações.`,
+        mensagens,
+        alteracoes,
+        registroExistenteId: existente.id
+      }
+    }
+
+    return {
+      id: index + 1,
+      linha,
+      selecionado: false,
+      dados,
+      status: 'SEM_ALTERACAO' as const,
+      resumo: `O componente ${codigo} já existe com os mesmos dados.`,
+      mensagens,
+      alteracoes,
+      registroExistenteId: existente.id
+    }
+  })
 }
 
 export async function analisarDefeitos(registros: RegistroCsv[]): Promise<RegistroPreview[]> {

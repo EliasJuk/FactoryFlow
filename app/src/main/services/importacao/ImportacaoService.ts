@@ -3,6 +3,7 @@ import { writeFileSync } from 'fs'
 
 import { lerCsv } from './importacao.csv'
 import {
+  analisarComponentes,
   analisarDefeitos,
   analisarPostoDefeitos,
   analisarPostos,
@@ -106,7 +107,7 @@ async function executarImportacao(
       return importarPostos(registros, usuarioId)
 
     case 'componentes':
-      return importarComponentes(registros)
+      return importarComponentes(registros, usuarioId)
 
     case 'circuitos':
       return importarCircuitos(registros)
@@ -266,6 +267,28 @@ export class ImportacaoService {
         mensagem: 'Arquivo analisado com sucesso.',
         registros: analise.registros,
         avisos: analise.avisos
+      }
+    }
+
+    if (tipo === 'componentes') {
+      const estrutura = validarColunasObrigatorias(registros, ['codigo', 'nome', 'preco'])
+
+      if (!estrutura.valido) {
+        return {
+          sucesso: false,
+          mensagem: estrutura.erros.join(' '),
+          registros: [] as RegistroPreview[],
+          avisos: []
+        }
+      }
+
+      const registrosAnalisados = await analisarComponentes(registros)
+
+      return {
+        sucesso: true,
+        mensagem: 'Arquivo analisado com sucesso.',
+        registros: registrosAnalisados,
+        avisos: []
       }
     }
 

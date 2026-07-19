@@ -29,6 +29,14 @@ function valorCelula(coluna: string, valor: string | undefined) {
   return valor || '-'
 }
 
+function resumoCompacto(registro: RegistroPreview) {
+  if (registro.status === 'ERRO') {
+    return 'Possui erros'
+  }
+
+  return registro.resumo
+}
+
 const STATUS_CONFIG: Record<StatusRegistroImportacao, { titulo: string; classe: string }> = {
   NOVO: {
     titulo: 'Novo',
@@ -239,7 +247,7 @@ export function ImportacaoPreviewModal({
                               : 'text-[var(--text)]'
                           }`}
                         >
-                          {registro.resumo}
+                          {resumoCompacto(registro)}
                         </div>
                       </td>
 
@@ -303,8 +311,23 @@ export function ImportacaoPreviewModal({
                             </div>
                           )}
 
-                          {registro.mensagens.length > 0 && (
+                          {registro.status === 'ERRO' && (
                             <div className={registro.alteracoes.length > 0 ? 'mt-4' : ''}>
+                              <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Análise
+                              </h4>
+                              <p className="mt-2 text-sm text-slate-700">{registro.resumo}</p>
+                            </div>
+                          )}
+
+                          {registro.mensagens.length > 0 && (
+                            <div
+                              className={
+                                registro.alteracoes.length > 0 || registro.status === 'ERRO'
+                                  ? 'mt-4'
+                                  : ''
+                              }
+                            >
                               <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-red-700">
                                 <AlertCircle size={15} />
                                 Problemas encontrados

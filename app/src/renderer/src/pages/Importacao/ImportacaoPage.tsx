@@ -82,6 +82,24 @@ const abas: AbaImportacao[] = [
     titulo: 'Usuários',
     descricao: 'Importe usuários, perfis e senhas iniciais.',
     colunas: ['matricula', 'nome', 'perfil', 'senha']
+  },
+  {
+    id: 'refugosHistoricos',
+    titulo: 'Refugos históricos',
+    descricao: 'Migre lançamentos antigos agrupados por id_origem.',
+    colunas: [
+      'id_origem',
+      'data_hora',
+      'matricula_operador',
+      'setor_sigla',
+      'subsetor_nome',
+      'posto_nome',
+      'circuito_codigo',
+      'turno',
+      'quantidade_produzida',
+      'total_itens',
+      'observacao'
+    ]
   }
 ]
 
@@ -304,6 +322,14 @@ function ImportacaoPage() {
                   O sistema irá carregar o arquivo em uma prévia. Você poderá selecionar todos os
                   registros ou apenas algumas linhas antes de confirmar a importação.
                 </div>
+
+                {aba.id === 'refugosHistoricos' && (
+                  <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+                    Uso exclusivo para migração de dados antigos. Cada id_origem forma um único
+                    refugo, mesmo quando houver várias linhas de itens. Registros já importados não
+                    serão duplicados.
+                  </div>
+                )}
 
                 <button
                   onClick={selecionarArquivo}

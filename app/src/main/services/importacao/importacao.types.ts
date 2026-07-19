@@ -9,6 +9,7 @@ export type TipoImportacao =
   | 'circuitoComponentes'
   | 'roteiros'
   | 'postoDefeitos'
+  | 'refugosHistoricos'
 
 export type ResultadoImportacao = {
   sucesso: boolean

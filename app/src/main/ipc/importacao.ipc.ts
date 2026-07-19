@@ -15,7 +15,8 @@ const TIPOS_IMPORTACAO: ReadonlySet<TipoImportacao> = new Set([
   'usuarios',
   'circuitoComponentes',
   'roteiros',
-  'postoDefeitos'
+  'postoDefeitos',
+  'refugosHistoricos'
 ])
 
 function validarTipoImportacao(tipo: unknown): TipoImportacao {

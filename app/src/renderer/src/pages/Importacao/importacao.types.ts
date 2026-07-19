@@ -9,6 +9,7 @@ export type TipoImportacao =
   | 'circuitoComponentes'
   | 'roteiros'
   | 'postoDefeitos'
+  | 'refugosHistoricos'
 
 export type StatusRegistroImportacao = 'NOVO' | 'ATUALIZAR' | 'RESTAURAR' | 'SEM_ALTERACAO' | 'ERRO'
 

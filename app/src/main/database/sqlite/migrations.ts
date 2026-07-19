@@ -258,6 +258,11 @@ export function runMigrations() {
       status TEXT NOT NULL DEFAULT 'ATIVO',
       motivo_cancelamento TEXT,
 
+      origem TEXT NOT NULL DEFAULT 'LANCAMENTO_MANUAL',
+      id_origem TEXT,
+      importado_em TEXT,
+      importado_por INTEGER,
+
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       deleted_at TEXT,
@@ -1245,5 +1250,27 @@ export function runMigrations() {
           (SELECT r.updated_by FROM refugos r WHERE r.id = refugo_itens.refugo_id),
           1
         )
+  `)
+
+  if (!columnExists('refugos', 'origem')) {
+    db.exec(`ALTER TABLE refugos ADD COLUMN origem TEXT NOT NULL DEFAULT 'LANCAMENTO_MANUAL';`)
+  }
+
+  if (!columnExists('refugos', 'id_origem')) {
+    db.exec(`ALTER TABLE refugos ADD COLUMN id_origem TEXT;`)
+  }
+
+  if (!columnExists('refugos', 'importado_em')) {
+    db.exec(`ALTER TABLE refugos ADD COLUMN importado_em TEXT;`)
+  }
+
+  if (!columnExists('refugos', 'importado_por')) {
+    db.exec(`ALTER TABLE refugos ADD COLUMN importado_por INTEGER;`)
+  }
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_refugos_id_origem_historica
+    ON refugos(id_origem)
+    WHERE id_origem IS NOT NULL AND TRIM(id_origem) <> '';
   `)
 }

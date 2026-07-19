@@ -1899,3 +1899,411 @@ export async function analisarPostoDefeitos(
 
   return { registros: registrosAnalisados, avisos }
 }
+
+type ItemRefugoHistoricoNormalizado = {
+  componenteId: number
+  defeitoId: number
+  quantidade: number
+  precoUnitario?: number
+  componenteCodigo: string
+  defeitoCodigo: string
+}
+
+function analisarInteiroPositivo(valor: unknown): number | null {
+  const texto = normalizar(valor)
+  if (!/^\d+$/.test(texto)) return null
+
+  const numero = Number(texto)
+  return Number.isSafeInteger(numero) && numero > 0 ? numero : null
+}
+
+function analisarPrecoHistorico(valor: unknown): number | undefined | null {
+  const texto = normalizar(valor)
+  if (!texto) return undefined
+
+  const resultado = analisarPrecoImportacao(texto)
+  return resultado.valido ? resultado.valor : null
+}
+
+function normalizarDataHoraHistorica(valor: unknown): string | null {
+  const texto = normalizar(valor).replace('T', ' ')
+  const correspondencia = texto.match(/^(\d{4})-(\d{2})-(\d{2})[ ](\d{2}):(\d{2})(?::(\d{2}))?$/)
+
+  if (!correspondencia) return null
+
+  const [, ano, mes, dia, hora, minuto, segundo = '00'] = correspondencia
+  const data = new Date(
+    Number(ano),
+    Number(mes) - 1,
+    Number(dia),
+    Number(hora),
+    Number(minuto),
+    Number(segundo)
+  )
+
+  const valida =
+    data.getFullYear() === Number(ano) &&
+    data.getMonth() === Number(mes) - 1 &&
+    data.getDate() === Number(dia) &&
+    data.getHours() === Number(hora) &&
+    data.getMinutes() === Number(minuto)
+
+  return valida ? `${ano}-${mes}-${dia} ${hora}:${minuto}:${segundo}` : null
+}
+
+export async function analisarRefugosHistoricos(
+  registros: RegistroCsv[]
+): Promise<{ registros: RegistroPreview[]; avisos: AvisoImportacao[] }> {
+  const setoresRepository = RepositoryFactory.setores()
+  const subsetoresRepository = RepositoryFactory.subsetores()
+  const postosRepository = RepositoryFactory.postos()
+  const circuitosRepository = RepositoryFactory.circuitos()
+  const componentesRepository = RepositoryFactory.componentes()
+  const defeitosRepository = RepositoryFactory.defeitos()
+  const circuitoComponentesRepository = RepositoryFactory.circuitoComponentes()
+  const roteirosRepository = RepositoryFactory.roteiros()
+  const postoDefeitosRepository = RepositoryFactory.postoDefeitos()
+  const refugosRepository = RepositoryFactory.refugos()
+
+  const [
+    setoresAtivos,
+    setoresInativos,
+    subsetoresAtivos,
+    subsetoresInativos,
+    postosAtivos,
+    postosInativos,
+    circuitosAtivos,
+    circuitosInativos,
+    componentesAtivos,
+    componentesInativos,
+    defeitosAtivos,
+    defeitosInativos
+  ] = await Promise.all([
+    setoresRepository.listar(),
+    setoresRepository.listarInativos(),
+    subsetoresRepository.listar(),
+    subsetoresRepository.listarInativos(),
+    postosRepository.listar(),
+    postosRepository.listarInativos(),
+    circuitosRepository.listar(),
+    circuitosRepository.listarInativos(),
+    componentesRepository.listar(),
+    componentesRepository.listarInativos(),
+    defeitosRepository.listar(),
+    defeitosRepository.listarInativos()
+  ])
+
+  const setoresPorSigla = new Map(
+    [...setoresAtivos, ...setoresInativos].map((item) => [normalizarCodigo(item.sigla), item])
+  )
+  const subsetoresPorChave = new Map(
+    [...subsetoresAtivos, ...subsetoresInativos].map((item) => [
+      `${item.setorId}::${normalizarComparacao(item.nome)}`,
+      item
+    ])
+  )
+  const postosPorChave = new Map(
+    [...postosAtivos, ...postosInativos].map((item) => [
+      `${item.subsetorId}::${normalizarComparacao(item.nome)}`,
+      item
+    ])
+  )
+  const circuitosPorCodigo = new Map(
+    [...circuitosAtivos, ...circuitosInativos].map((item) => [normalizarCodigo(item.codigo), item])
+  )
+  const componentesPorCodigo = new Map(
+    [...componentesAtivos, ...componentesInativos].map((item) => [
+      normalizarCodigo(item.codigo),
+      item
+    ])
+  )
+  const defeitosPorCodigo = new Map(
+    [...defeitosAtivos, ...defeitosInativos].map((item) => [normalizarCodigo(item.codigo), item])
+  )
+
+  const grupos = new Map<string, RegistroCsv[]>()
+
+  for (const registro of registros) {
+    const idOrigem = normalizar(registro.id_origem)
+    const chave = idOrigem || `__linha_${registro.__linha ?? grupos.size + 2}`
+    const grupo = grupos.get(chave) ?? []
+    grupo.push(registro)
+    grupos.set(chave, grupo)
+  }
+
+  const avisosPrecoAtual = new Set<string>()
+  const dependenciasInativas = new Set<string>()
+  const previews: RegistroPreview[] = []
+  let indice = 0
+
+  for (const [chaveGrupo, linhas] of grupos) {
+    indice++
+    const primeira = linhas[0]
+    const linha = Number(primeira.__linha ?? indice + 1)
+    const idOrigem = normalizar(primeira.id_origem)
+    const dataHora = normalizarDataHoraHistorica(primeira.data_hora)
+    const matriculaOperador = normalizar(primeira.matricula_operador)
+    const setorSigla = normalizarCodigo(primeira.setor_sigla)
+    const subsetorNome = normalizar(primeira.subsetor_nome)
+    const postoNome = normalizar(primeira.posto_nome)
+    const circuitoCodigo = normalizarCodigo(primeira.circuito_codigo)
+    const turno = normalizarCodigo(primeira.turno)
+    const quantidadeProduzida = analisarInteiroPositivo(primeira.quantidade_produzida)
+    const observacao = normalizar(primeira.observacao)
+    const mensagens: string[] = []
+
+    if (!idOrigem) mensagens.push('O id_origem é obrigatório.')
+    if (!dataHora) mensagens.push('A data_hora deve usar o formato AAAA-MM-DD HH:mm.')
+    if (!matriculaOperador) mensagens.push('A matrícula do operador é obrigatória.')
+    if (!setorSigla) mensagens.push('A sigla do setor é obrigatória.')
+    if (!subsetorNome) mensagens.push('O subsetor é obrigatório.')
+    if (!postoNome) mensagens.push('O posto é obrigatório.')
+    if (!circuitoCodigo) mensagens.push('O circuito é obrigatório.')
+    if (!['A', 'B', 'C'].includes(turno)) mensagens.push('O turno deve ser A, B ou C.')
+    if (quantidadeProduzida === null) {
+      mensagens.push('A quantidade produzida deve ser um inteiro maior que zero.')
+    }
+
+    const cabecalhos = [
+      'data_hora',
+      'matricula_operador',
+      'setor_sigla',
+      'subsetor_nome',
+      'posto_nome',
+      'circuito_codigo',
+      'turno',
+      'quantidade_produzida',
+      'observacao'
+    ]
+
+    for (const outra of linhas.slice(1)) {
+      for (const campo of cabecalhos) {
+        if (normalizarComparacao(outra[campo]) !== normalizarComparacao(primeira[campo])) {
+          mensagens.push(
+            `O refugo ${idOrigem || chaveGrupo} possui valores diferentes na coluna ${campo}.`
+          )
+          break
+        }
+      }
+    }
+
+    const setor = setorSigla ? setoresPorSigla.get(setorSigla) : undefined
+    if (setorSigla && !setor) mensagens.push(`O setor ${setorSigla} não está cadastrado.`)
+
+    const subsetor =
+      setor && subsetorNome
+        ? subsetoresPorChave.get(`${setor.id}::${normalizarComparacao(subsetorNome)}`)
+        : undefined
+    if (setor && subsetorNome && !subsetor) {
+      mensagens.push(`O subsetor ${subsetorNome} não pertence ao setor ${setorSigla}.`)
+    }
+
+    const posto =
+      subsetor && postoNome
+        ? postosPorChave.get(`${subsetor.id}::${normalizarComparacao(postoNome)}`)
+        : undefined
+    if (subsetor && postoNome && !posto) {
+      mensagens.push(`O posto ${postoNome} não pertence ao subsetor ${subsetorNome}.`)
+    }
+
+    const circuito = circuitoCodigo ? circuitosPorCodigo.get(circuitoCodigo) : undefined
+    if (circuitoCodigo && !circuito) {
+      mensagens.push(`O circuito ${circuitoCodigo} não está cadastrado.`)
+    }
+
+    for (const dependencia of [
+      setor && !setor.ativo ? `Setor: ${setor.nome} (${setorSigla})` : '',
+      subsetor && !subsetor.ativo ? `Subsetor: ${subsetor.nome}` : '',
+      posto && !posto.ativo ? `Posto: ${posto.nome}` : '',
+      circuito && !circuito.ativo ? `Circuito: ${circuito.codigo}` : ''
+    ]) {
+      if (dependencia) dependenciasInativas.add(dependencia)
+    }
+
+    let vinculosCircuito: Awaited<
+      ReturnType<typeof circuitoComponentesRepository.listarPorCircuito>
+    > = []
+    let vinculosRoteiro: Awaited<ReturnType<typeof roteirosRepository.listarPorCircuitoEPosto>> = []
+    let vinculosDefeitos: Awaited<ReturnType<typeof postoDefeitosRepository.listarPorPosto>> = []
+
+    if (circuito) {
+      vinculosCircuito = await circuitoComponentesRepository.listarPorCircuito(circuito.id, true)
+    }
+    if (circuito && posto) {
+      vinculosRoteiro = await roteirosRepository.listarPorCircuitoEPosto(
+        circuito.id,
+        posto.id,
+        true
+      )
+    }
+    if (posto) {
+      vinculosDefeitos = await postoDefeitosRepository.listarPorPosto(posto.id, true)
+    }
+
+    const componentesPermitidos = new Set(vinculosCircuito.map((item) => item.componenteId))
+    const componentesRoteiro = new Set(vinculosRoteiro.map((item) => item.componenteId))
+    const defeitosPermitidos = new Set(vinculosDefeitos.map((item) => item.defeitoId))
+    const itens: ItemRefugoHistoricoNormalizado[] = []
+    const pares = new Set<string>()
+
+    for (const registro of linhas) {
+      const componenteCodigo = normalizarCodigo(registro.componente_codigo)
+      const defeitoCodigo = normalizarCodigo(registro.defeito_codigo)
+      const quantidade = analisarInteiroPositivo(registro.quantidade_refugada)
+      const precoUnitario = analisarPrecoHistorico(registro.preco_unitario)
+      const linhaItem = Number(registro.__linha ?? linha)
+
+      if (!componenteCodigo) {
+        mensagens.push(`Linha ${linhaItem}: componente_codigo é obrigatório.`)
+        continue
+      }
+      if (!defeitoCodigo) {
+        mensagens.push(`Linha ${linhaItem}: defeito_codigo é obrigatório.`)
+        continue
+      }
+      if (quantidade === null) {
+        mensagens.push(`Linha ${linhaItem}: quantidade_refugada deve ser maior que zero.`)
+        continue
+      }
+      if (precoUnitario === null) {
+        mensagens.push(`Linha ${linhaItem}: preco_unitario é inválido.`)
+        continue
+      }
+
+      const componente = componentesPorCodigo.get(componenteCodigo)
+      const defeito = defeitosPorCodigo.get(defeitoCodigo)
+
+      if (!componente) {
+        mensagens.push(`Linha ${linhaItem}: componente ${componenteCodigo} não cadastrado.`)
+        continue
+      }
+      if (!defeito) {
+        mensagens.push(`Linha ${linhaItem}: defeito ${defeitoCodigo} não cadastrado.`)
+        continue
+      }
+
+      if (!componentesPermitidos.has(componente.id)) {
+        mensagens.push(
+          `Linha ${linhaItem}: componente ${componenteCodigo} não pertence ao circuito ${circuitoCodigo}.`
+        )
+      }
+      if (!componentesRoteiro.has(componente.id)) {
+        mensagens.push(
+          `Linha ${linhaItem}: componente ${componenteCodigo} não está no roteiro do posto ${postoNome}.`
+        )
+      }
+      if (!defeitosPermitidos.has(defeito.id)) {
+        mensagens.push(
+          `Linha ${linhaItem}: defeito ${defeitoCodigo} não está vinculado ao posto ${postoNome}.`
+        )
+      }
+
+      if (!componente.ativo) dependenciasInativas.add(`Componente: ${componente.codigo}`)
+      if (!defeito.ativo) dependenciasInativas.add(`Defeito: ${defeito.codigo}`)
+
+      const par = `${componente.id}::${defeito.id}`
+      if (pares.has(par)) {
+        mensagens.push(
+          `Linha ${linhaItem}: o par ${componenteCodigo} / ${defeitoCodigo} está repetido no mesmo refugo.`
+        )
+      }
+      pares.add(par)
+
+      if (precoUnitario === undefined) {
+        avisosPrecoAtual.add(idOrigem || chaveGrupo)
+      }
+
+      itens.push({
+        componenteId: componente.id,
+        defeitoId: defeito.id,
+        quantidade,
+        precoUnitario,
+        componenteCodigo,
+        defeitoCodigo
+      })
+    }
+
+    const duplicado = idOrigem ? await refugosRepository.existeIdOrigemHistorica(idOrigem) : false
+
+    const dados: RegistroCsv = {
+      id_origem: idOrigem,
+      data_hora: dataHora ?? normalizar(primeira.data_hora),
+      matricula_operador: matriculaOperador,
+      setor_sigla: setorSigla,
+      subsetor_nome: subsetorNome,
+      posto_nome: postoNome,
+      circuito_codigo: circuitoCodigo,
+      turno,
+      quantidade_produzida: quantidadeProduzida?.toString() ?? '',
+      total_itens: itens.length.toString(),
+      observacao,
+      __setor_id: setor?.id.toString() ?? '',
+      __subsetor_id: subsetor?.id.toString() ?? '',
+      __posto_id: posto?.id.toString() ?? '',
+      __circuito_id: circuito?.id.toString() ?? '',
+      __itens_json: JSON.stringify(itens)
+    }
+
+    if (duplicado) {
+      previews.push({
+        id: indice,
+        linha,
+        selecionado: false,
+        dados,
+        status: 'SEM_ALTERACAO',
+        resumo: `O refugo histórico ${idOrigem} já foi importado.`,
+        mensagens: [],
+        alteracoes: []
+      })
+      continue
+    }
+
+    if (mensagens.length > 0 || itens.length === 0 || !setor || !subsetor || !posto || !circuito) {
+      previews.push({
+        id: indice,
+        linha,
+        selecionado: false,
+        dados,
+        status: 'ERRO',
+        resumo: `O grupo ${idOrigem || chaveGrupo} possui erros e não será importado.`,
+        mensagens: [...new Set(mensagens)],
+        alteracoes: []
+      })
+      continue
+    }
+
+    previews.push({
+      id: indice,
+      linha,
+      selecionado: true,
+      dados,
+      status: 'NOVO',
+      resumo: `O refugo histórico ${idOrigem} será criado com ${itens.length} item(ns).`,
+      mensagens: [],
+      alteracoes: []
+    })
+  }
+
+  const avisos: AvisoImportacao[] = []
+
+  if (dependenciasInativas.size > 0) {
+    avisos.push({
+      tipo: 'DEPENDENCIA_INATIVA',
+      titulo: 'A migração utiliza cadastros inativos',
+      mensagem: 'Os registros serão preservados como históricos sem reativar estes cadastros:',
+      itens: [...dependenciasInativas].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    })
+  }
+
+  if (avisosPrecoAtual.size > 0) {
+    avisos.push({
+      tipo: 'DEPENDENCIA_INATIVA',
+      titulo: 'Alguns itens não possuem preço histórico',
+      mensagem:
+        'Quando preco_unitario estiver vazio, o sistema usará o preço atual do componente. Revise estes IDs:',
+      itens: [...avisosPrecoAtual].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    })
+  }
+
+  return { registros: previews, avisos }
+}

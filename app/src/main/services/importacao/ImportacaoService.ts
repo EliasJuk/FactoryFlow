@@ -13,6 +13,7 @@ import {
   analisarSetores,
   analisarSubsetores,
   analisarUsuarios,
+  analisarRefugosHistoricos,
   validarColunasObrigatorias
 } from './importacao.validation'
 import type {
@@ -32,6 +33,7 @@ import { importarUsuarios } from './importadores/importarUsuarios'
 import { importarCircuitoComponentes } from './importadores/importarCircuitoComponentes'
 import { importarRoteiros } from './importadores/importarRoteiros'
 import { importarPostoDefeitos } from './importadores/importarPostoDefeitos'
+import { importarRefugosHistoricos } from './importadores/importarRefugosHistoricos'
 
 const modelos: Record<TipoImportacao, string> = {
   setores: `nome,sigla
@@ -92,6 +94,11 @@ PROD-0002,Posto Processo 01,COMP-0003,1
   postoDefeitos: `setor_sigla,subsetor_nome,posto_nome,defeito_codigo
 SA,Área de Montagem,Posto 01,D001
 SA,Área de Montagem,Posto 01,D002
+`,
+
+  refugosHistoricos: `id_origem,data_hora,matricula_operador,setor_sigla,subsetor_nome,posto_nome,circuito_codigo,turno,quantidade_produzida,componente_codigo,defeito_codigo,quantidade_refugada,preco_unitario,observacao
+PLAN-0001,2025-04-10 08:30,1234,AC,Montagem,Posto 01,41-0000-6444,A,500,33-0000-0612,D001,2,12.50,Peça amassada
+PLAN-0001,2025-04-10 08:30,1234,AC,Montagem,Posto 01,41-0000-6444,A,500,33-0000-0648,D002,1,,Peça amassada
 `
 }
 
@@ -130,6 +137,9 @@ async function executarImportacao(
 
     case 'postoDefeitos':
       return importarPostoDefeitos(registros, usuarioId)
+
+    case 'refugosHistoricos':
+      return importarRefugosHistoricos(registros, usuarioId)
 
     default: {
       const tipoInvalido: never = tipo
@@ -442,6 +452,43 @@ export class ImportacaoService {
       return {
         sucesso: true,
         mensagem: 'Arquivo analisado com sucesso.',
+        registros: analise.registros,
+        avisos: analise.avisos
+      }
+    }
+
+    if (tipo === 'refugosHistoricos') {
+      const estrutura = validarColunasObrigatorias(registros, [
+        'id_origem',
+        'data_hora',
+        'matricula_operador',
+        'setor_sigla',
+        'subsetor_nome',
+        'posto_nome',
+        'circuito_codigo',
+        'turno',
+        'quantidade_produzida',
+        'componente_codigo',
+        'defeito_codigo',
+        'quantidade_refugada',
+        'preco_unitario',
+        'observacao'
+      ])
+
+      if (!estrutura.valido) {
+        return {
+          sucesso: false,
+          mensagem: estrutura.erros.join(' '),
+          registros: [] as RegistroPreview[],
+          avisos: []
+        }
+      }
+
+      const analise = await analisarRefugosHistoricos(registros)
+
+      return {
+        sucesso: true,
+        mensagem: 'Arquivo histórico analisado com sucesso.',
         registros: analise.registros,
         avisos: analise.avisos
       }

@@ -220,6 +220,11 @@ export async function runPostgresMigrations() {
       status TEXT NOT NULL DEFAULT 'ATIVO',
       motivo_cancelamento TEXT,
 
+      origem TEXT NOT NULL DEFAULT 'LANCAMENTO_MANUAL',
+      id_origem TEXT,
+      importado_em TIMESTAMP NULL,
+      importado_por INTEGER NULL REFERENCES usuarios(id),
+
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       deleted_at TIMESTAMP NULL,
@@ -1208,5 +1213,36 @@ export async function runPostgresMigrations() {
         updated_by = COALESCE(ri.updated_by, ri.created_by, r.updated_by, 1)
     FROM refugos r
     WHERE r.id = ri.refugo_id
+  `)
+
+  const colunasMigracaoRefugos = [
+    {
+      nome: 'origem',
+      sql: "ALTER TABLE refugos ADD COLUMN origem TEXT NOT NULL DEFAULT 'LANCAMENTO_MANUAL';"
+    },
+    {
+      nome: 'id_origem',
+      sql: 'ALTER TABLE refugos ADD COLUMN id_origem TEXT NULL;'
+    },
+    {
+      nome: 'importado_em',
+      sql: 'ALTER TABLE refugos ADD COLUMN importado_em TIMESTAMP NULL;'
+    },
+    {
+      nome: 'importado_por',
+      sql: 'ALTER TABLE refugos ADD COLUMN importado_por INTEGER NULL REFERENCES usuarios(id);'
+    }
+  ]
+
+  for (const coluna of colunasMigracaoRefugos) {
+    if (!(await columnExists('refugos', coluna.nome))) {
+      await pool.query(coluna.sql)
+    }
+  }
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_refugos_id_origem_historica
+    ON refugos(id_origem)
+    WHERE id_origem IS NOT NULL AND BTRIM(id_origem) <> '';
   `)
 }

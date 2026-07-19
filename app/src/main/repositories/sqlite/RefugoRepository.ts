@@ -21,6 +21,16 @@ export interface CriarRefugoInput {
   itens: RefugoItemInput[]
 }
 
+export interface RefugoItemHistoricoInput extends RefugoItemInput {
+  precoUnitario?: number
+}
+
+export interface CriarRefugoHistoricoInput extends Omit<CriarRefugoInput, 'itens' | 'dataHora'> {
+  idOrigem: string
+  dataHora: string
+  itens: RefugoItemHistoricoInput[]
+}
+
 export class RefugoRepository {
   private buscarPrecoAtualComponente(componenteId: number): number {
     const preco = db
@@ -515,5 +525,207 @@ export class RefugoRepository {
       status: refugo.status ?? 'ATIVO',
       itens
     }
+  }
+
+  existeIdOrigemHistorica(idOrigem: string): boolean {
+    const registro = db
+      .prepare(
+        `
+          SELECT 1
+          FROM refugos
+          WHERE id_origem = ?
+          LIMIT 1
+        `
+      )
+      .get(idOrigem.trim())
+
+    return Boolean(registro)
+  }
+
+  criarHistorico(input: CriarRefugoHistoricoInput): { id: number; numeroRefugo: string } {
+    const idOrigem = input.idOrigem.trim()
+
+    if (!idOrigem) {
+      throw new Error('ID_ORIGEM_OBRIGATORIO')
+    }
+
+    if (this.existeIdOrigemHistorica(idOrigem)) {
+      throw new Error('REFUGO_HISTORICO_DUPLICADO')
+    }
+
+    const ano = Number(input.dataHora.slice(0, 4))
+
+    if (!Number.isInteger(ano) || ano < 2000 || ano > 2100) {
+      throw new Error('DATA_HISTORICA_INVALIDA')
+    }
+
+    const setor = db
+      .prepare(
+        `
+          SELECT nome, sigla
+          FROM setores
+          WHERE id = ?
+        `
+      )
+      .get(input.setorId) as { nome: string; sigla: string | null } | undefined
+
+    if (!setor) {
+      throw new Error('Setor não encontrado.')
+    }
+
+    const sigla =
+      setor.sigla && setor.sigla.trim() !== ''
+        ? setor.sigla.trim().toUpperCase()
+        : setor.nome.substring(0, 3).toUpperCase()
+
+    const ultimaSequencia = db
+      .prepare(
+        `
+          SELECT MAX(sequencia) AS seq
+          FROM refugos
+          WHERE ano = ?
+            AND sigla_setor = ?
+        `
+      )
+      .get(ano, sigla) as { seq: number | null }
+
+    const sequencia = (ultimaSequencia.seq ?? 0) + 1
+    const numeroRefugo = `${sigla}-${ano}-${String(sequencia).padStart(6, '0')}`
+
+    let refugoId: number | null = null
+
+    const executar = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+            INSERT INTO refugos (
+              uuid,
+              numero_refugo,
+              sigla_setor,
+              ano,
+              sequencia,
+              data_hora,
+              turno,
+              matricula_operador,
+              usuario_id,
+              setor_id,
+              subsetor_id,
+              posto_id,
+              circuito_id,
+              quantidade_produzida,
+              observacao,
+              status,
+              origem,
+              id_origem,
+              importado_em,
+              importado_por,
+              created_at,
+              updated_at,
+              created_by,
+              updated_by
+            ) VALUES (
+              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+              'ATIVO',
+              'IMPORTACAO_HISTORICA',
+              ?,
+              datetime('now','localtime'),
+              ?,
+              ?,
+              ?,
+              ?,
+              ?
+            )
+          `
+        )
+        .run(
+          IdGenerator.generate(),
+          numeroRefugo,
+          sigla,
+          ano,
+          sequencia,
+          input.dataHora.replace('T', ' '),
+          input.turno,
+          input.matriculaOperador,
+          input.usuarioId ?? 1,
+          input.setorId,
+          input.subsetorId,
+          input.postoId,
+          input.circuitoId,
+          input.quantidadeProduzida,
+          input.observacao ?? null,
+          idOrigem,
+          input.usuarioId ?? 1,
+          input.dataHora.replace('T', ' '),
+          input.dataHora.replace('T', ' '),
+          input.usuarioId ?? 1,
+          input.usuarioId ?? 1
+        )
+
+      refugoId = Number(resultado.lastInsertRowid)
+
+      const inserirItem = db.prepare(`
+        INSERT INTO refugo_itens (
+          uuid,
+          refugo_id,
+          componente_id,
+          defeito_id,
+          quantidade,
+          codigo_componente_snapshot,
+          nome_componente_snapshot,
+          codigo_defeito_snapshot,
+          descricao_defeito_snapshot,
+          preco_unitario_snapshot,
+          custo_total_snapshot,
+          created_at,
+          updated_at,
+          created_by,
+          updated_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+
+      for (const item of input.itens) {
+        const componente = db
+          .prepare(`SELECT codigo, nome FROM componentes WHERE id = ?`)
+          .get(item.componenteId) as { codigo: string; nome: string } | undefined
+
+        const defeito = db
+          .prepare(`SELECT codigo, descricao FROM defeitos WHERE id = ?`)
+          .get(item.defeitoId) as { codigo: string; descricao: string } | undefined
+
+        if (!componente) throw new Error('Componente não encontrado.')
+        if (!defeito) throw new Error('Defeito não encontrado.')
+
+        const precoUnitario =
+          item.precoUnitario !== undefined && item.precoUnitario >= 0
+            ? item.precoUnitario
+            : this.buscarPrecoAtualComponente(item.componenteId)
+
+        inserirItem.run(
+          IdGenerator.generate(),
+          refugoId,
+          item.componenteId,
+          item.defeitoId,
+          item.quantidade,
+          componente.codigo,
+          componente.nome,
+          defeito.codigo,
+          defeito.descricao,
+          precoUnitario,
+          precoUnitario * item.quantidade,
+          input.dataHora.replace('T', ' '),
+          input.dataHora.replace('T', ' '),
+          input.usuarioId ?? 1,
+          input.usuarioId ?? 1
+        )
+      }
+    })
+
+    executar()
+
+    if (refugoId === null) {
+      throw new Error('Não foi possível criar o refugo histórico.')
+    }
+
+    return { id: refugoId, numeroRefugo }
   }
 }

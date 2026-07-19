@@ -21,6 +21,16 @@ export interface CriarRefugoInput {
   itens: RefugoItemInput[]
 }
 
+export interface RefugoItemHistoricoInput extends RefugoItemInput {
+  precoUnitario?: number
+}
+
+export interface CriarRefugoHistoricoInput extends Omit<CriarRefugoInput, 'itens' | 'dataHora'> {
+  idOrigem: string
+  dataHora: string
+  itens: RefugoItemHistoricoInput[]
+}
+
 export class RefugoRepository {
   private normalizarDataHora(dataHora: unknown) {
     if (dataHora instanceof Date) {
@@ -554,6 +564,202 @@ export class RefugoRepository {
       dataHora: this.normalizarDataHora(refugo.dataHora),
       status: refugo.status ?? 'ATIVO',
       itens: itens.rows
+    }
+  }
+
+  async existeIdOrigemHistorica(idOrigem: string): Promise<boolean> {
+    const result = await pool.query(
+      `
+        SELECT 1
+        FROM refugos
+        WHERE id_origem = $1
+        LIMIT 1
+      `,
+      [idOrigem.trim()]
+    )
+
+    return (result.rowCount ?? 0) > 0
+  }
+
+  async criarHistorico(
+    input: CriarRefugoHistoricoInput
+  ): Promise<{ id: number; numeroRefugo: string }> {
+    const idOrigem = input.idOrigem.trim()
+
+    if (!idOrigem) {
+      throw new Error('ID_ORIGEM_OBRIGATORIO')
+    }
+
+    const client = await pool.connect()
+
+    try {
+      await client.query('BEGIN')
+
+      const duplicado = await client.query(`SELECT 1 FROM refugos WHERE id_origem = $1 LIMIT 1`, [
+        idOrigem
+      ])
+
+      if ((duplicado.rowCount ?? 0) > 0) {
+        throw new Error('REFUGO_HISTORICO_DUPLICADO')
+      }
+
+      const ano = Number(input.dataHora.slice(0, 4))
+
+      if (!Number.isInteger(ano) || ano < 2000 || ano > 2100) {
+        throw new Error('DATA_HISTORICA_INVALIDA')
+      }
+
+      const setorResult = await client.query<{ nome: string; sigla: string | null }>(
+        `SELECT nome, sigla FROM setores WHERE id = $1`,
+        [input.setorId]
+      )
+
+      const setor = setorResult.rows[0]
+      if (!setor) throw new Error('Setor não encontrado.')
+
+      const sigla =
+        setor.sigla && setor.sigla.trim() !== ''
+          ? setor.sigla.trim().toUpperCase()
+          : setor.nome.substring(0, 3).toUpperCase()
+
+      const sequenciaResult = await client.query<{ seq: number | null }>(
+        `
+          SELECT MAX(sequencia) AS seq
+          FROM refugos
+          WHERE ano = $1
+            AND sigla_setor = $2
+        `,
+        [ano, sigla]
+      )
+
+      const sequencia = Number(sequenciaResult.rows[0]?.seq ?? 0) + 1
+      const numeroRefugo = `${sigla}-${ano}-${String(sequencia).padStart(6, '0')}`
+
+      const refugoResult = await client.query<{ id: number }>(
+        `
+          INSERT INTO refugos (
+            uuid,
+            numero_refugo,
+            sigla_setor,
+            ano,
+            sequencia,
+            data_hora,
+            turno,
+            matricula_operador,
+            usuario_id,
+            setor_id,
+            subsetor_id,
+            posto_id,
+            circuito_id,
+            quantidade_produzida,
+            observacao,
+            status,
+            origem,
+            id_origem,
+            importado_em,
+            importado_por,
+            created_at,
+            updated_at,
+            created_by,
+            updated_by
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6::timestamp, $7, $8, $9, $10, $11, $12,
+            $13, $14, $15, 'ATIVO', 'IMPORTACAO_HISTORICA', $16,
+            CURRENT_TIMESTAMP, $17, $6::timestamp, $6::timestamp, $17, $17
+          )
+          RETURNING id
+        `,
+        [
+          IdGenerator.generate(),
+          numeroRefugo,
+          sigla,
+          ano,
+          sequencia,
+          input.dataHora,
+          input.turno,
+          input.matriculaOperador,
+          input.usuarioId ?? 1,
+          input.setorId,
+          input.subsetorId,
+          input.postoId,
+          input.circuitoId,
+          input.quantidadeProduzida,
+          input.observacao ?? null,
+          idOrigem,
+          input.usuarioId ?? 1
+        ]
+      )
+
+      const refugoId = refugoResult.rows[0].id
+
+      for (const item of input.itens) {
+        const componenteResult = await client.query<{ codigo: string; nome: string }>(
+          `SELECT codigo, nome FROM componentes WHERE id = $1`,
+          [item.componenteId]
+        )
+        const defeitoResult = await client.query<{ codigo: string; descricao: string }>(
+          `SELECT codigo, descricao FROM defeitos WHERE id = $1`,
+          [item.defeitoId]
+        )
+
+        const componente = componenteResult.rows[0]
+        const defeito = defeitoResult.rows[0]
+        if (!componente) throw new Error('Componente não encontrado.')
+        if (!defeito) throw new Error('Defeito não encontrado.')
+
+        const precoUnitario =
+          item.precoUnitario !== undefined && item.precoUnitario >= 0
+            ? item.precoUnitario
+            : await this.buscarPrecoAtualComponente(item.componenteId)
+
+        await client.query(
+          `
+            INSERT INTO refugo_itens (
+              uuid,
+              refugo_id,
+              componente_id,
+              defeito_id,
+              quantidade,
+              codigo_componente_snapshot,
+              nome_componente_snapshot,
+              codigo_defeito_snapshot,
+              descricao_defeito_snapshot,
+              preco_unitario_snapshot,
+              custo_total_snapshot,
+              created_at,
+              updated_at,
+              created_by,
+              updated_by
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+              $12::timestamp, $12::timestamp, $13, $13
+            )
+          `,
+          [
+            IdGenerator.generate(),
+            refugoId,
+            item.componenteId,
+            item.defeitoId,
+            item.quantidade,
+            componente.codigo,
+            componente.nome,
+            defeito.codigo,
+            defeito.descricao,
+            precoUnitario,
+            precoUnitario * item.quantidade,
+            input.dataHora,
+            input.usuarioId ?? 1
+          ]
+        )
+      }
+
+      await client.query('COMMIT')
+      return { id: refugoId, numeroRefugo }
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
     }
   }
 }

@@ -1051,6 +1051,314 @@ export async function analisarCircuitoComponentes(
   }
 }
 
+export type ResultadoAnaliseRoteiros = {
+  registros: RegistroPreview[]
+  avisos: AvisoImportacao[]
+}
+
+export async function analisarRoteiros(
+  registros: RegistroCsv[]
+): Promise<ResultadoAnaliseRoteiros> {
+  const circuitosRepository = RepositoryFactory.circuitos()
+  const postosRepository = RepositoryFactory.postos()
+  const componentesRepository = RepositoryFactory.componentes()
+  const circuitoComponentesRepository = RepositoryFactory.circuitoComponentes()
+  const roteirosRepository = RepositoryFactory.roteiros()
+
+  const [
+    circuitosAtivos,
+    circuitosInativos,
+    postosAtivos,
+    postosInativos,
+    componentesAtivos,
+    componentesInativos
+  ] = await Promise.all([
+    circuitosRepository.listar(),
+    circuitosRepository.listarInativos(),
+    postosRepository.listar(),
+    postosRepository.listarInativos(),
+    componentesRepository.listar(),
+    componentesRepository.listarInativos()
+  ])
+
+  const circuitosPorCodigo = new Map(
+    [...circuitosAtivos, ...circuitosInativos].map((circuito) => [
+      normalizarCodigo(circuito.codigo),
+      circuito
+    ])
+  )
+
+  const componentesPorCodigo = new Map(
+    [...componentesAtivos, ...componentesInativos].map((componente) => [
+      normalizarCodigo(componente.codigo),
+      componente
+    ])
+  )
+
+  const postosPorNome = new Map<string, typeof postosAtivos>()
+
+  for (const posto of [...postosAtivos, ...postosInativos]) {
+    const chave = normalizarComparacao(posto.nome)
+    const lista = postosPorNome.get(chave) ?? []
+    lista.push(posto)
+    postosPorNome.set(chave, lista)
+  }
+
+  const ocorrencias = new Map<string, number>()
+  const dependenciasInativas = new Map<string, string>()
+  const componentesPorCircuito = new Map<
+    number,
+    Awaited<ReturnType<typeof circuitoComponentesRepository.listarPorCircuito>>
+  >()
+  const roteirosPorCircuitoPosto = new Map<
+    string,
+    Awaited<ReturnType<typeof roteirosRepository.listarPorCircuitoEPosto>>
+  >()
+
+  for (const registro of registros) {
+    const circuitoCodigo = normalizarCodigo(registro.circuito_codigo)
+    const postoNome = normalizarComparacao(registro.posto_nome)
+    const componenteCodigo = normalizarCodigo(registro.componente_codigo)
+
+    if (!circuitoCodigo || !postoNome || !componenteCodigo) continue
+
+    const chave = `${circuitoCodigo}::${postoNome}::${componenteCodigo}`
+    ocorrencias.set(chave, (ocorrencias.get(chave) ?? 0) + 1)
+  }
+
+  const registrosAnalisados: RegistroPreview[] = []
+
+  for (let index = 0; index < registros.length; index++) {
+    const registro = registros[index]
+    const linha = Number(registro.__linha ?? index + 2)
+    const circuitoCodigo = normalizarCodigo(registro.circuito_codigo)
+    const postoNome = normalizar(registro.posto_nome)
+    const componenteCodigo = normalizarCodigo(registro.componente_codigo)
+    const quantidadeTexto = normalizar(registro.quantidade)
+    const quantidade = Number(quantidadeTexto.replace(',', '.'))
+    const mensagens: string[] = []
+    const alteracoes: AlteracaoCampoImportacao[] = []
+
+    if (!circuitoCodigo) mensagens.push('O código do circuito é obrigatório.')
+    if (!postoNome) mensagens.push('O nome do posto é obrigatório.')
+    if (!componenteCodigo) mensagens.push('O código do componente é obrigatório.')
+
+    if (!quantidadeTexto) {
+      mensagens.push('A quantidade é obrigatória.')
+    } else if (!Number.isInteger(quantidade) || quantidade <= 0) {
+      mensagens.push('A quantidade deve ser um número inteiro maior que zero.')
+    }
+
+    const chaveArquivo =
+      circuitoCodigo && postoNome && componenteCodigo
+        ? `${circuitoCodigo}::${normalizarComparacao(postoNome)}::${componenteCodigo}`
+        : ''
+
+    if (chaveArquivo && (ocorrencias.get(chaveArquivo) ?? 0) > 1) {
+      mensagens.push('Este item do roteiro aparece mais de uma vez no arquivo.')
+    }
+
+    const circuito = circuitoCodigo ? circuitosPorCodigo.get(circuitoCodigo) : undefined
+
+    if (circuitoCodigo && !circuito) {
+      mensagens.push(`O circuito ${circuitoCodigo} não está cadastrado.`)
+    }
+
+    if (circuito && !circuito.ativo) {
+      mensagens.push(`O circuito ${circuito.codigo} está inativo.`)
+      dependenciasInativas.set(
+        `circuito-${circuito.id}`,
+        `Circuito: ${circuito.codigo} — ${circuito.nome}`
+      )
+    }
+
+    const postosEncontrados = postoNome
+      ? (postosPorNome.get(normalizarComparacao(postoNome)) ?? [])
+      : []
+
+    if (postoNome && postosEncontrados.length === 0) {
+      mensagens.push(`O posto ${postoNome} não está cadastrado.`)
+    }
+
+    if (postosEncontrados.length > 1) {
+      mensagens.push(
+        `Há mais de um posto chamado ${postoNome}. Use nomes únicos nos cadastros antes de importar o roteiro.`
+      )
+    }
+
+    const posto = postosEncontrados.length === 1 ? postosEncontrados[0] : undefined
+
+    if (posto && !posto.ativo) {
+      mensagens.push(`O posto ${posto.nome} está inativo.`)
+      dependenciasInativas.set(
+        `posto-${posto.id}`,
+        `Posto: ${posto.nome} — ${posto.setorNome} / ${posto.subsetorNome}`
+      )
+    }
+
+    const componente = componenteCodigo ? componentesPorCodigo.get(componenteCodigo) : undefined
+
+    if (componenteCodigo && !componente) {
+      mensagens.push(`O componente ${componenteCodigo} não está cadastrado.`)
+    }
+
+    if (componente && !componente.ativo) {
+      mensagens.push(`O componente ${componente.codigo} está inativo.`)
+      dependenciasInativas.set(
+        `componente-${componente.id}`,
+        `Componente: ${componente.codigo} — ${componente.nome}`
+      )
+    }
+
+    let componenteDoCircuito = false
+
+    if (circuito && componente && circuito.ativo && componente.ativo) {
+      let vinculos = componentesPorCircuito.get(circuito.id)
+
+      if (!vinculos) {
+        vinculos = await circuitoComponentesRepository.listarPorCircuito(circuito.id, true)
+        componentesPorCircuito.set(circuito.id, vinculos)
+      }
+
+      const vinculo = vinculos.find((item) => item.componenteId === componente.id)
+
+      if (!vinculo) {
+        mensagens.push(
+          `O componente ${componente.codigo} não pertence ao circuito ${circuito.codigo}.`
+        )
+      } else if (!vinculo.ativo) {
+        mensagens.push(
+          `O vínculo do componente ${componente.codigo} com o circuito ${circuito.codigo} está inativo.`
+        )
+        dependenciasInativas.set(
+          `circuito-componente-${vinculo.id}`,
+          `Circuito x Componente: ${circuito.codigo} / ${componente.codigo}`
+        )
+      } else {
+        componenteDoCircuito = true
+      }
+    }
+
+    const dados = {
+      ...registro,
+      circuito_codigo: circuitoCodigo,
+      posto_nome: postoNome,
+      componente_codigo: componenteCodigo,
+      quantidade: Number.isFinite(quantidade) ? String(quantidade) : quantidadeTexto
+    }
+
+    if (mensagens.length > 0 || !circuito || !posto || !componente || !componenteDoCircuito) {
+      registrosAnalisados.push({
+        id: index + 1,
+        linha,
+        selecionado: false,
+        dados,
+        status: 'ERRO',
+        resumo: 'A linha possui erros e não poderá ser importada.',
+        mensagens,
+        alteracoes
+      })
+      continue
+    }
+
+    const chaveRoteiro = `${circuito.id}::${posto.id}`
+    let itensRoteiro = roteirosPorCircuitoPosto.get(chaveRoteiro)
+
+    if (!itensRoteiro) {
+      itensRoteiro = await roteirosRepository.listarPorCircuitoEPosto(circuito.id, posto.id, true)
+      roteirosPorCircuitoPosto.set(chaveRoteiro, itensRoteiro)
+    }
+
+    const existente = itensRoteiro.find((item) => item.componenteId === componente.id)
+
+    if (!existente) {
+      registrosAnalisados.push({
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'NOVO',
+        resumo: `O componente ${componente.codigo} será adicionado ao roteiro do circuito ${circuito.codigo} no posto ${posto.nome}.`,
+        mensagens,
+        alteracoes
+      })
+      continue
+    }
+
+    if (existente.quantidade !== quantidade) {
+      alteracoes.push({
+        campo: 'Quantidade',
+        valorAtual: String(existente.quantidade),
+        novoValor: String(quantidade)
+      })
+    }
+
+    if (!existente.ativo) {
+      registrosAnalisados.push({
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'RESTAURAR',
+        resumo:
+          existente.quantidade !== quantidade
+            ? 'O item do roteiro será restaurado com a nova quantidade.'
+            : 'O item do roteiro existe, mas está inativo e será restaurado.',
+        mensagens,
+        alteracoes,
+        registroExistenteId: existente.id
+      })
+      continue
+    }
+
+    if (existente.quantidade !== quantidade) {
+      registrosAnalisados.push({
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'ATUALIZAR',
+        resumo: 'O item do roteiro já existe e terá sua quantidade atualizada.',
+        mensagens,
+        alteracoes,
+        registroExistenteId: existente.id
+      })
+      continue
+    }
+
+    registrosAnalisados.push({
+      id: index + 1,
+      linha,
+      selecionado: false,
+      dados,
+      status: 'SEM_ALTERACAO',
+      resumo: 'O item do roteiro já existe com a mesma quantidade.',
+      mensagens,
+      alteracoes,
+      registroExistenteId: existente.id
+    })
+  }
+
+  const itens = [...dependenciasInativas.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+
+  const avisos: AvisoImportacao[] =
+    itens.length > 0
+      ? [
+          {
+            tipo: 'DEPENDENCIA_INATIVA',
+            titulo: 'Há dependências inativas necessárias para importar os roteiros',
+            mensagem: 'Reative os cadastros e vínculos abaixo e analise o arquivo novamente:',
+            itens
+          }
+        ]
+      : []
+
+  return {
+    registros: registrosAnalisados,
+    avisos
+  }
+}
+
 export async function analisarDefeitos(registros: RegistroCsv[]): Promise<RegistroPreview[]> {
   const repository = RepositoryFactory.defeitos()
 

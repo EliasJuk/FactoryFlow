@@ -146,16 +146,20 @@ export class RoteiroRepository {
     return result.rows
   }
 
-  async listarPorCircuitoEPosto(circuitoId: number, postoId: number): Promise<RoteiroComponente[]> {
+  async listarPorCircuitoEPosto(
+    circuitoId: number,
+    postoId: number,
+    incluirInativos = false
+  ): Promise<RoteiroComponente[]> {
     const result = await pool.query<RoteiroComponenteRow>(
       `
         ${this.consultaItensBase()}
         WHERE cpc.circuito_id = $1
           AND cpc.posto_id = $2
-          AND cpc.ativo = true
+          AND ($3 = true OR cpc.ativo = true)
         ORDER BY comp.codigo
       `,
-      [circuitoId, postoId]
+      [circuitoId, postoId, incluirInativos]
     )
 
     return result.rows.map((item) => this.mapear(item))

@@ -105,18 +105,22 @@ export class RoteiroRepository {
       .all(postoId, busca, termo, termo) as CircuitoPorPosto[]
   }
 
-  listarPorCircuitoEPosto(circuitoId: number, postoId: number): RoteiroComponente[] {
+  listarPorCircuitoEPosto(
+    circuitoId: number,
+    postoId: number,
+    incluirInativos = false
+  ): RoteiroComponente[] {
     const itens = db
       .prepare(
         `
       ${this.consultaItensBase()}
       WHERE cpc.circuito_id = ?
         AND cpc.posto_id = ?
-        AND cpc.ativo = 1
+        AND (? = 1 OR cpc.ativo = 1)
       ORDER BY comp.codigo
     `
       )
-      .all(circuitoId, postoId) as RoteiroComponenteRow[]
+      .all(circuitoId, postoId, incluirInativos ? 1 : 0) as RoteiroComponenteRow[]
 
     return itens.map((item) => this.mapear(item))
   }

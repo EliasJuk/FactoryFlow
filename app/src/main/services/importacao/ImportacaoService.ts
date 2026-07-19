@@ -9,6 +9,7 @@ import {
   analisarDefeitos,
   analisarPostoDefeitos,
   analisarPostos,
+  analisarRoteiros,
   analisarSetores,
   analisarSubsetores,
   validarColunasObrigatorias
@@ -124,7 +125,7 @@ async function executarImportacao(
       return importarCircuitoComponentes(registros, usuarioId)
 
     case 'roteiros':
-      return importarRoteiros(registros)
+      return importarRoteiros(registros, usuarioId)
 
     case 'postoDefeitos':
       return importarPostoDefeitos(registros, usuarioId)
@@ -361,6 +362,33 @@ export class ImportacaoService {
         mensagem: 'Arquivo analisado com sucesso.',
         registros: registrosAnalisados,
         avisos: []
+      }
+    }
+
+    if (tipo === 'roteiros') {
+      const estrutura = validarColunasObrigatorias(registros, [
+        'circuito_codigo',
+        'posto_nome',
+        'componente_codigo',
+        'quantidade'
+      ])
+
+      if (!estrutura.valido) {
+        return {
+          sucesso: false,
+          mensagem: estrutura.erros.join(' '),
+          registros: [] as RegistroPreview[],
+          avisos: []
+        }
+      }
+
+      const analise = await analisarRoteiros(registros)
+
+      return {
+        sucesso: true,
+        mensagem: 'Arquivo analisado com sucesso.',
+        registros: analise.registros,
+        avisos: analise.avisos
       }
     }
 

@@ -1359,6 +1359,174 @@ export async function analisarRoteiros(
   }
 }
 
+const PERFIS_USUARIO_PERMITIDOS = new Set(['ADMIN', 'QUALIDADE', 'LIDER', 'OPERADOR'])
+
+export async function analisarUsuarios(registros: RegistroCsv[]): Promise<RegistroPreview[]> {
+  const repository = RepositoryFactory.usuarios()
+
+  const [ativos, inativos] = await Promise.all([repository.listar(), repository.listarInativos()])
+
+  const usuariosPorMatricula = new Map(
+    [...ativos, ...inativos].map((usuario) => [normalizar(usuario.matricula), usuario])
+  )
+
+  const ocorrenciasPorMatricula = new Map<string, number>()
+
+  for (const registro of registros) {
+    const matricula = normalizar(registro.matricula)
+
+    if (matricula) {
+      ocorrenciasPorMatricula.set(matricula, (ocorrenciasPorMatricula.get(matricula) ?? 0) + 1)
+    }
+  }
+
+  return registros.map((registro, index) => {
+    const linha = Number(registro.__linha ?? index + 2)
+    const matricula = normalizar(registro.matricula)
+    const nome = normalizar(registro.nome)
+    const perfil = normalizar(registro.perfil || 'OPERADOR').toUpperCase()
+    const senha = normalizar(registro.senha)
+    const mensagens: string[] = []
+    const alteracoes: AlteracaoCampoImportacao[] = []
+
+    if (!matricula) {
+      mensagens.push('A matrícula do usuário é obrigatória.')
+    }
+
+    if (!nome) {
+      mensagens.push('O nome do usuário é obrigatório.')
+    }
+
+    if (!PERFIS_USUARIO_PERMITIDOS.has(perfil)) {
+      mensagens.push(
+        `O perfil ${perfil || '(vazio)'} é inválido. Use ADMIN, QUALIDADE, LIDER ou OPERADOR.`
+      )
+    }
+
+    if (senha && senha.length < 4) {
+      mensagens.push('A senha temporária deve possuir pelo menos 4 caracteres.')
+    }
+
+    if (matricula && (ocorrenciasPorMatricula.get(matricula) ?? 0) > 1) {
+      mensagens.push(`A matrícula ${matricula} aparece mais de uma vez neste arquivo.`)
+    }
+
+    const existente = matricula ? usuariosPorMatricula.get(matricula) : undefined
+
+    if (!existente && !senha) {
+      mensagens.push('A senha temporária é obrigatória para novos usuários.')
+    }
+
+    const dados = {
+      ...registro,
+      matricula,
+      nome,
+      perfil,
+      senha
+    }
+
+    if (mensagens.length > 0) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: false,
+        dados,
+        status: 'ERRO' as const,
+        resumo: 'A linha possui erros e não poderá ser importada.',
+        mensagens,
+        alteracoes
+      }
+    }
+
+    if (!existente) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'NOVO' as const,
+        resumo: `O usuário ${nome} (${matricula}) será criado.`,
+        mensagens,
+        alteracoes
+      }
+    }
+
+    const nomeAlterado = normalizarComparacao(existente.nome) !== normalizarComparacao(nome)
+
+    const perfilAlterado = normalizar(existente.perfil).toUpperCase() !== perfil
+
+    if (nomeAlterado) {
+      alteracoes.push({
+        campo: 'Nome',
+        valorAtual: existente.nome,
+        novoValor: nome
+      })
+    }
+
+    if (perfilAlterado) {
+      alteracoes.push({
+        campo: 'Perfil',
+        valorAtual: existente.perfil,
+        novoValor: perfil
+      })
+    }
+
+    if (senha) {
+      alteracoes.push({
+        campo: 'Senha',
+        valorAtual: 'Mantida',
+        novoValor: 'Redefinir senha temporária'
+      })
+    }
+
+    const possuiAlteracoes = nomeAlterado || perfilAlterado || Boolean(senha)
+
+    if (!existente.ativo) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'RESTAURAR' as const,
+        resumo: possuiAlteracoes
+          ? `O usuário ${matricula} será reativado e atualizado.`
+          : `O usuário ${matricula} existe, mas está inativo e será reativado.`,
+        mensagens,
+        alteracoes,
+        registroExistenteId: existente.id
+      }
+    }
+
+    if (possuiAlteracoes) {
+      return {
+        id: index + 1,
+        linha,
+        selecionado: true,
+        dados,
+        status: 'ATUALIZAR' as const,
+        resumo: senha
+          ? `O usuário ${matricula} será atualizado e receberá uma nova senha temporária.`
+          : `O usuário ${matricula} já existe e terá alterações.`,
+        mensagens,
+        alteracoes,
+        registroExistenteId: existente.id
+      }
+    }
+
+    return {
+      id: index + 1,
+      linha,
+      selecionado: false,
+      dados,
+      status: 'SEM_ALTERACAO' as const,
+      resumo: `O usuário ${matricula} já existe com os mesmos dados.`,
+      mensagens,
+      alteracoes,
+      registroExistenteId: existente.id
+    }
+  })
+}
+
 export async function analisarDefeitos(registros: RegistroCsv[]): Promise<RegistroPreview[]> {
   const repository = RepositoryFactory.defeitos()
 

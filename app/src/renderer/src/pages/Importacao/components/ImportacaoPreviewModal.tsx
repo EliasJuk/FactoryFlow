@@ -3,30 +3,11 @@ import { Fragment, useMemo, useState } from 'react'
 
 import { ui } from '../../../theme/ui'
 
-type StatusRegistroImportacao = 'NOVO' | 'ATUALIZAR' | 'RESTAURAR' | 'SEM_ALTERACAO' | 'ERRO'
-
-type AvisoImportacao = {
-  tipo: 'DEPENDENCIA_INATIVA'
-  titulo: string
-  mensagem: string
-  itens: string[]
-}
-
-type RegistroPreview = {
-  id: number
-  linha: number
-  selecionado: boolean
-  dados: Record<string, string>
-  status: StatusRegistroImportacao
-  resumo: string
-  mensagens: string[]
-  alteracoes: {
-    campo: string
-    valorAtual: string | null
-    novoValor: string | null
-  }[]
-  registroExistenteId?: number
-}
+import type {
+  AvisoImportacao,
+  RegistroPreview,
+  StatusRegistroImportacao
+} from '../importacao.types'
 
 type Props = {
   titulo: string
@@ -38,6 +19,14 @@ type Props = {
   onToggleTodos: (selecionado: boolean) => void
   onToggleLinha: (id: number) => void
   onConfirmar: () => void
+}
+
+function valorCelula(coluna: string, valor: string | undefined) {
+  if (coluna === 'senha') {
+    return valor ? '••••••••' : '-'
+  }
+
+  return valor || '-'
 }
 
 const STATUS_CONFIG: Record<StatusRegistroImportacao, { titulo: string; classe: string }> = {
@@ -197,7 +186,7 @@ export function ImportacaoPreviewModal({
 
                 {colunas.map((coluna) => (
                   <th key={coluna} className={ui.tableHeader}>
-                    {coluna}
+                    {coluna === 'senha' ? 'senha (protegida)' : coluna}
                   </th>
                 ))}
 
@@ -238,7 +227,7 @@ export function ImportacaoPreviewModal({
 
                       {colunas.map((coluna) => (
                         <td key={coluna} className={ui.tableCell}>
-                          {registro.dados[coluna] || '-'}
+                          {valorCelula(coluna, registro.dados[coluna])}
                         </td>
                       ))}
 

@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+import type {
+  RegistroPreview,
+  ResultadoImportacao,
+  TipoImportacao
+} from '../main/services/importacao/importacao.types'
+
 type RefugoItemInput = {
   componenteId: number
   defeitoId: number
@@ -297,18 +303,39 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   importacao: {
-    baixarModelo: (tipo: string) => ipcRenderer.invoke('importacao:baixar-modelo', tipo),
+    baixarModelo: (tipo: TipoImportacao) =>
+      ipcRenderer.invoke('importacao:baixar-modelo', tipo) as Promise<{
+        sucesso: boolean
+        mensagem: string
+      }>,
 
-    preVisualizar: (tipo: string) => ipcRenderer.invoke('importacao:pre-visualizar', tipo),
+    preVisualizar: (tipo: TipoImportacao) =>
+      ipcRenderer.invoke('importacao:pre-visualizar', tipo) as Promise<{
+        sucesso: boolean
+        mensagem: string
+        registros: RegistroPreview[]
+        avisos: {
+          tipo: 'DEPENDENCIA_INATIVA'
+          titulo: string
+          mensagem: string
+          itens: string[]
+        }[]
+      }>,
 
     importarRegistros: (
-      tipo: string,
+      tipo: TipoImportacao,
       registros: Record<string, string>[],
       usuarioId?: number | null
-    ) => ipcRenderer.invoke('importacao:importar-registros', tipo, registros, usuarioId),
+    ) =>
+      ipcRenderer.invoke(
+        'importacao:importar-registros',
+        tipo,
+        registros,
+        usuarioId
+      ) as Promise<ResultadoImportacao>,
 
-    importar: (tipo: string, usuarioId?: number | null) =>
-      ipcRenderer.invoke('importacao:importar', tipo, usuarioId)
+    importar: (tipo: TipoImportacao, usuarioId?: number | null) =>
+      ipcRenderer.invoke('importacao:importar', tipo, usuarioId) as Promise<ResultadoImportacao>
   },
 
   resultados: (filtros: {

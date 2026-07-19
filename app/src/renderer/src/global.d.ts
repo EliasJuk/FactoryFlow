@@ -1,4 +1,10 @@
 import type { PerfilUsuario } from './models/Usuario'
+import type {
+  ResultadoImportacaoApi,
+  ResultadoOperacaoImportacaoApi,
+  ResultadoPreVisualizacaoApi,
+  TipoImportacao
+} from './pages/Importacao/importacao.types'
 
 export {}
 
@@ -689,59 +695,20 @@ declare global {
       }
 
       importacao: {
-        baixarModelo: (tipo: string) => Promise<{
-          sucesso: boolean
-          mensagem: string
-        }>
+        baixarModelo: (tipo: TipoImportacao) => Promise<ResultadoOperacaoImportacaoApi>
 
         importar: (
-          tipo: string,
+          tipo: TipoImportacao,
           usuarioId?: number | null
-        ) => Promise<{
-          sucesso: boolean
-          mensagem: string
-          inseridos: number
-          atualizados: number
-          ignorados: number
-        }>
+        ) => Promise<ResultadoImportacaoApi>
 
-        preVisualizar: (tipo: string) => Promise<{
-          sucesso: boolean
-          mensagem: string
-          registros: {
-            id: number
-            linha: number
-            selecionado: boolean
-            dados: Record<string, string>
-            status: 'NOVO' | 'ATUALIZAR' | 'RESTAURAR' | 'SEM_ALTERACAO' | 'ERRO'
-            resumo: string
-            mensagens: string[]
-            alteracoes: {
-              campo: string
-              valorAtual: string | null
-              novoValor: string | null
-            }[]
-            registroExistenteId?: number
-          }[]
-          avisos: {
-            tipo: 'DEPENDENCIA_INATIVA'
-            titulo: string
-            mensagem: string
-            itens: string[]
-          }[]
-        }>
+        preVisualizar: (tipo: TipoImportacao) => Promise<ResultadoPreVisualizacaoApi>
 
         importarRegistros: (
-          tipo: string,
+          tipo: TipoImportacao,
           registros: Record<string, string>[],
           usuarioId?: number | null
-        ) => Promise<{
-          sucesso: boolean
-          mensagem: string
-          inseridos: number
-          atualizados: number
-          ignorados: number
-        }>
+        ) => Promise<ResultadoImportacaoApi>
       }
 
       exportacaoDados: {

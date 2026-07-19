@@ -3,12 +3,7 @@ import { useMemo } from 'react'
 
 import { ui } from '../../../theme/ui'
 
-type StatusRegistroImportacao =
-  | 'NOVO'
-  | 'ATUALIZAR'
-  | 'RESTAURAR'
-  | 'SEM_ALTERACAO'
-  | 'ERRO'
+import type { StatusRegistroImportacao } from '../importacao.types'
 
 type RegistroSelecionado = {
   id: number
@@ -60,9 +55,7 @@ export function ConfirmarImportacaoModal({
 
             <div>
               <h2 className={ui.title}>Confirmar importação</h2>
-              <p className={ui.subtitle}>
-                Revise o resumo antes de aplicar as alterações.
-              </p>
+              <p className={ui.subtitle}>Revise o resumo antes de aplicar as alterações.</p>
             </div>
           </div>
 
@@ -93,29 +86,18 @@ export function ConfirmarImportacaoModal({
             </div>
 
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-center">
-              <div className="text-xl font-bold text-amber-700">
-                {resumo.atualizacoes}
-              </div>
-              <div className="text-xs font-semibold text-amber-700">
-                Atualizações
-              </div>
+              <div className="text-xl font-bold text-amber-700">{resumo.atualizacoes}</div>
+              <div className="text-xs font-semibold text-amber-700">Atualizações</div>
             </div>
 
             <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 text-center">
-              <div className="text-xl font-bold text-violet-700">
-                {resumo.restauracoes}
-              </div>
-              <div className="text-xs font-semibold text-violet-700">
-                Restaurações
-              </div>
+              <div className="text-xl font-bold text-violet-700">{resumo.restauracoes}</div>
+              <div className="text-xs font-semibold text-violet-700">Restaurações</div>
             </div>
           </div>
 
           <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
-            <AlertTriangle
-              size={19}
-              className="mt-0.5 shrink-0 text-amber-600"
-            />
+            <AlertTriangle size={19} className="mt-0.5 shrink-0 text-amber-600" />
 
             <div>
               <div className="text-sm font-bold text-amber-900">
@@ -123,8 +105,8 @@ export function ConfirmarImportacaoModal({
               </div>
 
               <p className="mt-1 text-xs leading-5 text-amber-800">
-                Os registros selecionados serão criados, atualizados ou
-                restaurados conforme a análise exibida na tela anterior.
+                Os registros selecionados serão criados, atualizados ou restaurados conforme a
+                análise exibida na tela anterior.
               </p>
             </div>
           </div>
@@ -146,9 +128,7 @@ export function ConfirmarImportacaoModal({
             disabled={carregando || registros.length === 0}
             className={ui.buttonPrimary}
           >
-            {carregando
-              ? 'Importando...'
-              : `Confirmar importação (${registros.length})`}
+            {carregando ? 'Importando...' : `Confirmar importação (${registros.length})`}
           </button>
         </footer>
       </div>

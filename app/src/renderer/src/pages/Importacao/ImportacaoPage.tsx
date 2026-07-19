@@ -6,47 +6,20 @@ import { useApp } from '../../contexts/AppContext'
 import { ui } from '../../theme/ui'
 import { ConfirmarImportacaoModal } from './components/ConfirmarImportacaoModal'
 import { ImportacaoPreviewModal } from './components/ImportacaoPreviewModal'
+import type { AvisoImportacao, RegistroPreview, TipoImportacao } from './importacao.types'
 
-type TipoImportacao =
-  | 'setores'
-  | 'subsetores'
-  | 'postos'
-  | 'componentes'
-  | 'circuitos'
-  | 'defeitos'
-  | 'usuarios'
-  | 'circuitoComponentes'
-  | 'roteiros'
-  | 'postoDefeitos'
+type TipoMensagem = 'sucesso' | 'erro'
+
+type MensagemTela = {
+  tipo: TipoMensagem
+  texto: string
+}
 
 type AbaImportacao = {
   id: TipoImportacao
   titulo: string
   descricao: string
   colunas: string[]
-}
-
-type AvisoImportacao = {
-  tipo: 'DEPENDENCIA_INATIVA'
-  titulo: string
-  mensagem: string
-  itens: string[]
-}
-
-type RegistroPreview = {
-  id: number
-  linha: number
-  selecionado: boolean
-  dados: Record<string, string>
-  status: 'NOVO' | 'ATUALIZAR' | 'RESTAURAR' | 'SEM_ALTERACAO' | 'ERRO'
-  resumo: string
-  mensagens: string[]
-  alteracoes: {
-    campo: string
-    valorAtual: string | null
-    novoValor: string | null
-  }[]
-  registroExistenteId?: number
 }
 
 const abas: AbaImportacao[] = [
@@ -115,7 +88,7 @@ const abas: AbaImportacao[] = [
 function ImportacaoPage() {
   const { usuario } = useApp()
   const [abaAtiva, setAbaAtiva] = useState<TipoImportacao>('setores')
-  const [mensagem, setMensagem] = useState('')
+  const [mensagem, setMensagem] = useState<MensagemTela | null>(null)
   const [carregando, setCarregando] = useState(false)
   const [modalAberto, setModalAberto] = useState(false)
   const [confirmacaoAberta, setConfirmacaoAberta] = useState(false)
@@ -124,13 +97,26 @@ function ImportacaoPage() {
 
   const aba = abas.find((item) => item.id === abaAtiva) ?? abas[0]
 
+  function mensagemErro(error: unknown, padrao: string) {
+    return error instanceof Error && error.message ? error.message : padrao
+  }
+
   async function baixarModelo() {
     setCarregando(true)
-    setMensagem('')
+    setMensagem(null)
 
     try {
       const resultado = await window.api.importacao.baixarModelo(aba.id)
-      setMensagem(resultado.mensagem)
+
+      setMensagem({
+        tipo: resultado.sucesso ? 'sucesso' : 'erro',
+        texto: resultado.mensagem
+      })
+    } catch (error) {
+      setMensagem({
+        tipo: 'erro',
+        texto: mensagemErro(error, 'Não foi possível salvar o modelo CSV.')
+      })
     } finally {
       setCarregando(false)
     }
@@ -138,19 +124,27 @@ function ImportacaoPage() {
 
   async function selecionarArquivo() {
     setCarregando(true)
-    setMensagem('')
+    setMensagem(null)
 
     try {
       const resultado = await window.api.importacao.preVisualizar(aba.id)
 
       if (!resultado.sucesso) {
-        setMensagem(resultado.mensagem)
+        setMensagem({
+          tipo: 'erro',
+          texto: resultado.mensagem
+        })
         return
       }
 
       setRegistrosPreview(resultado.registros)
       setAvisosImportacao(resultado.avisos ?? [])
       setModalAberto(true)
+    } catch (error) {
+      setMensagem({
+        tipo: 'erro',
+        texto: mensagemErro(error, 'Não foi possível analisar o arquivo CSV.')
+      })
     } finally {
       setCarregando(false)
     }
@@ -188,7 +182,7 @@ function ImportacaoPage() {
     if (registrosSelecionados.length === 0) return
 
     setCarregando(true)
-    setMensagem('')
+    setMensagem(null)
 
     try {
       const resultado = await window.api.importacao.importarRegistros(
@@ -197,14 +191,22 @@ function ImportacaoPage() {
         usuario.id ?? null
       )
 
-      setMensagem(
-        `${resultado.mensagem} Inseridos: ${resultado.inseridos} | Atualizados: ${resultado.atualizados} | Ignorados: ${resultado.ignorados}`
-      )
+      setMensagem({
+        tipo: resultado.sucesso ? 'sucesso' : 'erro',
+        texto: `${resultado.mensagem} Inseridos: ${resultado.inseridos} | Atualizados: ${resultado.atualizados} | Ignorados: ${resultado.ignorados}`
+      })
+
+      if (!resultado.sucesso) return
 
       setConfirmacaoAberta(false)
       setModalAberto(false)
       setRegistrosPreview([])
       setAvisosImportacao([])
+    } catch (error) {
+      setMensagem({
+        tipo: 'erro',
+        texto: mensagemErro(error, 'Não foi possível concluir a importação.')
+      })
     } finally {
       setCarregando(false)
     }
@@ -225,7 +227,7 @@ function ImportacaoPage() {
                 key={item.id}
                 onClick={() => {
                   setAbaAtiva(item.id)
-                  setMensagem('')
+                  setMensagem(null)
                   setRegistrosPreview([])
                   setAvisosImportacao([])
                 }}
@@ -315,8 +317,15 @@ function ImportacaoPage() {
             </div>
 
             {mensagem && (
-              <div className="mt-4 rounded-md bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
-                {mensagem}
+              <div
+                role={mensagem.tipo === 'erro' ? 'alert' : 'status'}
+                className={`mt-4 rounded-md px-4 py-3 text-sm font-semibold ${
+                  mensagem.tipo === 'erro'
+                    ? 'border border-red-200 bg-red-50 text-red-700'
+                    : 'border border-green-200 bg-green-50 text-green-700'
+                }`}
+              >
+                {mensagem.texto}
               </div>
             )}
           </div>
@@ -331,7 +340,9 @@ function ImportacaoPage() {
           avisos={avisosImportacao}
           carregando={carregando}
           onFechar={() => {
+            setConfirmacaoAberta(false)
             setModalAberto(false)
+            setRegistrosPreview([])
             setAvisosImportacao([])
           }}
           onToggleTodos={alternarTodos}

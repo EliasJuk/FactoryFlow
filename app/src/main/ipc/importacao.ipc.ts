@@ -1,25 +1,48 @@
 import { ipcMain } from 'electron'
+
 import { ImportacaoService } from '../services/ImportacaoService'
+import type { TipoImportacao } from '../services/importacao/importacao.types'
 
 const service = new ImportacaoService()
 
+const TIPOS_IMPORTACAO: ReadonlySet<TipoImportacao> = new Set([
+  'setores',
+  'subsetores',
+  'postos',
+  'componentes',
+  'circuitos',
+  'defeitos',
+  'usuarios',
+  'circuitoComponentes',
+  'roteiros',
+  'postoDefeitos'
+])
+
+function validarTipoImportacao(tipo: unknown): TipoImportacao {
+  if (typeof tipo === 'string' && TIPOS_IMPORTACAO.has(tipo as TipoImportacao)) {
+    return tipo as TipoImportacao
+  }
+
+  throw new Error('Tipo de importação inválido.')
+}
+
 export function registerImportacaoIpc() {
-  ipcMain.handle('importacao:baixar-modelo', (_, tipo: string) => {
-    return service.baixarModelo(tipo as any)
+  ipcMain.handle('importacao:baixar-modelo', (_, tipo: unknown) => {
+    return service.baixarModelo(validarTipoImportacao(tipo))
   })
 
-  ipcMain.handle('importacao:pre-visualizar', (_, tipo: string) => {
-    return service.preVisualizar(tipo as any)
+  ipcMain.handle('importacao:pre-visualizar', (_, tipo: unknown) => {
+    return service.preVisualizar(validarTipoImportacao(tipo))
   })
 
   ipcMain.handle(
     'importacao:importar-registros',
-    (_, tipo: string, registros: Record<string, string>[], usuarioId?: number | null) => {
-      return service.importarRegistros(tipo as any, registros, usuarioId)
+    (_, tipo: unknown, registros: Record<string, string>[], usuarioId?: number | null) => {
+      return service.importarRegistros(validarTipoImportacao(tipo), registros, usuarioId)
     }
   )
 
-  ipcMain.handle('importacao:importar', (_, tipo: string, usuarioId?: number | null) => {
-    return service.importar(tipo as any, usuarioId)
+  ipcMain.handle('importacao:importar', (_, tipo: unknown, usuarioId?: number | null) => {
+    return service.importar(validarTipoImportacao(tipo), usuarioId)
   })
 }

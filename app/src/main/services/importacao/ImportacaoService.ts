@@ -447,21 +447,8 @@ export class ImportacaoService {
       }
     }
 
-    return {
-      sucesso: true,
-      mensagem: 'Arquivo carregado com sucesso.',
-      registros: registros.map((registro, index) => ({
-        id: index + 1,
-        linha: Number(registro.__linha ?? index + 2),
-        selecionado: true,
-        dados: registro,
-        status: 'NOVO' as const,
-        resumo: 'Registro ainda não possui análise enriquecida.',
-        mensagens: [],
-        alteracoes: []
-      })),
-      avisos: []
-    }
+    const tipoNaoTratado: never = tipo
+    throw new Error(`Pré-visualização não implementada para: ${tipoNaoTratado}`)
   }
 
   async importarRegistros(

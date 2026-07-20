@@ -720,24 +720,76 @@ declare global {
 
       configuracao: {
         carregarBanco: () => Promise<{
-          provider: 'sqlite' | 'postgres'
+          mode: 'sqliteSync' | 'api' | 'postgres'
+          sqlite: {
+            path: string
+          }
           postgres: {
             host: string
             port: number
             database: string
             user: string
-            password: string
+            password?: string
+            passwordConfigured: boolean
+            clearPassword?: boolean
+            timeoutSeconds: number
+            ssl: boolean
+          }
+          api: {
+            baseUrl: string
+            version: string
+            authMethod: 'bearer'
+            timeoutSeconds: number
+            validateSsl: boolean
+            retryOnError: boolean
+          }
+          sync: {
+            enabled: boolean
+            destination: 'postgres' | 'api'
+            syncOnStartup: boolean
+            syncOnReconnect: boolean
+            retryFailed: boolean
+            refugoRetention: {
+              enabled: boolean
+              months: number | null
+            }
           }
         }>
 
         salvarBanco: (config: {
-          provider: 'sqlite' | 'postgres'
+          mode: 'sqliteSync' | 'api' | 'postgres'
+          sqlite: {
+            path: string
+          }
           postgres: {
             host: string
             port: number
             database: string
             user: string
-            password: string
+            password?: string
+            passwordConfigured: boolean
+            clearPassword?: boolean
+            timeoutSeconds: number
+            ssl: boolean
+          }
+          api: {
+            baseUrl: string
+            version: string
+            authMethod: 'bearer'
+            timeoutSeconds: number
+            validateSsl: boolean
+            retryOnError: boolean
+          }
+          sync: {
+            enabled: boolean
+            destination: 'postgres' | 'api'
+            syncOnStartup: boolean
+            syncOnReconnect: boolean
+            retryFailed: boolean
+            refugoRetention: {
+              enabled: boolean
+              months: number | null
+            }
           }
         }) => Promise<{
           sucesso: boolean
@@ -749,7 +801,11 @@ declare global {
           port: number
           database: string
           user: string
-          password: string
+          password?: string
+          passwordConfigured: boolean
+          clearPassword?: boolean
+          timeoutSeconds: number
+          ssl: boolean
         }) => Promise<{
           sucesso: boolean
           mensagem: string

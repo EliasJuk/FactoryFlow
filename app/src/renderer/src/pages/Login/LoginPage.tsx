@@ -1,44 +1,35 @@
-import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { Database, Settings } from "lucide-react"
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Database, Settings } from 'lucide-react'
 
-import { APP } from "../../config/app"
-import Button from "../../components/Button/Button"
-import Input from "../../components/Input/Input"
-import { useApp, type Usuario } from "../../contexts/AppContext"
-import { ForgotPasswordModal } from "./components/ForgotPasswordModal"
+import { APP } from '../../config/app'
+import Button from '../../components/Button/Button'
+import Input from '../../components/Input/Input'
+import { useApp, type Usuario } from '../../contexts/AppContext'
+import { ForgotPasswordModal } from './components/ForgotPasswordModal'
 
-type DatabaseProvider = "sqlite" | "postgres"
+type StorageMode = 'sqliteSync' | 'api' | 'postgres'
 
-type ConfigBanco = {
-  provider: DatabaseProvider
-  postgres: {
-    host: string
-    port: number
-    database: string
-    user: string
-    password: string
-  }
-}
+type ConfigBanco = Awaited<ReturnType<typeof window.api.configuracao.carregarBanco>>
 
 function LoginPage() {
   const navigate = useNavigate()
 
   const [isReady, setIsReady] = useState(false)
-  const [message, setMessage] = useState("Inicializando sistema...")
+  const [message, setMessage] = useState('Inicializando sistema...')
   const [progress, setProgress] = useState(10)
-  const [startupError, setStartupError] = useState("")
+  const [startupError, setStartupError] = useState('')
 
-  const [matricula, setMatricula] = useState("")
-  const [senha, setSenha] = useState("")
-  const [erroLogin, setErroLogin] = useState("")
+  const [matricula, setMatricula] = useState('')
+  const [senha, setSenha] = useState('')
+  const [erroLogin, setErroLogin] = useState('')
   const [carregandoLogin, setCarregandoLogin] = useState(false)
   const [mostrarEsqueciSenha, setMostrarEsqueciSenha] = useState(false)
 
   const [configBanco, setConfigBanco] = useState<ConfigBanco | null>(null)
   const [mostrarBanco, setMostrarBanco] = useState(false)
   const [salvandoBanco, setSalvandoBanco] = useState(false)
-  const [mensagemBanco, setMensagemBanco] = useState("")
+  const [mensagemBanco, setMensagemBanco] = useState('')
   const { definirUsuario } = useApp()
 
   async function carregarConfigBanco() {
@@ -56,8 +47,8 @@ function LoginPage() {
 
     window.api.app.onReady(() => {
       setIsReady(true)
-      setStartupError("")
-      setMessage("Sistema pronto para uso")
+      setStartupError('')
+      setMessage('Sistema pronto para uso')
       setProgress(100)
     })
 
@@ -70,28 +61,33 @@ function LoginPage() {
       setIsReady(ready)
 
       if (ready) {
-        setMessage("Sistema pronto para uso")
+        setMessage('Sistema pronto para uso')
         setProgress(100)
       }
     })
   }, [])
 
-  async function salvarProvider(provider: DatabaseProvider) {
-    if (!configBanco) return
+  async function salvarModo(mode: StorageMode) {
+    if (!configBanco || mode === 'api') return
 
     setSalvandoBanco(true)
-    setMensagemBanco("")
+    setMensagemBanco('')
 
     try {
-      const novaConfig = {
+      const novaConfig: ConfigBanco = {
         ...configBanco,
-        provider
+        mode
       }
 
       const resultado = await window.api.configuracao.salvarBanco(novaConfig)
+      const configAtualizada = await window.api.configuracao.carregarBanco()
 
-      setConfigBanco(novaConfig)
+      setConfigBanco(configAtualizada)
       setMensagemBanco(resultado.mensagem)
+    } catch (error) {
+      setMensagemBanco(
+        error instanceof Error ? error.message : 'Não foi possível salvar o modo de armazenamento.'
+      )
     } finally {
       setSalvandoBanco(false)
     }
@@ -102,20 +98,17 @@ function LoginPage() {
 
     if (!isReady) return
 
-    setErroLogin("")
+    setErroLogin('')
 
     if (!matricula.trim() || !senha.trim()) {
-      setErroLogin("Informe matrícula e senha.")
+      setErroLogin('Informe matrícula e senha.')
       return
     }
 
     setCarregandoLogin(true)
 
     try {
-      const resultado = await window.api.auth.login(
-        matricula.trim(),
-        senha
-      )
+      const resultado = await window.api.auth.login(matricula.trim(), senha)
 
       if (!resultado.sucesso) {
         setErroLogin(resultado.mensagem)
@@ -125,11 +118,11 @@ function LoginPage() {
       if (resultado.usuario) {
         definirUsuario({
           ...resultado.usuario,
-          perfil: resultado.usuario.perfil as Usuario["perfil"]
+          perfil: resultado.usuario.perfil as Usuario['perfil']
         })
       }
 
-      navigate(resultado.usuario?.deveTrocarSenha ? "/trocar-senha" : "/dashboard")
+      navigate(resultado.usuario?.deveTrocarSenha ? '/trocar-senha' : '/dashboard')
     } finally {
       setCarregandoLogin(false)
     }
@@ -144,38 +137,36 @@ function LoginPage() {
           className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800"
         >
           <Database size={14} />
-          Banco: {configBanco?.provider === "postgres" ? "PostgreSQL" : "SQLite"}
+          Banco: {configBanco?.mode === 'postgres' ? 'PostgreSQL' : 'SQLite + Sync'}
           <Settings size={14} />
         </button>
 
         {mostrarBanco && configBanco && (
           <div className="mt-2 w-72 rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl">
-            <p className="text-xs font-bold text-slate-300">
-              Provider do banco
-            </p>
+            <p className="text-xs font-bold text-slate-300">Modo de armazenamento</p>
 
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 disabled={salvandoBanco}
-                onClick={() => salvarProvider("sqlite")}
+                onClick={() => salvarModo('sqliteSync')}
                 className={`rounded-lg px-3 py-2 text-xs font-bold ${
-                  configBanco.provider === "sqlite"
-                    ? "bg-orange-600 text-white"
-                    : "bg-slate-800 text-slate-300"
+                  configBanco.mode === 'sqliteSync'
+                    ? 'bg-orange-600 text-white'
+                    : 'bg-slate-800 text-slate-300'
                 }`}
               >
-                SQLite
+                SQLite + Sync
               </button>
 
               <button
                 type="button"
                 disabled={salvandoBanco}
-                onClick={() => salvarProvider("postgres")}
+                onClick={() => salvarModo('postgres')}
                 className={`rounded-lg px-3 py-2 text-xs font-bold ${
-                  configBanco.provider === "postgres"
-                    ? "bg-orange-600 text-white"
-                    : "bg-slate-800 text-slate-300"
+                  configBanco.mode === 'postgres'
+                    ? 'bg-orange-600 text-white'
+                    : 'bg-slate-800 text-slate-300'
                 }`}
               >
                 PostgreSQL
@@ -204,22 +195,16 @@ function LoginPage() {
           </div>
 
           <div className="text-center">
-            <h1 className="text-3xl font-bold tracking-tight text-white">
-              {APP.name}
-            </h1>
+            <h1 className="text-3xl font-bold tracking-tight text-white">{APP.name}</h1>
             <p className="text-slate-400">Sistema industrial de gestão</p>
           </div>
         </div>
 
         <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
           <div className="mb-7">
-            <p className="text-sm font-medium text-orange-500">
-              Acesso ao sistema
-            </p>
+            <p className="text-sm font-medium text-orange-500">Acesso ao sistema</p>
             <h2 className="mt-2 text-3xl font-bold text-white">Entrar</h2>
-            <p className="mt-2 text-sm text-slate-400">
-              Informe sua matrícula e senha.
-            </p>
+            <p className="mt-2 text-sm text-slate-400">Informe sua matrícula e senha.</p>
           </div>
 
           <form className="space-y-5" onSubmit={fazerLogin}>
@@ -243,9 +228,7 @@ function LoginPage() {
             <div className="space-y-2 rounded-2xl bg-slate-950 p-3">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-500">{message}</span>
-                <span className="font-semibold text-orange-500">
-                  {progress}%
-                </span>
+                <span className="font-semibold text-orange-500">{progress}%</span>
               </div>
 
               <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
@@ -272,12 +255,12 @@ function LoginPage() {
             </button>
 
             <Button type="submit" disabled={!isReady || carregandoLogin}>
-              {carregandoLogin ? "Entrando..." : isReady ? "Entrar" : "Aguarde..."}
+              {carregandoLogin ? 'Entrando...' : isReady ? 'Entrar' : 'Aguarde...'}
             </Button>
           </form>
 
           <div className="mt-6 text-center text-xs text-slate-600">
-            <p>Versão 1.7.0</p>
+            <p>Versão 1.9.0</p>
             <p>Desenvolvido por EliasJuk</p>
           </div>
         </div>

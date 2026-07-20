@@ -1,20 +1,26 @@
-import { loadConfig } from "../config/appConfig"
+import { loadConfig } from '../config/appConfig'
 
-import { runMigrations as runSqliteMigrations } from "./sqlite/migrations"
-import { runPostgresMigrations } from "./postgres/migrations"
+import { runMigrations as runSqliteMigrations } from './sqlite/migrations'
+import { runSyncMigrations } from './sqlite/syncMigrations'
+import { runPostgresMigrations } from './postgres/migrations'
 
 export class DatabaseManager {
   static async initialize() {
     const config = loadConfig()
-    const provider = config.database.provider
+    const mode = config.database.mode
 
-    if (provider === "postgres") {
-      console.log("[DATABASE] Provider: PostgreSQL")
+    if (mode === 'postgres') {
+      console.log('[DATABASE] Modo: PostgreSQL')
       await runPostgresMigrations()
       return
     }
 
-    console.log("[DATABASE] Provider: SQLite")
+    if (mode === 'api') {
+      throw new Error('O modo API ainda não está disponível.')
+    }
+
+    console.log('[DATABASE] Modo: SQLite + Sync')
     runSqliteMigrations()
+    runSyncMigrations()
   }
 }

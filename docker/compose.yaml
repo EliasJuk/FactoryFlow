@@ -1,4 +1,8 @@
 services:
+
+  ########################################################
+  ####################### POSTGRES #######################
+  ########################################################
   postgres:
     image: postgres:17-alpine
     container_name: "${PROJECT_NAME:-postgres}-db"
@@ -35,15 +39,49 @@ services:
       - postgres_network
 
 
+  ########################################################
+  ####################### PGADMIN ########################
+  ########################################################
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: "${PROJECT_NAME:-postgres}-pgadmin"
+    restart: unless-stopped
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD_FILE: /run/secrets/pgadmin_password
+
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+    secrets:
+      - pgadmin_password
+
+    networks:
+      - postgres_network
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+
+  ########################################################
+  ############### CONFIGURACOES GLOBAIS  #################
+  ########################################################
 secrets:
   postgres_password:
     file: ./secrets/postgres_password.txt
-
+  pgadmin_password:
+    file: ./secrets/pgadmin_password.txt
 
 volumes:
   postgres_data:
     name: "${PROJECT_NAME:-postgres}_postgres_data"
-
+  pgadmin_data:
+    name: "${PROJECT_NAME:-postgres}_pgadmin_data"
 
 networks:
   postgres_network:

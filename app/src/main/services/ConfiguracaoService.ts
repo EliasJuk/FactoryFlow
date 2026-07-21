@@ -148,6 +148,17 @@ export class ConfiguracaoService {
     this.migrateLegacyPassword()
 
     const password = config.password?.trim() || secrets.getPostgresPassword() || ''
+      /* TESMPORARIO
+      console.log('[POSTGRES TEST]', {
+      host: config.host,
+      port: config.port,
+      database: config.database,
+      user: config.user,
+      passwordSource: config.password?.trim() ? 'campo-da-tela' : 'senha-protegida',
+      passwordLength: password.length,
+      ssl: config.ssl
+    })
+    /* TEMPORARIO */
 
     const client = new Client({
       host: config.host,

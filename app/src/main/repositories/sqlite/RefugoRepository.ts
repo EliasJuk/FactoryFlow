@@ -1,5 +1,6 @@
 import db from '../../database/database'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
+import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 export interface RefugoItemInput {
   componenteId: number
@@ -32,6 +33,8 @@ export interface CriarRefugoHistoricoInput extends Omit<CriarRefugoInput, 'itens
 }
 
 export class RefugoRepository {
+  private readonly syncQueue = new SyncQueueRepository()
+
   private buscarPrecoAtualComponente(componenteId: number): number {
     const preco = db
       .prepare(
@@ -213,6 +216,8 @@ export class RefugoRepository {
           input.usuarioId ?? 1
         )
       }
+
+      this.syncQueue.enqueueRefugo(refugoId, 'CREATE')
     })
 
     transaction()
@@ -415,37 +420,51 @@ export class RefugoRepository {
           item.id
         )
       }
+
+      this.syncQueue.enqueueRefugo(id, 'UPDATE')
     })
 
     transaction()
   }
 
   cancelar(id: number, motivo: string, usuarioId?: number | null) {
-    db.prepare(
-      `
-      UPDATE refugos
-      SET
-        status = 'CANCELADO',
-        motivo_cancelamento = ?,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = datetime('now','localtime'),
-        deleted_by = ?
-      WHERE id = ?
-        AND status = 'ATIVO'
-    `
-    ).run(motivo, usuarioId ?? 1, usuarioId ?? 1, id)
+    const transaction = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE refugos
+          SET
+            status = 'CANCELADO',
+            motivo_cancelamento = ?,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?,
+            deleted_at = datetime('now','localtime'),
+            deleted_by = ?
+          WHERE id = ?
+            AND status = 'ATIVO'
+        `
+        )
+        .run(motivo, usuarioId ?? 1, usuarioId ?? 1, id)
 
-    db.prepare(
+      if (resultado.changes === 0) {
+        throw new Error('Refugo não encontrado ou já cancelado.')
+      }
+
+      db.prepare(
+        `
+        UPDATE refugo_itens
+        SET updated_at = datetime('now','localtime'),
+            updated_by = ?,
+            deleted_at = datetime('now','localtime'),
+            deleted_by = ?
+        WHERE refugo_id = ?
       `
-      UPDATE refugo_itens
-      SET updated_at = datetime('now','localtime'),
-          updated_by = ?,
-          deleted_at = datetime('now','localtime'),
-          deleted_by = ?
-      WHERE refugo_id = ?
-    `
-    ).run(usuarioId ?? 1, usuarioId ?? 1, id)
+      ).run(usuarioId ?? 1, usuarioId ?? 1, id)
+
+      this.syncQueue.enqueueRefugo(id, 'CANCEL')
+    })
+
+    transaction()
   }
 
   buscarParaImpressao(id: number) {
@@ -718,6 +737,8 @@ export class RefugoRepository {
           input.usuarioId ?? 1
         )
       }
+
+      this.syncQueue.enqueueRefugo(refugoId, 'CREATE')
     })
 
     executar()

@@ -3,6 +3,8 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
 import { DatabaseManager } from './database/DatabaseManager'
+import { pool } from './database/postgres/connection'
+import { SyncWorker } from './sync/SyncWorker'
 
 import { registerSetorIpc } from './ipc/setor.ipc'
 import { registerSubsetorIpc } from './ipc/subsetor.ipc'
@@ -23,6 +25,8 @@ import { registerPasswordResetIpc } from './ipc/passwordReset.ipc'
 
 let mainWindow: BrowserWindow | null = null
 let appReady = false
+
+const syncWorker = new SyncWorker(30_000)
 
 function createWindow(): void {
   // Create the browser window.
@@ -108,6 +112,8 @@ async function initializeApplication(): Promise<void> {
     await DatabaseManager.initialize()
     console.timeEnd('DatabaseManager.initialize')
 
+    syncWorker.start()
+
     sendStartupProgress('Registrando módulos...', 75)
     registerDatabaseIpcHandlers()
 
@@ -164,7 +170,9 @@ app.on('window-all-closed', () => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('will-quit', () => {
+  syncWorker.stop()
   globalShortcut.unregisterAll()
+  void pool.end()
 })
 
 // In this file you can include the rest of your app's specific main process

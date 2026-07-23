@@ -22,11 +22,13 @@ import { registerExportacaoIpc } from './ipc/exportacao.ipc'
 import { registerConfiguracaoIpc } from './ipc/configuracao.ipc'
 import { registerAuthIpc } from './ipc/auth.ipc'
 import { registerPasswordResetIpc } from './ipc/passwordReset.ipc'
+import { SyncBackfillService } from './sync/SyncBackfillService'
 
 let mainWindow: BrowserWindow | null = null
 let appReady = false
 
 const syncWorker = new SyncWorker(30_000)
+const syncBackfillService = new SyncBackfillService()
 
 function createWindow(): void {
   // Create the browser window.
@@ -112,6 +114,7 @@ async function initializeApplication(): Promise<void> {
     await DatabaseManager.initialize()
     console.timeEnd('DatabaseManager.initialize')
 
+    syncBackfillService.runBaseEntitiesBackfill()
     syncWorker.start()
 
     sendStartupProgress('Registrando módulos...', 75)

@@ -1,5 +1,6 @@
 import { getDatabase } from '../../database/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
+import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const db = getDatabase()
 const USUARIO_SISTEMA_ID = 1
@@ -41,6 +42,8 @@ type SubsetorRow = {
 }
 
 export class SubsetorRepository {
+  private readonly syncQueue = new SyncQueueRepository()
+
   private mapear(subsetor: SubsetorRow): Subsetor {
     return {
       ...subsetor,
@@ -109,11 +112,11 @@ export class SubsetorRepository {
     const existente = db
       .prepare(
         `
-        SELECT id, ativo
-        FROM subsetores
-        WHERE nome = ?
-          AND setor_id = ?
-      `
+          SELECT id, ativo
+          FROM subsetores
+          WHERE nome = ?
+            AND setor_id = ?
+        `
       )
       .get(nomeFormatado, setorId) as { id: number; ativo: number } | undefined
 
@@ -127,21 +130,40 @@ export class SubsetorRepository {
       )
     }
 
-    db.prepare(
-      `
-      INSERT INTO subsetores (
-        uuid,
-        nome,
-        setor_id,
-        ativo,
-        created_at,
-        updated_at,
-        created_by,
-        updated_by
-      )
-      VALUES (?, ?, ?, 1, datetime('now','localtime'), datetime('now','localtime'), ?, ?)
-    `
-    ).run(uuid, nomeFormatado, setorId, usuarioId, usuarioId)
+    const transaction = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+            INSERT INTO subsetores (
+              uuid,
+              nome,
+              setor_id,
+              ativo,
+              created_at,
+              updated_at,
+              created_by,
+              updated_by
+            )
+            VALUES (
+              ?,
+              ?,
+              ?,
+              1,
+              datetime('now','localtime'),
+              datetime('now','localtime'),
+              ?,
+              ?
+            )
+          `
+        )
+        .run(uuid, nomeFormatado, setorId, usuarioId, usuarioId)
+
+      const subsetorId = Number(resultado.lastInsertRowid)
+
+      this.syncQueue.enqueueSubsetor(subsetorId, 'CREATE')
+    })
+
+    transaction()
   }
 
   editar(id: number, nome: string, setorId: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
@@ -150,13 +172,13 @@ export class SubsetorRepository {
     const existente = db
       .prepare(
         `
-        SELECT id, ativo
-        FROM subsetores
-        WHERE nome = ?
-          AND setor_id = ?
-          AND id <> ?
-        LIMIT 1
-      `
+          SELECT id, ativo
+          FROM subsetores
+          WHERE nome = ?
+            AND setor_id = ?
+            AND id <> ?
+          LIMIT 1
+        `
       )
       .get(nomeFormatado, setorId, id) as { id: number; ativo: number } | undefined
 
@@ -170,17 +192,29 @@ export class SubsetorRepository {
       )
     }
 
-    db.prepare(
-      `
-      UPDATE subsetores
-      SET
-        nome = ?,
-        setor_id = ?,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?
-      WHERE id = ?
-    `
-    ).run(nomeFormatado, setorId, usuarioId, id)
+    const transaction = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+            UPDATE subsetores
+            SET
+              nome = ?,
+              setor_id = ?,
+              updated_at = datetime('now','localtime'),
+              updated_by = ?
+            WHERE id = ?
+          `
+        )
+        .run(nomeFormatado, setorId, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Subsetor não encontrado.')
+      }
+
+      this.syncQueue.enqueueSubsetor(id, 'UPDATE')
+    })
+
+    transaction()
   }
 
   contarPostosAtivos(id: number): number {
@@ -207,33 +241,59 @@ export class SubsetorRepository {
       )
     }
 
-    db.prepare(
-      `
-      UPDATE subsetores
-      SET
-        ativo = 0,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = datetime('now','localtime'),
-        deleted_by = ?
-      WHERE id = ?
-    `
-    ).run(usuarioId, usuarioId, id)
+    const transaction = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+            UPDATE subsetores
+            SET
+              ativo = 0,
+              updated_at = datetime('now','localtime'),
+              updated_by = ?,
+              deleted_at = datetime('now','localtime'),
+              deleted_by = ?
+            WHERE id = ?
+              AND ativo = 1
+          `
+        )
+        .run(usuarioId, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Subsetor não encontrado ou já está inativo.')
+      }
+
+      this.syncQueue.enqueueSubsetor(id, 'DELETE')
+    })
+
+    transaction()
   }
 
   restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
-    db.prepare(
-      `
-      UPDATE subsetores
-      SET
-        ativo = 1,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = NULL,
-        deleted_by = NULL
-      WHERE id = ?
-    `
-    ).run(usuarioId, id)
+    const transaction = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+            UPDATE subsetores
+            SET
+              ativo = 1,
+              updated_at = datetime('now','localtime'),
+              updated_by = ?,
+              deleted_at = NULL,
+              deleted_by = NULL
+            WHERE id = ?
+              AND ativo = 0
+          `
+        )
+        .run(usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Subsetor não encontrado ou já está ativo.')
+      }
+
+      this.syncQueue.enqueueSubsetor(id, 'UPDATE')
+    })
+
+    transaction()
   }
 
   excluirPermanente(id: number): void {

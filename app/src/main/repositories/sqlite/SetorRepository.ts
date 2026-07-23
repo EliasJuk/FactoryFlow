@@ -1,5 +1,6 @@
 import { getDatabase } from '../../database/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
+import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const db = getDatabase()
 const USUARIO_SISTEMA_ID = 1
@@ -39,6 +40,8 @@ type SetorRow = {
 }
 
 export class SetorRepository {
+  private readonly syncQueue = new SyncQueueRepository()
+
   private mapear(setor: SetorRow): Setor {
     return {
       id: setor.id,
@@ -118,11 +121,11 @@ export class SetorRepository {
     const existente = db
       .prepare(
         `
-        SELECT id, ativo
-        FROM setores
-        WHERE sigla = ?
-        LIMIT 1
-      `
+          SELECT id, ativo
+          FROM setores
+          WHERE sigla = ?
+          LIMIT 1
+        `
       )
       .get(siglaFormatada) as { id: number; ativo: number } | undefined
 
@@ -136,21 +139,40 @@ export class SetorRepository {
       )
     }
 
-    db.prepare(
-      `
-      INSERT INTO setores (
-        uuid,
-        nome,
-        sigla,
-        ativo,
-        created_at,
-        updated_at,
-        created_by,
-        updated_by
-      )
-      VALUES (?, ?, ?, 1, datetime('now','localtime'), datetime('now','localtime'), ?, ?)
-    `
-    ).run(uuid, nomeFormatado, siglaFormatada, usuarioId, usuarioId)
+    const transaction = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+            INSERT INTO setores (
+              uuid,
+              nome,
+              sigla,
+              ativo,
+              created_at,
+              updated_at,
+              created_by,
+              updated_by
+            )
+            VALUES (
+              ?,
+              ?,
+              ?,
+              1,
+              datetime('now','localtime'),
+              datetime('now','localtime'),
+              ?,
+              ?
+            )
+          `
+        )
+        .run(uuid, nomeFormatado, siglaFormatada, usuarioId, usuarioId)
+
+      const setorId = Number(resultado.lastInsertRowid)
+
+      this.syncQueue.enqueueSetor(setorId, 'CREATE')
+    })
+
+    transaction()
   }
 
   editar(id: number, nome: string, sigla: string, usuarioId: number = USUARIO_SISTEMA_ID): void {
@@ -160,12 +182,12 @@ export class SetorRepository {
     const existente = db
       .prepare(
         `
-        SELECT id, ativo
-        FROM setores
-        WHERE sigla = ?
-          AND id <> ?
-        LIMIT 1
-      `
+          SELECT id, ativo
+          FROM setores
+          WHERE sigla = ?
+            AND id <> ?
+          LIMIT 1
+        `
       )
       .get(siglaFormatada, id) as { id: number; ativo: number } | undefined
 
@@ -179,17 +201,29 @@ export class SetorRepository {
       )
     }
 
-    db.prepare(
-      `
-      UPDATE setores
-      SET
-        nome = ?,
-        sigla = ?,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?
-      WHERE id = ?
-    `
-    ).run(nomeFormatado, siglaFormatada, usuarioId, id)
+    const transaction = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+            UPDATE setores
+            SET
+              nome = ?,
+              sigla = ?,
+              updated_at = datetime('now','localtime'),
+              updated_by = ?
+            WHERE id = ?
+          `
+        )
+        .run(nomeFormatado, siglaFormatada, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Setor não encontrado.')
+      }
+
+      this.syncQueue.enqueueSetor(id, 'UPDATE')
+    })
+
+    transaction()
   }
 
   excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
@@ -201,33 +235,59 @@ export class SetorRepository {
       )
     }
 
-    db.prepare(
-      `
-      UPDATE setores
-      SET
-        ativo = 0,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = datetime('now','localtime'),
-        deleted_by = ?
-      WHERE id = ?
-    `
-    ).run(usuarioId, usuarioId, id)
+    const transaction = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+            UPDATE setores
+            SET
+              ativo = 0,
+              updated_at = datetime('now','localtime'),
+              updated_by = ?,
+              deleted_at = datetime('now','localtime'),
+              deleted_by = ?
+            WHERE id = ?
+              AND ativo = 1
+          `
+        )
+        .run(usuarioId, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Setor não encontrado ou já está inativo.')
+      }
+
+      this.syncQueue.enqueueSetor(id, 'DELETE')
+    })
+
+    transaction()
   }
 
   restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
-    db.prepare(
-      `
-      UPDATE setores
-      SET
-        ativo = 1,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = NULL,
-        deleted_by = NULL
-      WHERE id = ?
-    `
-    ).run(usuarioId, id)
+    const transaction = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+            UPDATE setores
+            SET
+              ativo = 1,
+              updated_at = datetime('now','localtime'),
+              updated_by = ?,
+              deleted_at = NULL,
+              deleted_by = NULL
+            WHERE id = ?
+              AND ativo = 0
+          `
+        )
+        .run(usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Setor não encontrado ou já está ativo.')
+      }
+
+      this.syncQueue.enqueueSetor(id, 'UPDATE')
+    })
+
+    transaction()
   }
 
   excluirPermanente(id: number): void {

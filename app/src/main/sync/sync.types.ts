@@ -1,4 +1,53 @@
-export type SyncOperation = 'CREATE' | 'UPDATE' | 'CANCEL'
+export type SyncOperation = 'CREATE' | 'UPDATE' | 'DELETE' | 'CANCEL'
+export type SyncEntity = 'SETOR' | 'SUBSETOR' | 'POSTO' | 'REFUGO'
+
+export type AuditSyncFields = {
+  createdAt: string
+  updatedAt: string
+  deletedAt: string | null
+  createdByUuid: string | null
+  updatedByUuid: string | null
+  deletedByUuid: string | null
+}
+
+export type SetorSyncPayload = {
+  schemaVersion: 1
+  sourceInstallationUuid: string
+  entity: 'SETOR'
+  operation: 'CREATE' | 'UPDATE' | 'DELETE'
+  record: AuditSyncFields & {
+    uuid: string
+    nome: string
+    sigla: string | null
+    ativo: boolean
+  }
+}
+
+export type SubsetorSyncPayload = {
+  schemaVersion: 1
+  sourceInstallationUuid: string
+  entity: 'SUBSETOR'
+  operation: 'CREATE' | 'UPDATE' | 'DELETE'
+  record: AuditSyncFields & {
+    uuid: string
+    nome: string
+    setorUuid: string
+    ativo: boolean
+  }
+}
+
+export type PostoSyncPayload = {
+  schemaVersion: 1
+  sourceInstallationUuid: string
+  entity: 'POSTO'
+  operation: 'CREATE' | 'UPDATE' | 'DELETE'
+  record: AuditSyncFields & {
+    uuid: string
+    nome: string
+    subsetorUuid: string
+    ativo: boolean
+  }
+}
 
 export type RefugoSyncItemPayload = {
   uuid: string
@@ -23,7 +72,7 @@ export type RefugoSyncPayload = {
   schemaVersion: 1
   sourceInstallationUuid: string
   entity: 'REFUGO'
-  operation: SyncOperation
+  operation: 'CREATE' | 'UPDATE' | 'CANCEL'
   record: {
     uuid: string
     numeroRefugo: string
@@ -55,3 +104,6 @@ export type RefugoSyncPayload = {
     itens: RefugoSyncItemPayload[]
   }
 }
+
+export type SyncPayload =
+  SetorSyncPayload | SubsetorSyncPayload | PostoSyncPayload | RefugoSyncPayload

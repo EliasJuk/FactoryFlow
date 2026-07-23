@@ -1,5 +1,6 @@
 import { getDatabase } from '../../database/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
+import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const db = getDatabase()
 const USUARIO_SISTEMA_ID = 1
@@ -43,6 +44,8 @@ type PostoRow = {
 }
 
 export class PostoRepository {
+  private readonly syncQueue = new SyncQueueRepository()
+
   private mapear(posto: PostoRow): Posto {
     return {
       ...posto,
@@ -113,12 +116,12 @@ export class PostoRepository {
     const existente = db
       .prepare(
         `
-        SELECT id, ativo
-        FROM postos
-        WHERE nome = ?
-          AND subsetor_id = ?
-        LIMIT 1
-      `
+          SELECT id, ativo
+          FROM postos
+          WHERE nome = ?
+            AND subsetor_id = ?
+          LIMIT 1
+        `
       )
       .get(nomeFormatado, subsetorId) as { id: number; ativo: number } | undefined
 
@@ -132,21 +135,40 @@ export class PostoRepository {
       )
     }
 
-    db.prepare(
-      `
-      INSERT INTO postos (
-        uuid,
-        nome,
-        subsetor_id,
-        ativo,
-        created_at,
-        updated_at,
-        created_by,
-        updated_by
-      )
-      VALUES (?, ?, ?, 1, datetime('now','localtime'), datetime('now','localtime'), ?, ?)
-    `
-    ).run(uuid, nomeFormatado, subsetorId, usuarioId, usuarioId)
+    const transaction = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+            INSERT INTO postos (
+              uuid,
+              nome,
+              subsetor_id,
+              ativo,
+              created_at,
+              updated_at,
+              created_by,
+              updated_by
+            )
+            VALUES (
+              ?,
+              ?,
+              ?,
+              1,
+              datetime('now','localtime'),
+              datetime('now','localtime'),
+              ?,
+              ?
+            )
+          `
+        )
+        .run(uuid, nomeFormatado, subsetorId, usuarioId, usuarioId)
+
+      const postoId = Number(resultado.lastInsertRowid)
+
+      this.syncQueue.enqueuePosto(postoId, 'CREATE')
+    })
+
+    transaction()
   }
 
   editar(
@@ -160,13 +182,13 @@ export class PostoRepository {
     const duplicado = db
       .prepare(
         `
-        SELECT id, ativo
-        FROM postos
-        WHERE nome = ?
-          AND subsetor_id = ?
-          AND id <> ?
-        LIMIT 1
-      `
+          SELECT id, ativo
+          FROM postos
+          WHERE nome = ?
+            AND subsetor_id = ?
+            AND id <> ?
+          LIMIT 1
+        `
       )
       .get(nomeFormatado, subsetorId, id) as { id: number; ativo: number } | undefined
 
@@ -180,17 +202,29 @@ export class PostoRepository {
       )
     }
 
-    db.prepare(
-      `
-      UPDATE postos
-      SET
-        nome = ?,
-        subsetor_id = ?,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?
-      WHERE id = ?
-    `
-    ).run(nomeFormatado, subsetorId, usuarioId, id)
+    const transaction = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+            UPDATE postos
+            SET
+              nome = ?,
+              subsetor_id = ?,
+              updated_at = datetime('now','localtime'),
+              updated_by = ?
+            WHERE id = ?
+          `
+        )
+        .run(nomeFormatado, subsetorId, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Posto não encontrado.')
+      }
+
+      this.syncQueue.enqueuePosto(id, 'UPDATE')
+    })
+
+    transaction()
   }
 
   contarRoteirosAtivos(id: number): number {
@@ -215,33 +249,59 @@ export class PostoRepository {
       throw new Error('POSTO_COM_VINCULOS')
     }
 
-    db.prepare(
-      `
-      UPDATE postos
-      SET
-        ativo = 0,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = datetime('now','localtime'),
-        deleted_by = ?
-      WHERE id = ?
-    `
-    ).run(usuarioId, usuarioId, id)
+    const transaction = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+            UPDATE postos
+            SET
+              ativo = 0,
+              updated_at = datetime('now','localtime'),
+              updated_by = ?,
+              deleted_at = datetime('now','localtime'),
+              deleted_by = ?
+            WHERE id = ?
+              AND ativo = 1
+          `
+        )
+        .run(usuarioId, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Posto não encontrado ou já está inativo.')
+      }
+
+      this.syncQueue.enqueuePosto(id, 'DELETE')
+    })
+
+    transaction()
   }
 
   restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
-    db.prepare(
-      `
-      UPDATE postos
-      SET
-        ativo = 1,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = NULL,
-        deleted_by = NULL
-      WHERE id = ?
-    `
-    ).run(usuarioId, id)
+    const transaction = db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+            UPDATE postos
+            SET
+              ativo = 1,
+              updated_at = datetime('now','localtime'),
+              updated_by = ?,
+              deleted_at = NULL,
+              deleted_by = NULL
+            WHERE id = ?
+              AND ativo = 0
+          `
+        )
+        .run(usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Posto não encontrado ou já está ativo.')
+      }
+
+      this.syncQueue.enqueuePosto(id, 'UPDATE')
+    })
+
+    transaction()
   }
 
   excluirPermanente(id: number): void {

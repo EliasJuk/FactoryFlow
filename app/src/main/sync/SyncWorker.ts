@@ -1,14 +1,15 @@
 import db from '../database/database'
 import { loadConfig } from '../config/appConfig'
+
+import { PostgresPostoSyncRepository } from './postgres/PostgresPostoSyncRepository'
 import { PostgresRefugoSyncRepository } from './postgres/PostgresRefugoSyncRepository'
-import type { RefugoSyncPayload } from './sync.types'
+import { PostgresSetorSyncRepository } from './postgres/PostgresSetorSyncRepository'
+import { PostgresSubsetorSyncRepository } from './postgres/PostgresSubsetorSyncRepository'
+import type { SyncPayload } from './sync.types'
 
 type QueueRow = {
   id: number
-  uuid: string
   entity: string
-  recordUuid: string
-  operation: string
   payload: string
   attempts: number
   maxAttempts: number
@@ -17,7 +18,10 @@ type QueueRow = {
 export class SyncWorker {
   private timer: NodeJS.Timeout | null = null
   private running = false
-  private readonly postgresRepository = new PostgresRefugoSyncRepository()
+  private readonly setorRepository = new PostgresSetorSyncRepository()
+  private readonly subsetorRepository = new PostgresSubsetorSyncRepository()
+  private readonly postoRepository = new PostgresPostoSyncRepository()
+  private readonly refugoRepository = new PostgresRefugoSyncRepository()
 
   constructor(private readonly intervalMs = 30_000) {}
 
@@ -62,8 +66,7 @@ export class SyncWorker {
     db.prepare(
       `
       UPDATE sync_queue
-      SET status = 'PENDENTE',
-          processing_at = NULL,
+      SET status = 'PENDENTE', processing_at = NULL,
           updated_at = datetime('now','localtime')
       WHERE status = 'PROCESSANDO'
         AND processing_at IS NOT NULL
@@ -77,14 +80,22 @@ export class SyncWorker {
       const row = db
         .prepare(
           `
-        SELECT id, uuid, entity, record_uuid as recordUuid, operation,
-               payload, attempts, max_attempts as maxAttempts
+        SELECT id, entity, payload, attempts,
+               max_attempts AS maxAttempts
         FROM sync_queue
         WHERE status = 'PENDENTE'
           AND attempts < max_attempts
           AND (next_attempt_at IS NULL
                OR next_attempt_at <= datetime('now','localtime'))
-        ORDER BY id ASC
+        ORDER BY
+          CASE entity
+            WHEN 'SETOR' THEN 1
+            WHEN 'SUBSETOR' THEN 2
+            WHEN 'POSTO' THEN 3
+            WHEN 'REFUGO' THEN 4
+            ELSE 99
+          END,
+          id ASC
         LIMIT 1
       `
         )
@@ -111,22 +122,26 @@ export class SyncWorker {
 
   private async processItem(item: QueueRow): Promise<void> {
     try {
-      if (item.entity !== 'REFUGO') {
-        throw new Error(`Entidade não suportada: ${item.entity}`)
+      const payload = JSON.parse(item.payload) as SyncPayload
+      if (payload.schemaVersion !== 1 || !payload.record?.uuid) {
+        throw new Error('Payload de sincronização inválido.')
       }
 
-      const payload = JSON.parse(item.payload) as RefugoSyncPayload
-
-      if (
-        payload.schemaVersion !== 1 ||
-        payload.entity !== 'REFUGO' ||
-        !payload.record?.uuid ||
-        !Array.isArray(payload.record.itens)
-      ) {
-        throw new Error('Payload de refugo inválido.')
+      switch (payload.entity) {
+        case 'SETOR':
+          await this.setorRepository.apply(payload)
+          break
+        case 'SUBSETOR':
+          await this.subsetorRepository.apply(payload)
+          break
+        case 'POSTO':
+          await this.postoRepository.apply(payload)
+          break
+        case 'REFUGO':
+          await this.refugoRepository.apply(payload)
+          break
       }
 
-      await this.postgresRepository.apply(payload)
       this.markAsSynced(item.id)
     } catch (error) {
       this.markAsFailed(item, error)
@@ -138,10 +153,8 @@ export class SyncWorker {
       db.prepare(
         `
         UPDATE sync_queue
-        SET status = 'SINCRONIZADO',
-            last_error = NULL,
-            next_attempt_at = NULL,
-            processing_at = NULL,
+        SET status = 'SINCRONIZADO', last_error = NULL,
+            next_attempt_at = NULL, processing_at = NULL,
             synced_at = datetime('now','localtime'),
             updated_at = datetime('now','localtime')
         WHERE id = ?
@@ -165,14 +178,14 @@ export class SyncWorker {
     const message =
       error instanceof Error ? error.message : 'Erro desconhecido durante a sincronização.'
     const exhausted = item.attempts >= item.maxAttempts
-    const delay = this.getRetryDelaySeconds(item.attempts)
+    const schedule = [30, 60, 120, 300, 600, 1800]
+    const delay = schedule[Math.min(Math.max(item.attempts - 1, 0), schedule.length - 1)]
 
     db.transaction(() => {
       db.prepare(
         `
         UPDATE sync_queue
-        SET status = ?,
-            last_error = ?,
+        SET status = ?, last_error = ?,
             next_attempt_at = CASE
               WHEN ? = 1 THEN NULL
               ELSE datetime('now','localtime', ?)
@@ -198,10 +211,5 @@ export class SyncWorker {
       `
       ).run(message.slice(0, 2000))
     })()
-  }
-
-  private getRetryDelaySeconds(attempts: number): number {
-    const schedule = [30, 60, 120, 300, 600, 1800]
-    return schedule[Math.min(Math.max(attempts - 1, 0), schedule.length - 1)]
   }
 }

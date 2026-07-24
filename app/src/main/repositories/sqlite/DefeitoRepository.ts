@@ -1,5 +1,6 @@
 import db from '../../database/database'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
+import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const USUARIO_SISTEMA_ID = 1
 
@@ -38,6 +39,8 @@ type DefeitoRow = {
 }
 
 export class DefeitoRepository {
+  private readonly syncQueue = new SyncQueueRepository()
+
   private consultaBase(): string {
     return `
       SELECT
@@ -122,21 +125,29 @@ export class DefeitoRepository {
       )
     }
 
-    db.prepare(
-      `
-      INSERT INTO defeitos (
-        uuid,
-        codigo,
-        descricao,
-        ativo,
-        created_at,
-        updated_at,
-        created_by,
-        updated_by
-      )
-      VALUES (?, ?, ?, 1, datetime('now','localtime'), datetime('now','localtime'), ?, ?)
-    `
-    ).run(IdGenerator.generate(), codigoFormatado, descricaoFormatada, usuarioId, usuarioId)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          INSERT INTO defeitos (
+            uuid,
+            codigo,
+            descricao,
+            ativo,
+            created_at,
+            updated_at,
+            created_by,
+            updated_by
+          )
+          VALUES (?, ?, ?, 1, datetime('now','localtime'), datetime('now','localtime'), ?, ?)
+        `
+        )
+        .run(IdGenerator.generate(), codigoFormatado, descricaoFormatada, usuarioId, usuarioId)
+
+      const defeitoId = Number(resultado.lastInsertRowid)
+
+      this.syncQueue.enqueueDefeito(defeitoId, 'CREATE')
+    })()
   }
 
   editar(
@@ -170,47 +181,79 @@ export class DefeitoRepository {
       )
     }
 
-    db.prepare(
-      `
-      UPDATE defeitos
-      SET
-        codigo = ?,
-        descricao = ?,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?
-      WHERE id = ?
-    `
-    ).run(codigoFormatado, descricaoFormatada, usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE defeitos
+          SET
+            codigo = ?,
+            descricao = ?,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?
+          WHERE id = ?
+        `
+        )
+        .run(codigoFormatado, descricaoFormatada, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Defeito não encontrado.')
+      }
+
+      this.syncQueue.enqueueDefeito(id, 'UPDATE')
+    })()
   }
 
   excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
-    db.prepare(
-      `
-      UPDATE defeitos
-      SET
-        ativo = 0,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = datetime('now','localtime'),
-        deleted_by = ?
-      WHERE id = ?
-    `
-    ).run(usuarioId, usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE defeitos
+          SET
+            ativo = 0,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?,
+            deleted_at = datetime('now','localtime'),
+            deleted_by = ?
+          WHERE id = ?
+            AND ativo = 1
+        `
+        )
+        .run(usuarioId, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Defeito não encontrado ou já está inativo.')
+      }
+
+      this.syncQueue.enqueueDefeito(id, 'DELETE')
+    })()
   }
 
   restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
-    db.prepare(
-      `
-      UPDATE defeitos
-      SET
-        ativo = 1,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = NULL,
-        deleted_by = NULL
-      WHERE id = ?
-    `
-    ).run(usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE defeitos
+          SET
+            ativo = 1,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?,
+            deleted_at = NULL,
+            deleted_by = NULL
+          WHERE id = ?
+            AND ativo = 0
+        `
+        )
+        .run(usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Defeito não encontrado ou já está ativo.')
+      }
+
+      this.syncQueue.enqueueDefeito(id, 'UPDATE')
+    })()
   }
 
   excluirPermanente(id: number): void {

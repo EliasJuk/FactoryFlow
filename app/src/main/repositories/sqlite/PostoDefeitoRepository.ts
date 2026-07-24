@@ -1,5 +1,6 @@
 import { getDatabase } from '../../database/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
+import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const db = getDatabase()
 const USUARIO_SISTEMA_ID = 1
@@ -28,6 +29,8 @@ export interface PostoDefeito {
 }
 
 export class PostoDefeitoRepository {
+  private readonly syncQueue = new SyncQueueRepository()
+
   listarPorPosto(postoId: number, incluirInativos = false): PostoDefeito[] {
     const itens = db
       .prepare(
@@ -92,43 +95,92 @@ export class PostoDefeitoRepository {
       return { sucesso: true, mensagem: 'Defeito restaurado para o posto.' }
     }
 
-    db.prepare(
-      `
-      INSERT INTO posto_defeitos (
-        uuid, posto_id, defeito_id, ativo, created_by, updated_by
-      ) VALUES (?, ?, ?, 1, ?, ?)
-    `
-    ).run(IdGenerator.generate(), postoId, defeitoId, usuarioId, usuarioId)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          INSERT INTO posto_defeitos (
+            uuid,
+            posto_id,
+            defeito_id,
+            ativo,
+            created_at,
+            updated_at,
+            created_by,
+            updated_by
+          )
+          VALUES (
+            ?,
+            ?,
+            ?,
+            1,
+            datetime('now','localtime'),
+            datetime('now','localtime'),
+            ?,
+            ?
+          )
+        `
+        )
+        .run(IdGenerator.generate(), postoId, defeitoId, usuarioId, usuarioId)
+
+      const postoDefeitoId = Number(resultado.lastInsertRowid)
+
+      this.syncQueue.enqueuePostoDefeito(postoDefeitoId, 'CREATE')
+    })()
 
     return { sucesso: true, mensagem: 'Defeito vinculado ao posto com sucesso.' }
   }
 
   remover(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
-    db.prepare(
-      `
-      UPDATE posto_defeitos
-      SET ativo = 0,
-          deleted_at = datetime('now','localtime'),
-          deleted_by = ?,
-          updated_at = datetime('now','localtime'),
-          updated_by = ?
-      WHERE id = ?
-    `
-    ).run(usuarioId, usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE posto_defeitos
+          SET
+            ativo = 0,
+            deleted_at = datetime('now','localtime'),
+            deleted_by = ?,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?
+          WHERE id = ?
+            AND ativo = 1
+        `
+        )
+        .run(usuarioId, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Vínculo não encontrado ou já está inativo.')
+      }
+
+      this.syncQueue.enqueuePostoDefeito(id, 'DELETE')
+    })()
   }
 
   restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
-    db.prepare(
-      `
-      UPDATE posto_defeitos
-      SET ativo = 1,
-          deleted_at = NULL,
-          deleted_by = NULL,
-          updated_at = datetime('now','localtime'),
-          updated_by = ?
-      WHERE id = ?
-    `
-    ).run(usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE posto_defeitos
+          SET
+            ativo = 1,
+            deleted_at = NULL,
+            deleted_by = NULL,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?
+          WHERE id = ?
+            AND ativo = 0
+        `
+        )
+        .run(usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Vínculo não encontrado ou já está ativo.')
+      }
+
+      this.syncQueue.enqueuePostoDefeito(id, 'UPDATE')
+    })()
   }
 
   defeitosPertencemAoPosto(postoId: number, defeitoIds: number[]): boolean {

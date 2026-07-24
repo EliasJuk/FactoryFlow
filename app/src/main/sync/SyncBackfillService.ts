@@ -29,6 +29,41 @@ export class SyncBackfillService {
 
       const postos = db.prepare('SELECT id FROM postos ORDER BY id').all() as Array<{ id: number }>
       for (const posto of postos) this.queue.enqueuePosto(posto.id, 'CREATE', true)
+
+      const componentes = db.prepare('SELECT id FROM componentes ORDER BY id').all() as Array<{
+        id: number
+      }>
+      for (const componente of componentes) {
+        this.queue.enqueueComponente(componente.id, 'CREATE', true)
+      }
+
+      const circuitos = db.prepare('SELECT id FROM circuitos ORDER BY id').all() as Array<{
+        id: number
+      }>
+      for (const circuito of circuitos) {
+        this.queue.enqueueCircuito(circuito.id, 'CREATE', true)
+      }
+
+      const circuitoComponentes = db
+        .prepare('SELECT id FROM circuito_componentes ORDER BY id')
+        .all() as Array<{ id: number }>
+      for (const circuitoComponente of circuitoComponentes) {
+        this.queue.enqueueCircuitoComponente(circuitoComponente.id, 'CREATE', true)
+      }
+
+      const defeitos = db.prepare('SELECT id FROM defeitos ORDER BY id').all() as Array<{
+        id: number
+      }>
+      for (const defeito of defeitos) {
+        this.queue.enqueueDefeito(defeito.id, 'CREATE', true)
+      }
+
+      const postoDefeitos = db.prepare('SELECT id FROM posto_defeitos ORDER BY id').all() as Array<{
+        id: number
+      }>
+      for (const postoDefeito of postoDefeitos) {
+        this.queue.enqueuePostoDefeito(postoDefeito.id, 'CREATE', true)
+      }
     })()
   }
 }

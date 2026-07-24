@@ -1,5 +1,6 @@
 import { getDatabase } from '../../database/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
+import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const db = getDatabase()
 const USUARIO_SISTEMA_ID = 1
@@ -36,6 +37,8 @@ export interface CircuitoComponente {
 }
 
 export class CircuitoComponenteRepository {
+  private readonly syncQueue = new SyncQueueRepository()
+
   listarPorCircuito(circuitoId: number, incluirInativos = false): CircuitoComponente[] {
     const itens = db
       .prepare(
@@ -110,19 +113,30 @@ export class CircuitoComponenteRepository {
     }
 
     if (existente) {
-      db.prepare(
-        `
-        UPDATE circuito_componentes
-        SET
-          quantidade = ?,
-          ativo = 1,
-          updated_at = datetime('now','localtime'),
-          updated_by = ?,
-          deleted_at = NULL,
-          deleted_by = NULL
-        WHERE id = ?
-      `
-      ).run(quantidade, usuarioId, existente.id)
+      db.transaction(() => {
+        const resultado = db
+          .prepare(
+            `
+            UPDATE circuito_componentes
+            SET
+              quantidade = ?,
+              ativo = 1,
+              updated_at = datetime('now','localtime'),
+              updated_by = ?,
+              deleted_at = NULL,
+              deleted_by = NULL
+            WHERE id = ?
+              AND ativo = 0
+          `
+          )
+          .run(quantidade, usuarioId, existente.id)
+
+        if (resultado.changes === 0) {
+          throw new Error('Vínculo não encontrado ou já está ativo.')
+        }
+
+        this.syncQueue.enqueueCircuitoComponente(existente.id, 'UPDATE')
+      })()
 
       return {
         sucesso: true,
@@ -130,15 +144,23 @@ export class CircuitoComponenteRepository {
       }
     }
 
-    db.prepare(
-      `
-      INSERT INTO circuito_componentes (
-        uuid, circuito_id, componente_id, quantidade, ativo,
-        created_at, updated_at, created_by, updated_by
-      )
-      VALUES (?, ?, ?, ?, 1, datetime('now','localtime'), datetime('now','localtime'), ?, ?)
-    `
-    ).run(IdGenerator.generate(), circuitoId, componenteId, quantidade, usuarioId, usuarioId)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          INSERT INTO circuito_componentes (
+            uuid, circuito_id, componente_id, quantidade, ativo,
+            created_at, updated_at, created_by, updated_by
+          )
+          VALUES (?, ?, ?, ?, 1, datetime('now','localtime'), datetime('now','localtime'), ?, ?)
+        `
+        )
+        .run(IdGenerator.generate(), circuitoId, componenteId, quantidade, usuarioId, usuarioId)
+
+      const vinculoId = Number(resultado.lastInsertRowid)
+
+      this.syncQueue.enqueueCircuitoComponente(vinculoId, 'CREATE')
+    })()
 
     return {
       sucesso: true,
@@ -151,42 +173,78 @@ export class CircuitoComponenteRepository {
       throw new Error('QUANTIDADE_INVALIDA')
     }
 
-    db.prepare(
-      `
-      UPDATE circuito_componentes
-      SET quantidade = ?, updated_at = datetime('now','localtime'), updated_by = ?
-      WHERE id = ? AND ativo = 1
-    `
-    ).run(quantidade, usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE circuito_componentes
+          SET
+            quantidade = ?,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?
+          WHERE id = ?
+            AND ativo = 1
+        `
+        )
+        .run(quantidade, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Vínculo não encontrado ou está inativo.')
+      }
+
+      this.syncQueue.enqueueCircuitoComponente(id, 'UPDATE')
+    })()
   }
 
   remover(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
-    db.prepare(
-      `
-      UPDATE circuito_componentes
-      SET
-        ativo = 0,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = datetime('now','localtime'),
-        deleted_by = ?
-      WHERE id = ? AND ativo = 1
-    `
-    ).run(usuarioId, usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE circuito_componentes
+          SET
+            ativo = 0,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?,
+            deleted_at = datetime('now','localtime'),
+            deleted_by = ?
+          WHERE id = ?
+            AND ativo = 1
+        `
+        )
+        .run(usuarioId, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Vínculo não encontrado ou já está inativo.')
+      }
+
+      this.syncQueue.enqueueCircuitoComponente(id, 'DELETE')
+    })()
   }
 
   restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
-    db.prepare(
-      `
-      UPDATE circuito_componentes
-      SET
-        ativo = 1,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = NULL,
-        deleted_by = NULL
-      WHERE id = ? AND ativo = 0
-    `
-    ).run(usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE circuito_componentes
+          SET
+            ativo = 1,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?,
+            deleted_at = NULL,
+            deleted_by = NULL
+          WHERE id = ?
+            AND ativo = 0
+        `
+        )
+        .run(usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Vínculo não encontrado ou já está ativo.')
+      }
+
+      this.syncQueue.enqueueCircuitoComponente(id, 'UPDATE')
+    })()
   }
 }

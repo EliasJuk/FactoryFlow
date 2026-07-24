@@ -1,5 +1,6 @@
 import { getDatabase } from '../../database/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
+import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const db = getDatabase()
 const USUARIO_SISTEMA_ID = 1
@@ -41,6 +42,8 @@ type CircuitoRow = {
 }
 
 export class CircuitoRepository {
+  private readonly syncQueue = new SyncQueueRepository()
+
   private consultaBase(): string {
     return `
       SELECT
@@ -160,21 +163,29 @@ export class CircuitoRepository {
       )
     }
 
-    db.prepare(
-      `
-      INSERT INTO circuitos (
-        uuid,
-        codigo,
-        nome,
-        ativo,
-        created_at,
-        updated_at,
-        created_by,
-        updated_by
-      )
-      VALUES (?, ?, ?, 1, datetime('now','localtime'), datetime('now','localtime'), ?, ?)
-    `
-    ).run(IdGenerator.generate(), codigoFormatado, nomeFormatado, usuarioId, usuarioId)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          INSERT INTO circuitos (
+            uuid,
+            codigo,
+            nome,
+            ativo,
+            created_at,
+            updated_at,
+            created_by,
+            updated_by
+          )
+          VALUES (?, ?, ?, 1, datetime('now','localtime'), datetime('now','localtime'), ?, ?)
+        `
+        )
+        .run(IdGenerator.generate(), codigoFormatado, nomeFormatado, usuarioId, usuarioId)
+
+      const circuitoId = Number(resultado.lastInsertRowid)
+
+      this.syncQueue.enqueueCircuito(circuitoId, 'CREATE')
+    })()
   }
 
   editar(id: number, codigo: string, nome: string, usuarioId: number = USUARIO_SISTEMA_ID): void {
@@ -203,47 +214,79 @@ export class CircuitoRepository {
       )
     }
 
-    db.prepare(
-      `
-      UPDATE circuitos
-      SET
-        codigo = ?,
-        nome = ?,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?
-      WHERE id = ?
-    `
-    ).run(codigoFormatado, nomeFormatado, usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE circuitos
+          SET
+            codigo = ?,
+            nome = ?,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?
+          WHERE id = ?
+        `
+        )
+        .run(codigoFormatado, nomeFormatado, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Circuito não encontrado.')
+      }
+
+      this.syncQueue.enqueueCircuito(id, 'UPDATE')
+    })()
   }
 
   excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
-    db.prepare(
-      `
-      UPDATE circuitos
-      SET
-        ativo = 0,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = datetime('now','localtime'),
-        deleted_by = ?
-      WHERE id = ?
-    `
-    ).run(usuarioId, usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE circuitos
+          SET
+            ativo = 0,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?,
+            deleted_at = datetime('now','localtime'),
+            deleted_by = ?
+          WHERE id = ?
+            AND ativo = 1
+        `
+        )
+        .run(usuarioId, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Circuito não encontrado ou já está inativo.')
+      }
+
+      this.syncQueue.enqueueCircuito(id, 'DELETE')
+    })()
   }
 
   restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
-    db.prepare(
-      `
-      UPDATE circuitos
-      SET
-        ativo = 1,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = NULL,
-        deleted_by = NULL
-      WHERE id = ?
-    `
-    ).run(usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE circuitos
+          SET
+            ativo = 1,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?,
+            deleted_at = NULL,
+            deleted_by = NULL
+          WHERE id = ?
+            AND ativo = 0
+        `
+        )
+        .run(usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Circuito não encontrado ou já está ativo.')
+      }
+
+      this.syncQueue.enqueueCircuito(id, 'UPDATE')
+    })()
   }
 
   excluirPermanente(id: number): void {

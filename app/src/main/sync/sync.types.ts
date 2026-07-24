@@ -1,5 +1,15 @@
 export type SyncOperation = 'CREATE' | 'UPDATE' | 'DELETE' | 'CANCEL'
-export type SyncEntity = 'SETOR' | 'SUBSETOR' | 'POSTO' | 'REFUGO'
+
+export type SyncEntity =
+  | 'SETOR'
+  | 'SUBSETOR'
+  | 'POSTO'
+  | 'COMPONENTE'
+  | 'CIRCUITO'
+  | 'CIRCUITO_COMPONENTE'
+  | 'DEFEITO'
+  | 'POSTO_DEFEITO'
+  | 'REFUGO'
 
 export type AuditSyncFields = {
   createdAt: string
@@ -14,7 +24,7 @@ export type SetorSyncPayload = {
   schemaVersion: 1
   sourceInstallationUuid: string
   entity: 'SETOR'
-  operation: 'CREATE' | 'UPDATE' | 'DELETE'
+  operation: Extract<SyncOperation, 'CREATE' | 'UPDATE' | 'DELETE'>
   record: AuditSyncFields & {
     uuid: string
     nome: string
@@ -27,7 +37,7 @@ export type SubsetorSyncPayload = {
   schemaVersion: 1
   sourceInstallationUuid: string
   entity: 'SUBSETOR'
-  operation: 'CREATE' | 'UPDATE' | 'DELETE'
+  operation: Extract<SyncOperation, 'CREATE' | 'UPDATE' | 'DELETE'>
   record: AuditSyncFields & {
     uuid: string
     nome: string
@@ -40,11 +50,78 @@ export type PostoSyncPayload = {
   schemaVersion: 1
   sourceInstallationUuid: string
   entity: 'POSTO'
-  operation: 'CREATE' | 'UPDATE' | 'DELETE'
+  operation: Extract<SyncOperation, 'CREATE' | 'UPDATE' | 'DELETE'>
   record: AuditSyncFields & {
     uuid: string
     nome: string
     subsetorUuid: string
+    ativo: boolean
+  }
+}
+
+export type ComponenteSyncPayload = {
+  schemaVersion: 1
+  sourceInstallationUuid: string
+  entity: 'COMPONENTE'
+  operation: Extract<SyncOperation, 'CREATE' | 'UPDATE' | 'DELETE'>
+  record: AuditSyncFields & {
+    uuid: string
+    codigo: string
+    nome: string
+    precoAtual: number
+    ativo: boolean
+  }
+}
+
+export type CircuitoSyncPayload = {
+  schemaVersion: 1
+  sourceInstallationUuid: string
+  entity: 'CIRCUITO'
+  operation: Extract<SyncOperation, 'CREATE' | 'UPDATE' | 'DELETE'>
+  record: AuditSyncFields & {
+    uuid: string
+    codigo: string
+    nome: string
+    ativo: boolean
+  }
+}
+
+export type CircuitoComponenteSyncPayload = {
+  schemaVersion: 1
+  sourceInstallationUuid: string
+  entity: 'CIRCUITO_COMPONENTE'
+  operation: Extract<SyncOperation, 'CREATE' | 'UPDATE' | 'DELETE'>
+  record: AuditSyncFields & {
+    uuid: string
+    circuitoUuid: string
+    componenteUuid: string
+    quantidade: number
+    ativo: boolean
+  }
+}
+
+export type DefeitoSyncPayload = {
+  schemaVersion: 1
+  sourceInstallationUuid: string
+  entity: 'DEFEITO'
+  operation: Extract<SyncOperation, 'CREATE' | 'UPDATE' | 'DELETE'>
+  record: AuditSyncFields & {
+    uuid: string
+    codigo: string
+    descricao: string
+    ativo: boolean
+  }
+}
+
+export type PostoDefeitoSyncPayload = {
+  schemaVersion: 1
+  sourceInstallationUuid: string
+  entity: 'POSTO_DEFEITO'
+  operation: Extract<SyncOperation, 'CREATE' | 'UPDATE' | 'DELETE'>
+  record: AuditSyncFields & {
+    uuid: string
+    postoUuid: string
+    defeitoUuid: string
     ativo: boolean
   }
 }
@@ -72,7 +149,7 @@ export type RefugoSyncPayload = {
   schemaVersion: 1
   sourceInstallationUuid: string
   entity: 'REFUGO'
-  operation: 'CREATE' | 'UPDATE' | 'CANCEL'
+  operation: Extract<SyncOperation, 'CREATE' | 'UPDATE' | 'CANCEL'>
   record: {
     uuid: string
     numeroRefugo: string
@@ -106,4 +183,12 @@ export type RefugoSyncPayload = {
 }
 
 export type SyncPayload =
-  SetorSyncPayload | SubsetorSyncPayload | PostoSyncPayload | RefugoSyncPayload
+  | SetorSyncPayload
+  | SubsetorSyncPayload
+  | PostoSyncPayload
+  | ComponenteSyncPayload
+  | CircuitoSyncPayload
+  | CircuitoComponenteSyncPayload
+  | DefeitoSyncPayload
+  | PostoDefeitoSyncPayload
+  | RefugoSyncPayload

@@ -3,6 +3,11 @@ import { loadConfig } from '../config/appConfig'
 import { IdGenerator } from '../shared/ids/IdGenerator'
 
 import type {
+  CircuitoComponenteSyncPayload,
+  CircuitoSyncPayload,
+  ComponenteSyncPayload,
+  DefeitoSyncPayload,
+  PostoDefeitoSyncPayload,
   PostoSyncPayload,
   RefugoSyncItemPayload,
   RefugoSyncPayload,
@@ -173,6 +178,287 @@ export class SyncQueueRepository {
     }
 
     this.enqueue('POSTO', row.uuid, operation, payload, ifMissing)
+  }
+
+  enqueueComponente(
+    id: number,
+    operation: ComponenteSyncPayload['operation'],
+    ifMissing = false
+  ): void {
+    if (!this.shouldEnqueue()) return
+
+    const row = db
+      .prepare(
+        `
+      SELECT comp.uuid, comp.codigo, comp.nome,
+             COALESCE((
+               SELECT cp.valor_unitario
+               FROM componentes_precos cp
+               WHERE cp.componente_id = comp.id
+               ORDER BY cp.id DESC
+               LIMIT 1
+             ), 0) AS precoAtual,
+             comp.ativo,
+             comp.created_at AS createdAt,
+             comp.updated_at AS updatedAt,
+             comp.deleted_at AS deletedAt,
+             c.uuid AS createdByUuid,
+             u.uuid AS updatedByUuid,
+             d.uuid AS deletedByUuid
+      FROM componentes comp
+      LEFT JOIN usuarios c ON c.id = comp.created_by
+      LEFT JOIN usuarios u ON u.id = comp.updated_by
+      LEFT JOIN usuarios d ON d.id = comp.deleted_by
+      WHERE comp.id = ?
+    `
+      )
+      .get(id) as
+      | {
+          uuid: string
+          codigo: string
+          nome: string
+          precoAtual: number
+          ativo: number
+          createdAt: string
+          updatedAt: string
+          deletedAt: string | null
+          createdByUuid: string | null
+          updatedByUuid: string | null
+          deletedByUuid: string | null
+        }
+      | undefined
+
+    if (!row) throw new Error('Componente não encontrado para sincronização.')
+
+    const payload: ComponenteSyncPayload = {
+      schemaVersion: 1,
+      sourceInstallationUuid: this.installationUuid(),
+      entity: 'COMPONENTE',
+      operation,
+      record: {
+        ...row,
+        precoAtual: Number(row.precoAtual ?? 0),
+        ativo: Boolean(row.ativo)
+      }
+    }
+
+    this.enqueue('COMPONENTE', row.uuid, operation, payload, ifMissing)
+  }
+
+  enqueueCircuito(
+    id: number,
+    operation: CircuitoSyncPayload['operation'],
+    ifMissing = false
+  ): void {
+    if (!this.shouldEnqueue()) return
+
+    const row = db
+      .prepare(
+        `
+      SELECT circ.uuid, circ.codigo, circ.nome, circ.ativo,
+             circ.created_at AS createdAt,
+             circ.updated_at AS updatedAt,
+             circ.deleted_at AS deletedAt,
+             c.uuid AS createdByUuid,
+             u.uuid AS updatedByUuid,
+             d.uuid AS deletedByUuid
+      FROM circuitos circ
+      LEFT JOIN usuarios c ON c.id = circ.created_by
+      LEFT JOIN usuarios u ON u.id = circ.updated_by
+      LEFT JOIN usuarios d ON d.id = circ.deleted_by
+      WHERE circ.id = ?
+    `
+      )
+      .get(id) as
+      | {
+          uuid: string
+          codigo: string
+          nome: string
+          ativo: number
+          createdAt: string
+          updatedAt: string
+          deletedAt: string | null
+          createdByUuid: string | null
+          updatedByUuid: string | null
+          deletedByUuid: string | null
+        }
+      | undefined
+
+    if (!row) throw new Error('Circuito não encontrado para sincronização.')
+
+    const payload: CircuitoSyncPayload = {
+      schemaVersion: 1,
+      sourceInstallationUuid: this.installationUuid(),
+      entity: 'CIRCUITO',
+      operation,
+      record: { ...row, ativo: Boolean(row.ativo) }
+    }
+
+    this.enqueue('CIRCUITO', row.uuid, operation, payload, ifMissing)
+  }
+
+  enqueueCircuitoComponente(
+    id: number,
+    operation: CircuitoComponenteSyncPayload['operation'],
+    ifMissing = false
+  ): void {
+    if (!this.shouldEnqueue()) return
+
+    const row = db
+      .prepare(
+        `
+      SELECT cc.uuid,
+             circ.uuid AS circuitoUuid,
+             comp.uuid AS componenteUuid,
+             cc.quantidade,
+             cc.ativo,
+             cc.created_at AS createdAt,
+             cc.updated_at AS updatedAt,
+             cc.deleted_at AS deletedAt,
+             c.uuid AS createdByUuid,
+             u.uuid AS updatedByUuid,
+             d.uuid AS deletedByUuid
+      FROM circuito_componentes cc
+      INNER JOIN circuitos circ ON circ.id = cc.circuito_id
+      INNER JOIN componentes comp ON comp.id = cc.componente_id
+      LEFT JOIN usuarios c ON c.id = cc.created_by
+      LEFT JOIN usuarios u ON u.id = cc.updated_by
+      LEFT JOIN usuarios d ON d.id = cc.deleted_by
+      WHERE cc.id = ?
+    `
+      )
+      .get(id) as
+      | {
+          uuid: string
+          circuitoUuid: string
+          componenteUuid: string
+          quantidade: number
+          ativo: number
+          createdAt: string
+          updatedAt: string
+          deletedAt: string | null
+          createdByUuid: string | null
+          updatedByUuid: string | null
+          deletedByUuid: string | null
+        }
+      | undefined
+
+    if (!row) throw new Error('Vínculo circuito-componente não encontrado para sincronização.')
+
+    const payload: CircuitoComponenteSyncPayload = {
+      schemaVersion: 1,
+      sourceInstallationUuid: this.installationUuid(),
+      entity: 'CIRCUITO_COMPONENTE',
+      operation,
+      record: { ...row, quantidade: Number(row.quantidade), ativo: Boolean(row.ativo) }
+    }
+
+    this.enqueue('CIRCUITO_COMPONENTE', row.uuid, operation, payload, ifMissing)
+  }
+
+  enqueueDefeito(id: number, operation: DefeitoSyncPayload['operation'], ifMissing = false): void {
+    if (!this.shouldEnqueue()) return
+
+    const row = db
+      .prepare(
+        `
+      SELECT def.uuid, def.codigo, def.descricao, def.ativo,
+             def.created_at AS createdAt,
+             def.updated_at AS updatedAt,
+             def.deleted_at AS deletedAt,
+             c.uuid AS createdByUuid,
+             u.uuid AS updatedByUuid,
+             d.uuid AS deletedByUuid
+      FROM defeitos def
+      LEFT JOIN usuarios c ON c.id = def.created_by
+      LEFT JOIN usuarios u ON u.id = def.updated_by
+      LEFT JOIN usuarios d ON d.id = def.deleted_by
+      WHERE def.id = ?
+    `
+      )
+      .get(id) as
+      | {
+          uuid: string
+          codigo: string
+          descricao: string
+          ativo: number
+          createdAt: string
+          updatedAt: string
+          deletedAt: string | null
+          createdByUuid: string | null
+          updatedByUuid: string | null
+          deletedByUuid: string | null
+        }
+      | undefined
+
+    if (!row) throw new Error('Defeito não encontrado para sincronização.')
+
+    const payload: DefeitoSyncPayload = {
+      schemaVersion: 1,
+      sourceInstallationUuid: this.installationUuid(),
+      entity: 'DEFEITO',
+      operation,
+      record: { ...row, ativo: Boolean(row.ativo) }
+    }
+
+    this.enqueue('DEFEITO', row.uuid, operation, payload, ifMissing)
+  }
+
+  enqueuePostoDefeito(
+    id: number,
+    operation: PostoDefeitoSyncPayload['operation'],
+    ifMissing = false
+  ): void {
+    if (!this.shouldEnqueue()) return
+
+    const row = db
+      .prepare(
+        `
+      SELECT pd.uuid,
+             posto.uuid AS postoUuid,
+             defeito.uuid AS defeitoUuid,
+             pd.ativo,
+             pd.created_at AS createdAt,
+             pd.updated_at AS updatedAt,
+             pd.deleted_at AS deletedAt,
+             c.uuid AS createdByUuid,
+             u.uuid AS updatedByUuid,
+             d.uuid AS deletedByUuid
+      FROM posto_defeitos pd
+      INNER JOIN postos posto ON posto.id = pd.posto_id
+      INNER JOIN defeitos defeito ON defeito.id = pd.defeito_id
+      LEFT JOIN usuarios c ON c.id = pd.created_by
+      LEFT JOIN usuarios u ON u.id = pd.updated_by
+      LEFT JOIN usuarios d ON d.id = pd.deleted_by
+      WHERE pd.id = ?
+    `
+      )
+      .get(id) as
+      | {
+          uuid: string
+          postoUuid: string
+          defeitoUuid: string
+          ativo: number
+          createdAt: string
+          updatedAt: string
+          deletedAt: string | null
+          createdByUuid: string | null
+          updatedByUuid: string | null
+          deletedByUuid: string | null
+        }
+      | undefined
+
+    if (!row) throw new Error('Vínculo posto-defeito não encontrado para sincronização.')
+
+    const payload: PostoDefeitoSyncPayload = {
+      schemaVersion: 1,
+      sourceInstallationUuid: this.installationUuid(),
+      entity: 'POSTO_DEFEITO',
+      operation,
+      record: { ...row, ativo: Boolean(row.ativo) }
+    }
+
+    this.enqueue('POSTO_DEFEITO', row.uuid, operation, payload, ifMissing)
   }
 
   enqueueRefugo(refugoId: number, operation: RefugoSyncPayload['operation']): void {

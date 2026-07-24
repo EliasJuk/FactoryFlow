@@ -1,5 +1,6 @@
 import db from '../../database/database'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
+import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const USUARIO_SISTEMA_ID = 1
 
@@ -40,6 +41,8 @@ type ComponenteRow = {
 }
 
 export class ComponenteRepository {
+  private readonly syncQueue = new SyncQueueRepository()
+
   private consultaBase(): string {
     return `
       SELECT
@@ -161,6 +164,8 @@ export class ComponenteRepository {
       if (precoAtual > 0) {
         this.atualizarPreco(componenteId, precoAtual)
       }
+
+      this.syncQueue.enqueueComponente(componenteId, 'CREATE')
     })
 
     executar()
@@ -199,19 +204,26 @@ export class ComponenteRepository {
     }
 
     const executar = db.transaction(() => {
-      db.prepare(
+      const resultado = db
+        .prepare(
+          `
+          UPDATE componentes
+          SET
+            codigo = ?,
+            nome = ?,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?
+          WHERE id = ?
         `
-        UPDATE componentes
-        SET
-          codigo = ?,
-          nome = ?,
-          updated_at = datetime('now','localtime'),
-          updated_by = ?
-        WHERE id = ?
-      `
-      ).run(codigoFormatado, nomeFormatado, usuarioId, id)
+        )
+        .run(codigoFormatado, nomeFormatado, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Componente não encontrado.')
+      }
 
       this.atualizarPreco(id, precoAtual)
+      this.syncQueue.enqueueComponente(id, 'UPDATE')
     })
 
     executar()
@@ -269,33 +281,55 @@ export class ComponenteRepository {
   }
 
   excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
-    db.prepare(
-      `
-      UPDATE componentes
-      SET
-        ativo = 0,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = datetime('now','localtime'),
-        deleted_by = ?
-      WHERE id = ?
-    `
-    ).run(usuarioId, usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE componentes
+          SET
+            ativo = 0,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?,
+            deleted_at = datetime('now','localtime'),
+            deleted_by = ?
+          WHERE id = ?
+            AND ativo = 1
+        `
+        )
+        .run(usuarioId, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Componente não encontrado ou já está inativo.')
+      }
+
+      this.syncQueue.enqueueComponente(id, 'DELETE')
+    })()
   }
 
   restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
-    db.prepare(
-      `
-      UPDATE componentes
-      SET
-        ativo = 1,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = NULL,
-        deleted_by = NULL
-      WHERE id = ?
-    `
-    ).run(usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE componentes
+          SET
+            ativo = 1,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?,
+            deleted_at = NULL,
+            deleted_by = NULL
+          WHERE id = ?
+            AND ativo = 0
+        `
+        )
+        .run(usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Componente não encontrado ou já está ativo.')
+      }
+
+      this.syncQueue.enqueueComponente(id, 'UPDATE')
+    })()
   }
 
   excluirPermanente(id: number): void {

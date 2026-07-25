@@ -7,66 +7,91 @@ import type { PullEntity, PullRecordBase } from './pull.types'
 export class SyncPullWorker {
   private timer: NodeJS.Timeout | null = null
   private running = false
-
   private readonly remote = new PostgresPullRepository()
   private readonly local = new SqliteRemoteApplyRepository()
   private readonly state = new SyncPullStateRepository()
-
   constructor(
-    private readonly intervalMs = 30_000,
+    private readonly intervalMs = 30000,
     private readonly batchSize = 200
   ) {}
-
   start(): void {
     if (this.timer) return
     void this.runOnce()
     this.timer = setInterval(() => void this.runOnce(), this.intervalMs)
   }
-
   stop(): void {
     if (!this.timer) return
     clearInterval(this.timer)
     this.timer = null
   }
-
   async runOnce(): Promise<void> {
     if (this.running || !this.shouldRun()) return
     this.running = true
-
     try {
       await this.pullUsuarios()
       await this.pullSetores()
+      await this.pullSubsetores()
+      await this.pullPostos()
+      await this.pullComponentes()
+      await this.pullCircuitos()
+      await this.pullDefeitos()
     } finally {
       this.running = false
     }
   }
-
   private shouldRun(): boolean {
-    const config = loadConfig()
-
-    return (
-      config.database.mode === 'sqliteSync' &&
-      config.sync.enabled &&
-      config.sync.destination === 'postgres'
-    )
+    const c = loadConfig()
+    return c.database.mode === 'sqliteSync' && c.sync.enabled && c.sync.destination === 'postgres'
   }
-
-  private async pullUsuarios(): Promise<void> {
-    await this.pullEntity(
+  private pullUsuarios() {
+    return this.pullEntity(
       'USUARIO',
-      (cursor) => this.remote.fetchUsuarios(cursor, this.batchSize),
-      (record) => this.local.applyUsuario(record)
+      (c) => this.remote.fetchUsuarios(c, this.batchSize),
+      (r) => this.local.applyUsuario(r)
     )
   }
-
-  private async pullSetores(): Promise<void> {
-    await this.pullEntity(
+  private pullSetores() {
+    return this.pullEntity(
       'SETOR',
-      (cursor) => this.remote.fetchSetores(cursor, this.batchSize),
-      (record) => this.local.applySetor(record)
+      (c) => this.remote.fetchSetores(c, this.batchSize),
+      (r) => this.local.applySetor(r)
     )
   }
-
+  private pullSubsetores() {
+    return this.pullEntity(
+      'SUBSETOR',
+      (c) => this.remote.fetchSubsetores(c, this.batchSize),
+      (r) => this.local.applySubsetor(r)
+    )
+  }
+  private pullPostos() {
+    return this.pullEntity(
+      'POSTO',
+      (c) => this.remote.fetchPostos(c, this.batchSize),
+      (r) => this.local.applyPosto(r)
+    )
+  }
+  private pullComponentes() {
+    return this.pullEntity(
+      'COMPONENTE',
+      (c) => this.remote.fetchComponentes(c, this.batchSize),
+      (r) => this.local.applyComponente(r)
+    )
+  }
+  private pullCircuitos() {
+    return this.pullEntity(
+      'CIRCUITO',
+      (c) => this.remote.fetchCircuitos(c, this.batchSize),
+      (r) => this.local.applyCircuito(r)
+    )
+  }
+  private pullDefeitos() {
+    return this.pullEntity(
+      'DEFEITO',
+      (c) => this.remote.fetchDefeitos(c, this.batchSize),
+      (r) => this.local.applyDefeito(r)
+    )
+  }
   private async pullEntity<T extends PullRecordBase>(
     entity: PullEntity,
     fetchBatch: (cursor: { lastUpdatedAt: string | null; lastUuid: string | null }) => Promise<T[]>,
@@ -76,12 +101,10 @@ export class SyncPullWorker {
       while (this.shouldRun()) {
         const cursor = this.state.getCursor(entity)
         const records = await fetchBatch(cursor)
-
         if (records.length === 0) {
           this.state.markSuccess(entity, cursor)
           return
         }
-
         for (const record of records) {
           if (this.state.hasLocalConflict(entity, record.uuid)) {
             this.state.registerConflict(
@@ -92,15 +115,9 @@ export class SyncPullWorker {
             )
             return
           }
-
           applyRecord(record)
-
-          this.state.markSuccess(entity, {
-            lastUpdatedAt: record.updatedAt,
-            lastUuid: record.uuid
-          })
+          this.state.markSuccess(entity, { lastUpdatedAt: record.updatedAt, lastUuid: record.uuid })
         }
-
         if (records.length < this.batchSize) return
       }
     } catch (error) {

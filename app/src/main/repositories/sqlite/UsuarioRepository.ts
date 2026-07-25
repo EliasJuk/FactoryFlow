@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import { getDatabase } from '../../database/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
+import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const db = getDatabase()
 
@@ -49,6 +50,8 @@ function gerarHashSenha(senha: string): string {
 }
 
 export class UsuarioRepository {
+  private readonly syncQueue = new SyncQueueRepository()
+
   listar(): Usuario[] {
     return db
       .prepare(
@@ -143,35 +146,25 @@ export class UsuarioRepository {
 
     const senhaHash = input.senha?.trim() ? gerarHashSenha(input.senha) : null
 
-    db.prepare(
-      `
-      INSERT INTO usuarios (
-        uuid,
-        nome,
-        matricula,
-        perfil,
-        senha_hash,
-        deve_trocar_senha,
-        ativo,
-        created_at,
-        updated_at,
-        created_by,
-        updated_by
-      ) VALUES (
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        1,
-        1,
-        datetime('now', 'localtime'),
-        datetime('now', 'localtime'),
-        ?,
-        ?
-      )
-    `
-    ).run(uuid, input.nome.trim(), matricula, input.perfil, senhaHash, usuarioId, usuarioId)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          INSERT INTO usuarios (
+            uuid, nome, matricula, perfil, senha_hash,
+            deve_trocar_senha, ativo, created_at, updated_at,
+            created_by, updated_by
+          ) VALUES (
+            ?, ?, ?, ?, ?, 1, 1,
+            datetime('now', 'localtime'),
+            datetime('now', 'localtime'), ?, ?
+          )
+        `
+        )
+        .run(uuid, input.nome.trim(), matricula, input.perfil, senhaHash, usuarioId, usuarioId)
+
+      this.syncQueue.enqueueUsuario(Number(resultado.lastInsertRowid), 'CREATE')
+    })()
   }
 
   editar(id: number, input: UsuarioInput): void {
@@ -190,89 +183,112 @@ export class UsuarioRepository {
       )
       .get(matricula, id) as { id: number } | undefined
 
-    if (duplicado) {
-      throw new Error('USUARIO_DUPLICADO')
-    }
+    if (duplicado) throw new Error('USUARIO_DUPLICADO')
 
-    if (input.senha?.trim()) {
-      const senhaHash = gerarHashSenha(input.senha)
+    db.transaction(() => {
+      const resultado = input.senha?.trim()
+        ? db
+            .prepare(
+              `
+              UPDATE usuarios
+              SET nome = ?, matricula = ?, perfil = ?, senha_hash = ?,
+                  deve_trocar_senha = 1,
+                  updated_at = datetime('now', 'localtime'),
+                  updated_by = ?
+              WHERE id = ? AND deleted_at IS NULL
+            `
+            )
+            .run(
+              input.nome.trim(),
+              matricula,
+              input.perfil,
+              gerarHashSenha(input.senha),
+              usuarioId,
+              id
+            )
+        : db
+            .prepare(
+              `
+              UPDATE usuarios
+              SET nome = ?, matricula = ?, perfil = ?,
+                  updated_at = datetime('now', 'localtime'),
+                  updated_by = ?
+              WHERE id = ? AND deleted_at IS NULL
+            `
+            )
+            .run(input.nome.trim(), matricula, input.perfil, usuarioId, id)
 
-      db.prepare(
-        `
-        UPDATE usuarios
-        SET
-          nome = ?,
-          matricula = ?,
-          perfil = ?,
-          senha_hash = ?,
-          deve_trocar_senha = 1,
-          updated_at = datetime('now', 'localtime'),
-          updated_by = ?
-        WHERE id = ?
-          AND deleted_at IS NULL
-      `
-      ).run(input.nome.trim(), matricula, input.perfil, senhaHash, usuarioId, id)
-
-      return
-    }
-
-    db.prepare(
-      `
-      UPDATE usuarios
-      SET
-        nome = ?,
-        matricula = ?,
-        perfil = ?,
-        updated_at = datetime('now', 'localtime'),
-        updated_by = ?
-      WHERE id = ?
-        AND deleted_at IS NULL
-    `
-    ).run(input.nome.trim(), matricula, input.perfil, usuarioId, id)
+      if (resultado.changes === 0) throw new Error('Usuário não encontrado.')
+      this.syncQueue.enqueueUsuario(id, 'UPDATE')
+    })()
   }
 
   excluir(id: number, usuarioId: number | null = null): void {
-    db.prepare(
-      `
-      UPDATE usuarios
-      SET
-        ativo = 0,
-        updated_at = datetime('now', 'localtime'),
-        updated_by = ?
-      WHERE id = ?
-        AND deleted_at IS NULL
-    `
-    ).run(usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE usuarios
+          SET ativo = 0,
+              updated_at = datetime('now', 'localtime'),
+              updated_by = ?
+          WHERE id = ? AND deleted_at IS NULL AND ativo = 1
+        `
+        )
+        .run(usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Usuário não encontrado ou já está inativo.')
+      }
+
+      this.syncQueue.enqueueUsuario(id, 'UPDATE')
+    })()
   }
 
   ativar(id: number, usuarioId: number | null = null): void {
-    db.prepare(
-      `
-      UPDATE usuarios
-      SET
-        ativo = 1,
-        updated_at = datetime('now', 'localtime'),
-        updated_by = ?
-      WHERE id = ?
-        AND deleted_at IS NULL
-    `
-    ).run(usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE usuarios
+          SET ativo = 1,
+              updated_at = datetime('now', 'localtime'),
+              updated_by = ?
+          WHERE id = ? AND deleted_at IS NULL AND ativo = 0
+        `
+        )
+        .run(usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Usuário não encontrado ou já está ativo.')
+      }
+
+      this.syncQueue.enqueueUsuario(id, 'UPDATE')
+    })()
   }
 
   remover(id: number, usuarioId: number | null = null): void {
-    db.prepare(
-      `
-      UPDATE usuarios
-      SET
-        ativo = 0,
-        deleted_at = datetime('now', 'localtime'),
-        deleted_by = ?,
-        updated_at = datetime('now', 'localtime'),
-        updated_by = ?
-      WHERE id = ?
-        AND deleted_at IS NULL
-    `
-    ).run(usuarioId, usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE usuarios
+          SET ativo = 0,
+              deleted_at = datetime('now', 'localtime'),
+              deleted_by = ?,
+              updated_at = datetime('now', 'localtime'),
+              updated_by = ?
+          WHERE id = ? AND deleted_at IS NULL
+        `
+        )
+        .run(usuarioId, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Usuário não encontrado ou já foi removido.')
+      }
+
+      this.syncQueue.enqueueUsuario(id, 'DELETE')
+    })()
   }
 
   buscarPerfilPorId(id: number): { perfil: string; ativo: boolean } | undefined {

@@ -1,6 +1,7 @@
 export type SyncOperation = 'CREATE' | 'UPDATE' | 'DELETE' | 'CANCEL'
 
 export type SyncEntity =
+  | 'USUARIO'
   | 'SETOR'
   | 'SUBSETOR'
   | 'POSTO'
@@ -18,6 +19,22 @@ export type AuditSyncFields = {
   createdByUuid: string | null
   updatedByUuid: string | null
   deletedByUuid: string | null
+}
+
+export type UsuarioSyncPayload = {
+  schemaVersion: 1
+  sourceInstallationUuid: string
+  entity: 'USUARIO'
+  operation: Extract<SyncOperation, 'CREATE' | 'UPDATE' | 'DELETE'>
+  record: AuditSyncFields & {
+    uuid: string
+    nome: string
+    matricula: string
+    perfil: string
+    senhaHash: string | null
+    deveTrocarSenha: boolean
+    ativo: boolean
+  }
 }
 
 export type SetorSyncPayload = {
@@ -183,6 +200,7 @@ export type RefugoSyncPayload = {
 }
 
 export type SyncPayload =
+  | UsuarioSyncPayload
   | SetorSyncPayload
   | SubsetorSyncPayload
   | PostoSyncPayload

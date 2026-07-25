@@ -17,6 +17,13 @@ export class SyncBackfillService {
     }
 
     db.transaction(() => {
+      const usuarios = db.prepare('SELECT id FROM usuarios ORDER BY id').all() as Array<{
+        id: number
+      }>
+      for (const usuario of usuarios) {
+        this.queue.enqueueUsuario(usuario.id, 'CREATE', true)
+      }
+
       const setores = db.prepare('SELECT id FROM setores ORDER BY id').all() as Array<{
         id: number
       }>

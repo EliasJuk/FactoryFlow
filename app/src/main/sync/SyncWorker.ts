@@ -10,6 +10,7 @@ import { PostgresPostoSyncRepository } from './postgres/PostgresPostoSyncReposit
 import { PostgresRefugoSyncRepository } from './postgres/PostgresRefugoSyncRepository'
 import { PostgresSetorSyncRepository } from './postgres/PostgresSetorSyncRepository'
 import { PostgresSubsetorSyncRepository } from './postgres/PostgresSubsetorSyncRepository'
+import { PostgresUsuarioSyncRepository } from './postgres/PostgresUsuarioSyncRepository'
 import type { SyncPayload } from './sync.types'
 
 type QueueRow = {
@@ -23,6 +24,7 @@ type QueueRow = {
 export class SyncWorker {
   private timer: NodeJS.Timeout | null = null
   private running = false
+  private readonly usuarioRepository = new PostgresUsuarioSyncRepository()
   private readonly setorRepository = new PostgresSetorSyncRepository()
   private readonly subsetorRepository = new PostgresSubsetorSyncRepository()
   private readonly postoRepository = new PostgresPostoSyncRepository()
@@ -99,15 +101,16 @@ export class SyncWorker {
                OR next_attempt_at <= datetime('now','localtime'))
         ORDER BY
           CASE entity
-            WHEN 'SETOR' THEN 1
-            WHEN 'SUBSETOR' THEN 2
-            WHEN 'POSTO' THEN 3
-            WHEN 'COMPONENTE' THEN 4
-            WHEN 'CIRCUITO' THEN 5
-            WHEN 'CIRCUITO_COMPONENTE' THEN 6
-            WHEN 'DEFEITO' THEN 7
-            WHEN 'POSTO_DEFEITO' THEN 8
-            WHEN 'REFUGO' THEN 9
+            WHEN 'USUARIO' THEN 1
+            WHEN 'SETOR' THEN 2
+            WHEN 'SUBSETOR' THEN 3
+            WHEN 'POSTO' THEN 4
+            WHEN 'COMPONENTE' THEN 5
+            WHEN 'CIRCUITO' THEN 6
+            WHEN 'CIRCUITO_COMPONENTE' THEN 7
+            WHEN 'DEFEITO' THEN 8
+            WHEN 'POSTO_DEFEITO' THEN 9
+            WHEN 'REFUGO' THEN 10
             ELSE 99
           END,
           id ASC
@@ -143,6 +146,9 @@ export class SyncWorker {
       }
 
       switch (payload.entity) {
+        case 'USUARIO':
+          await this.usuarioRepository.apply(payload)
+          break
         case 'SETOR':
           await this.setorRepository.apply(payload)
           break

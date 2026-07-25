@@ -15,7 +15,8 @@ import type {
   SubsetorSyncPayload,
   SyncEntity,
   SyncOperation,
-  SyncPayload
+  SyncPayload,
+  UsuarioSyncPayload
 } from './sync.types'
 
 type RefugoRow = Omit<RefugoSyncPayload['record'], 'itens'>
@@ -67,6 +68,67 @@ export class SyncQueueRepository {
       )
     `
     ).run(IdGenerator.generate(), entity, recordUuid, operation, JSON.stringify(payload))
+  }
+
+  enqueueUsuario(id: number, operation: UsuarioSyncPayload['operation'], ifMissing = false): void {
+    if (!this.shouldEnqueue()) return
+
+    const row = db
+      .prepare(
+        `
+      SELECT usuario.uuid,
+             usuario.nome,
+             usuario.matricula,
+             usuario.perfil,
+             usuario.senha_hash AS senhaHash,
+             usuario.deve_trocar_senha AS deveTrocarSenha,
+             usuario.ativo,
+             usuario.created_at AS createdAt,
+             usuario.updated_at AS updatedAt,
+             usuario.deleted_at AS deletedAt,
+             criador.uuid AS createdByUuid,
+             atualizador.uuid AS updatedByUuid,
+             excluidor.uuid AS deletedByUuid
+      FROM usuarios usuario
+      LEFT JOIN usuarios criador ON criador.id = usuario.created_by
+      LEFT JOIN usuarios atualizador ON atualizador.id = usuario.updated_by
+      LEFT JOIN usuarios excluidor ON excluidor.id = usuario.deleted_by
+      WHERE usuario.id = ?
+    `
+      )
+      .get(id) as
+      | {
+          uuid: string
+          nome: string
+          matricula: string
+          perfil: string
+          senhaHash: string | null
+          deveTrocarSenha: number
+          ativo: number
+          createdAt: string
+          updatedAt: string
+          deletedAt: string | null
+          createdByUuid: string | null
+          updatedByUuid: string | null
+          deletedByUuid: string | null
+        }
+      | undefined
+
+    if (!row) throw new Error('Usuário não encontrado para sincronização.')
+
+    const payload: UsuarioSyncPayload = {
+      schemaVersion: 1,
+      sourceInstallationUuid: this.installationUuid(),
+      entity: 'USUARIO',
+      operation,
+      record: {
+        ...row,
+        deveTrocarSenha: Boolean(row.deveTrocarSenha),
+        ativo: Boolean(row.ativo)
+      }
+    }
+
+    this.enqueue('USUARIO', row.uuid, operation, payload, ifMissing)
   }
 
   enqueueSetor(id: number, operation: SetorSyncPayload['operation'], ifMissing = false): void {

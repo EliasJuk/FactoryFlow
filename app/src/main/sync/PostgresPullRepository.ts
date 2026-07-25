@@ -426,8 +426,20 @@ export class PostgresPullRepository {
   }
 
   private normalizeDate(value: unknown): string {
-    if (value instanceof Date) return value.toISOString()
+    if (value instanceof Date) {
+      const pad = (part: number, size = 2): string => String(part).padStart(size, '0')
+
+      return [
+        `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`,
+        `${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}.${pad(
+          value.getMilliseconds(),
+          3
+        )}`
+      ].join(' ')
+    }
+
     if (typeof value === 'string') return value
+
     throw new Error('Data inválida recebida do PostgreSQL.')
   }
 

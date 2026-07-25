@@ -14,3 +14,7 @@ Primeiro teste:
 
 Reset:
 `npm run test:sync:reset`
+
+**OBS:.** Usuario Defaut: 
+  - Matricula: 0000
+  - Senha: admin123

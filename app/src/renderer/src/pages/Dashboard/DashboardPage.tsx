@@ -20,7 +20,8 @@ import {
   BarChart3,
   FileDown,
   Workflow,
-  ListChecks
+  ListChecks,
+  LogOut
 } from 'lucide-react'
 
 type DashboardCardProps = {
@@ -45,9 +46,14 @@ function DashboardCard({ title, description, icon, onClick }: DashboardCardProps
 
 function DashboardPage() {
   const navigate = useNavigate()
-  const { usuario } = useApp()
+  const { usuario, limparUsuario } = useApp()
   const perfil = usuario.perfil?.toUpperCase()
   const podeVerAdministracao = perfil !== 'OPERADOR'
+
+  function fazerLogout() {
+    limparUsuario()
+    navigate('/', { replace: true })
+  }
 
   return (
     <main className={ui.page}>
@@ -55,8 +61,22 @@ function DashboardPage() {
         <h1 className={ui.dashboardTitle}>{APP.name}</h1>
       </header>
 
-      <div className={ui.dashboardUserBar}>
-        Olá, <span className="font-semibold">{usuario.nome}</span>
+      <div className={`${ui.dashboardUserBar} flex items-center justify-between`}>
+        <div>
+          Olá, <span className="font-semibold">{usuario.nome}</span>
+          <br></br>
+          <span>{perfil}</span>
+        </div>
+
+        <button
+          type="button"
+          onClick={fazerLogout}
+          className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-black"
+          title="Sair"
+        >
+          <LogOut size={17} />
+          Sair
+        </button>
       </div>
 
       <section className="p-6">

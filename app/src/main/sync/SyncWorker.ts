@@ -8,6 +8,7 @@ import { PostgresDefeitoSyncRepository } from './postgres/PostgresDefeitoSyncRep
 import { PostgresPostoDefeitoSyncRepository } from './postgres/PostgresPostoDefeitoSyncRepository'
 import { PostgresPostoSyncRepository } from './postgres/PostgresPostoSyncRepository'
 import { PostgresRefugoSyncRepository } from './postgres/PostgresRefugoSyncRepository'
+import { PostgresRoteiroSyncRepository } from './postgres/PostgresRoteiroSyncRepository'
 import { PostgresSetorSyncRepository } from './postgres/PostgresSetorSyncRepository'
 import { PostgresSubsetorSyncRepository } from './postgres/PostgresSubsetorSyncRepository'
 import { PostgresUsuarioSyncRepository } from './postgres/PostgresUsuarioSyncRepository'
@@ -33,6 +34,7 @@ export class SyncWorker {
   private readonly circuitoComponenteRepository = new PostgresCircuitoComponenteSyncRepository()
   private readonly defeitoRepository = new PostgresDefeitoSyncRepository()
   private readonly postoDefeitoRepository = new PostgresPostoDefeitoSyncRepository()
+  private readonly roteiroRepository = new PostgresRoteiroSyncRepository()
   private readonly refugoRepository = new PostgresRefugoSyncRepository()
 
   constructor(private readonly intervalMs = 30_000) {}
@@ -110,7 +112,8 @@ export class SyncWorker {
             WHEN 'CIRCUITO_COMPONENTE' THEN 7
             WHEN 'DEFEITO' THEN 8
             WHEN 'POSTO_DEFEITO' THEN 9
-            WHEN 'REFUGO' THEN 10
+            WHEN 'ROTEIRO' THEN 10
+            WHEN 'REFUGO' THEN 11
             ELSE 99
           END,
           id ASC
@@ -172,6 +175,9 @@ export class SyncWorker {
           break
         case 'POSTO_DEFEITO':
           await this.postoDefeitoRepository.apply(payload)
+          break
+        case 'ROTEIRO':
+          await this.roteiroRepository.apply(payload)
           break
         case 'REFUGO':
           await this.refugoRepository.apply(payload)

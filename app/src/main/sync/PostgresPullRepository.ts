@@ -9,6 +9,7 @@ import type {
   PullCursor,
   RefugoPullItemRecord,
   RefugoPullRecord,
+  RoteiroPullRecord,
   SetorPullRecord,
   SubsetorPullRecord,
   UsuarioPullRecord
@@ -248,6 +249,42 @@ export class PostgresPullRepository {
     )
 
     return this.normalizeRows(result.rows)
+  }
+
+  async fetchRoteiros(cursor: PullCursor, limit: number): Promise<RoteiroPullRecord[]> {
+    const result = await pool.query<RoteiroPullRecord>(
+      `
+      SELECT
+        cpc.uuid,
+        circuito.uuid AS "circuitoUuid",
+        posto.uuid AS "postoUuid",
+        componente.uuid AS "componenteUuid",
+        cpc.quantidade,
+        cpc.ativo,
+        cpc.created_at AS "createdAt",
+        cpc.updated_at AS "updatedAt",
+        cpc.deleted_at AS "deletedAt",
+        created_by.uuid AS "createdByUuid",
+        updated_by.uuid AS "updatedByUuid",
+        deleted_by.uuid AS "deletedByUuid"
+      FROM circuito_posto_componentes cpc
+      INNER JOIN circuitos circuito ON circuito.id = cpc.circuito_id
+      INNER JOIN postos posto ON posto.id = cpc.posto_id
+      INNER JOIN componentes componente ON componente.id = cpc.componente_id
+      LEFT JOIN usuarios created_by ON created_by.id = cpc.created_by
+      LEFT JOIN usuarios updated_by ON updated_by.id = cpc.updated_by
+      LEFT JOIN usuarios deleted_by ON deleted_by.id = cpc.deleted_by
+      ${this.cursorWhere('cpc')}
+      ORDER BY cpc.updated_at, cpc.uuid
+      LIMIT $3
+      `,
+      [cursor.lastUpdatedAt, cursor.lastUuid, limit]
+    )
+
+    return this.normalizeRows(result.rows).map((row) => ({
+      ...row,
+      quantidade: Number(row.quantidade)
+    }))
   }
 
   async fetchRefugos(cursor: PullCursor, limit: number): Promise<RefugoPullRecord[]> {

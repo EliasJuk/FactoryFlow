@@ -1,5 +1,6 @@
 import { getDatabase } from '../../database/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
+import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const db = getDatabase()
 const USUARIO_SISTEMA_ID = 1
@@ -40,6 +41,8 @@ type RoteiroComponenteRow = Omit<RoteiroComponente, 'ativo'> & {
 }
 
 export class RoteiroRepository {
+  private readonly syncQueue = new SyncQueueRepository()
+
   private consultaItensBase(): string {
     return `
       SELECT
@@ -139,63 +142,77 @@ export class RoteiroRepository {
     const existente = db
       .prepare(
         `
-      SELECT id
-      FROM circuito_posto_componentes
-      WHERE circuito_id = ?
-        AND posto_id = ?
-        AND componente_id = ?
-    `
-      )
-      .get(circuitoId, postoId, componenteId) as { id: number } | undefined
-
-    if (existente) {
-      db.prepare(
+        SELECT id, ativo
+        FROM circuito_posto_componentes
+        WHERE circuito_id = ?
+          AND posto_id = ?
+          AND componente_id = ?
+        LIMIT 1
         `
-        UPDATE circuito_posto_componentes
-        SET
-          quantidade = ?,
-          ativo = 1,
-          updated_at = datetime('now','localtime'),
-          updated_by = ?,
-          deleted_at = NULL,
-          deleted_by = NULL
-        WHERE id = ?
-      `
-      ).run(quantidade, usuarioId, existente.id)
-
-      return
-    }
-
-    db.prepare(
-      `
-      INSERT INTO circuito_posto_componentes (
-        uuid,
-        circuito_id,
-        posto_id,
-        componente_id,
-        quantidade,
-        ativo,
-        created_at,
-        updated_at,
-        created_by,
-        updated_by
       )
-      VALUES (
-        ?, ?, ?, ?, ?, 1,
-        datetime('now','localtime'),
-        datetime('now','localtime'),
-        ?, ?
-      )
-    `
-    ).run(
-      IdGenerator.generate(),
-      circuitoId,
-      postoId,
-      componenteId,
-      quantidade,
-      usuarioId,
-      usuarioId
-    )
+      .get(circuitoId, postoId, componenteId) as { id: number; ativo: number } | undefined
+
+    db.transaction(() => {
+      if (existente) {
+        const resultado = db
+          .prepare(
+            `
+            UPDATE circuito_posto_componentes
+            SET
+              quantidade = ?,
+              ativo = 1,
+              updated_at = datetime('now','localtime'),
+              updated_by = ?,
+              deleted_at = NULL,
+              deleted_by = NULL
+            WHERE id = ?
+            `
+          )
+          .run(quantidade, usuarioId, existente.id)
+
+        if (resultado.changes === 0) {
+          throw new Error('Roteiro não encontrado.')
+        }
+
+        this.syncQueue.enqueueRoteiro(existente.id, 'UPDATE')
+        return
+      }
+
+      const resultado = db
+        .prepare(
+          `
+          INSERT INTO circuito_posto_componentes (
+            uuid,
+            circuito_id,
+            posto_id,
+            componente_id,
+            quantidade,
+            ativo,
+            created_at,
+            updated_at,
+            created_by,
+            updated_by
+          )
+          VALUES (
+            ?, ?, ?, ?, ?, 1,
+            datetime('now','localtime'),
+            datetime('now','localtime'),
+            ?, ?
+          )
+          `
+        )
+        .run(
+          IdGenerator.generate(),
+          circuitoId,
+          postoId,
+          componenteId,
+          quantidade,
+          usuarioId,
+          usuarioId
+        )
+
+      this.syncQueue.enqueueRoteiro(Number(resultado.lastInsertRowid), 'CREATE')
+    })()
   }
 
   editarQuantidade(id: number, quantidade: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
@@ -203,32 +220,53 @@ export class RoteiroRepository {
       throw new Error('QUANTIDADE_INVALIDA')
     }
 
-    db.prepare(
-      `
-      UPDATE circuito_posto_componentes
-      SET
-        quantidade = ?,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?
-      WHERE id = ?
-        AND ativo = 1
-    `
-    ).run(quantidade, usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE circuito_posto_componentes
+          SET
+            quantidade = ?,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?
+          WHERE id = ?
+            AND ativo = 1
+          `
+        )
+        .run(quantidade, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Roteiro não encontrado ou está inativo.')
+      }
+
+      this.syncQueue.enqueueRoteiro(id, 'UPDATE')
+    })()
   }
 
   remover(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
-    db.prepare(
-      `
-      UPDATE circuito_posto_componentes
-      SET
-        ativo = 0,
-        updated_at = datetime('now','localtime'),
-        updated_by = ?,
-        deleted_at = datetime('now','localtime'),
-        deleted_by = ?
-      WHERE id = ?
-    `
-    ).run(usuarioId, usuarioId, id)
+    db.transaction(() => {
+      const resultado = db
+        .prepare(
+          `
+          UPDATE circuito_posto_componentes
+          SET
+            ativo = 0,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?,
+            deleted_at = datetime('now','localtime'),
+            deleted_by = ?
+          WHERE id = ?
+            AND ativo = 1
+          `
+        )
+        .run(usuarioId, usuarioId, id)
+
+      if (resultado.changes === 0) {
+        throw new Error('Roteiro não encontrado ou já está inativo.')
+      }
+
+      this.syncQueue.enqueueRoteiro(id, 'DELETE')
+    })()
   }
 
   listarTodos(): RoteiroComponente[] {

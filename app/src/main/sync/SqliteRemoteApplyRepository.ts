@@ -8,6 +8,7 @@ import type {
   PostoDefeitoPullRecord,
   PostoPullRecord,
   RefugoPullRecord,
+  RoteiroPullRecord,
   SetorPullRecord,
   SubsetorPullRecord,
   UsuarioPullRecord
@@ -136,6 +137,44 @@ export class SqliteRemoteApplyRepository {
       `,
       record,
       [record.uuid, postoId, defeitoId, record.ativo ? 1 : 0]
+    )
+  }
+
+  applyRoteiro(record: RoteiroPullRecord): void {
+    const circuitoId = this.requiredId('circuitos', record.circuitoUuid)
+    const postoId = this.requiredId('postos', record.postoUuid)
+    const componenteId = this.requiredId('componentes', record.componenteUuid)
+
+    this.applyAuditedEntity(
+      `
+      INSERT INTO circuito_posto_componentes (
+        uuid,
+        circuito_id,
+        posto_id,
+        componente_id,
+        quantidade,
+        ativo,
+        created_at,
+        updated_at,
+        deleted_at,
+        created_by,
+        updated_by,
+        deleted_by
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(uuid) DO UPDATE SET
+        circuito_id = excluded.circuito_id,
+        posto_id = excluded.posto_id,
+        componente_id = excluded.componente_id,
+        quantidade = excluded.quantidade,
+        ativo = excluded.ativo,
+        updated_at = excluded.updated_at,
+        deleted_at = excluded.deleted_at,
+        updated_by = excluded.updated_by,
+        deleted_by = excluded.deleted_by
+      `,
+      record,
+      [record.uuid, circuitoId, postoId, componenteId, record.quantidade, record.ativo ? 1 : 0]
     )
   }
 

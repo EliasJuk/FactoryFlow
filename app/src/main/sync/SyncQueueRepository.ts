@@ -10,6 +10,7 @@ import type {
   PostoDefeitoSyncPayload,
   PostoSyncPayload,
   RefugoSyncItemPayload,
+  RoteiroSyncPayload,
   RefugoSyncPayload,
   SetorSyncPayload,
   SubsetorSyncPayload,
@@ -521,6 +522,71 @@ export class SyncQueueRepository {
     }
 
     this.enqueue('POSTO_DEFEITO', row.uuid, operation, payload, ifMissing)
+  }
+
+  enqueueRoteiro(id: number, operation: RoteiroSyncPayload['operation'], ifMissing = false): void {
+    if (!this.shouldEnqueue()) return
+
+    const row = db
+      .prepare(
+        `
+        SELECT
+          cpc.uuid,
+          circuito.uuid AS circuitoUuid,
+          posto.uuid AS postoUuid,
+          componente.uuid AS componenteUuid,
+          cpc.quantidade,
+          cpc.ativo,
+          cpc.created_at AS createdAt,
+          cpc.updated_at AS updatedAt,
+          cpc.deleted_at AS deletedAt,
+          created_by.uuid AS createdByUuid,
+          updated_by.uuid AS updatedByUuid,
+          deleted_by.uuid AS deletedByUuid
+        FROM circuito_posto_componentes cpc
+        INNER JOIN circuitos circuito ON circuito.id = cpc.circuito_id
+        INNER JOIN postos posto ON posto.id = cpc.posto_id
+        INNER JOIN componentes componente ON componente.id = cpc.componente_id
+        LEFT JOIN usuarios created_by ON created_by.id = cpc.created_by
+        LEFT JOIN usuarios updated_by ON updated_by.id = cpc.updated_by
+        LEFT JOIN usuarios deleted_by ON deleted_by.id = cpc.deleted_by
+        WHERE cpc.id = ?
+        `
+      )
+      .get(id) as
+      | {
+          uuid: string
+          circuitoUuid: string
+          postoUuid: string
+          componenteUuid: string
+          quantidade: number
+          ativo: number
+          createdAt: string
+          updatedAt: string
+          deletedAt: string | null
+          createdByUuid: string | null
+          updatedByUuid: string | null
+          deletedByUuid: string | null
+        }
+      | undefined
+
+    if (!row) {
+      throw new Error('Roteiro não encontrado para sincronização.')
+    }
+
+    const payload: RoteiroSyncPayload = {
+      schemaVersion: 1,
+      sourceInstallationUuid: this.installationUuid(),
+      entity: 'ROTEIRO',
+      operation,
+      record: {
+        ...row,
+        quantidade: Number(row.quantidade),
+        ativo: Boolean(row.ativo)
+      }
+    }
+
+    this.enqueue('ROTEIRO', row.uuid, operation, payload, ifMissing)
   }
 
   enqueueRefugo(refugoId: number, operation: RefugoSyncPayload['operation']): void {

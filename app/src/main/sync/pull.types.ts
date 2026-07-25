@@ -8,6 +8,7 @@ export type PullEntity =
   | 'DEFEITO'
   | 'CIRCUITO_COMPONENTE'
   | 'POSTO_DEFEITO'
+  | 'ROTEIRO'
   | 'REFUGO'
 
 export type PullCursor = {
@@ -84,6 +85,14 @@ export type CircuitoComponentePullRecord = AuditPullFields & {
 export type PostoDefeitoPullRecord = AuditPullFields & {
   postoUuid: string
   defeitoUuid: string
+  ativo: boolean
+}
+
+export type RoteiroPullRecord = AuditPullFields & {
+  circuitoUuid: string
+  postoUuid: string
+  componenteUuid: string
+  quantidade: number
   ativo: boolean
 }
 

@@ -10,6 +10,7 @@ export type SyncEntity =
   | 'CIRCUITO_COMPONENTE'
   | 'DEFEITO'
   | 'POSTO_DEFEITO'
+  | 'ROTEIRO'
   | 'REFUGO'
 
 export type AuditSyncFields = {
@@ -143,6 +144,21 @@ export type PostoDefeitoSyncPayload = {
   }
 }
 
+export type RoteiroSyncPayload = {
+  schemaVersion: 1
+  sourceInstallationUuid: string
+  entity: 'ROTEIRO'
+  operation: Extract<SyncOperation, 'CREATE' | 'UPDATE' | 'DELETE'>
+  record: AuditSyncFields & {
+    uuid: string
+    circuitoUuid: string
+    postoUuid: string
+    componenteUuid: string
+    quantidade: number
+    ativo: boolean
+  }
+}
+
 export type RefugoSyncItemPayload = {
   uuid: string
   componenteUuid: string
@@ -209,4 +225,5 @@ export type SyncPayload =
   | CircuitoComponenteSyncPayload
   | DefeitoSyncPayload
   | PostoDefeitoSyncPayload
+  | RoteiroSyncPayload
   | RefugoSyncPayload

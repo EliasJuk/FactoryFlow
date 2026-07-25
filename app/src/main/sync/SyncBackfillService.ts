@@ -65,6 +65,13 @@ export class SyncBackfillService {
         this.queue.enqueueDefeito(defeito.id, 'CREATE', true)
       }
 
+      const roteiros = db
+        .prepare('SELECT id FROM circuito_posto_componentes ORDER BY id')
+        .all() as Array<{ id: number }>
+      for (const roteiro of roteiros) {
+        this.queue.enqueueRoteiro(roteiro.id, 'CREATE', true)
+      }
+
       const postoDefeitos = db.prepare('SELECT id FROM posto_defeitos ORDER BY id').all() as Array<{
         id: number
       }>

@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
-import { dirname, join } from 'path'
+import { dirname, join, resolve } from 'path'
 
 export type StorageMode = 'sqliteSync' | 'api' | 'postgres'
 export type DatabaseProvider = 'sqlite' | 'postgres'
@@ -98,6 +98,9 @@ type LegacyConfig = {
 }
 
 export function getApplicationFolder() {
+  const override = process.env.FACTORYFLOW_CONFIG_DIR
+  if (override) return resolve(override)
+
   if (!app.isPackaged) return process.cwd()
 
   return process.env.PORTABLE_EXECUTABLE_DIR || dirname(app.getPath('exe'))

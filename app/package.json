@@ -21,7 +21,10 @@
     "build:linux": "electron-vite build && electron-builder --linux",
     "dist": "npm run build && electron-builder --config electron-builder.yml",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:sync:pc-a": "powershell -ExecutionPolicy Bypass -File tests/sync/scripts/start-pc-a.ps1",
+    "test:sync:pc-b": "powershell -ExecutionPolicy Bypass -File tests/sync/scripts/start-pc-b.ps1",
+    "test:sync:reset": "powershell -ExecutionPolicy Bypass -File tests/sync/scripts/reset-sync-test.ps1"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

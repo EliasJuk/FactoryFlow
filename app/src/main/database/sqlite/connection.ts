@@ -1,7 +1,7 @@
 import Database, { type Database as DatabaseType } from 'better-sqlite3'
 import { app } from 'electron'
-import { existsSync, mkdirSync, renameSync } from 'fs'
-import { dirname, join } from 'path'
+import { existsSync, mkdirSync } from 'fs'
+import { dirname, join, resolve } from 'path'
 
 const isDev = !app.isPackaged
 
@@ -9,32 +9,19 @@ const applicationFolder = isDev
   ? process.cwd()
   : process.env.PORTABLE_EXECUTABLE_DIR || dirname(app.getPath('exe'))
 
-const databaseFolder = join(applicationFolder, 'database')
-const legacyDbPath = join(databaseFolder, 'factoryflow.db')
-const dbPath = join(databaseFolder, 'database.db')
+const configuredPath = process.env.FACTORYFLOW_SQLITE_PATH
+
+const dbPath = configuredPath
+  ? resolve(configuredPath)
+  : join(applicationFolder, 'database', 'database.db')
+
+const databaseFolder = dirname(dbPath)
 
 if (!existsSync(databaseFolder)) {
   mkdirSync(databaseFolder, { recursive: true })
 }
 
-/**
- * Migração segura do nome antigo.
- * Nunca cria um banco vazio se o banco antigo ainda existir.
- */
-if (!existsSync(dbPath) && existsSync(legacyDbPath)) {
-  renameSync(legacyDbPath, dbPath)
-
-  for (const suffix of ['-wal', '-shm']) {
-    const oldSidecar = `${legacyDbPath}${suffix}`
-    const newSidecar = `${dbPath}${suffix}`
-
-    if (existsSync(oldSidecar) && !existsSync(newSidecar)) {
-      renameSync(oldSidecar, newSidecar)
-    }
-  }
-
-  console.log('[DATABASE] Banco local renomeado para database/database.db')
-}
+console.log(`[DATABASE] SQLite: ${dbPath}`)
 
 const sqlite: DatabaseType = new Database(dbPath)
 

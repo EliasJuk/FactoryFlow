@@ -1,10 +1,36 @@
 {
   "database": {
     "mode": "sqliteSync",
-    "sqlitePath": "tests/sync/databases/pc-b.db"
+    "provider": "sqlite",
+    "sqlite": {
+      "path": "ignored-by-test-env"
+    },
+    "postgres": {
+      "host": "localhost",
+      "port": 5433,
+      "database": "factoryflow",
+      "user": "postgres",
+      "timeoutSeconds": 15,
+      "ssl": false
+    },
+    "api": {
+      "baseUrl": "http://localhost:8080",
+      "version": "v1",
+      "authMethod": "bearer",
+      "timeoutSeconds": 15,
+      "validateSsl": true,
+      "retryOnError": true
+    }
   },
   "sync": {
     "enabled": true,
-    "destination": "postgres"
+    "destination": "postgres",
+    "syncOnStartup": true,
+    "syncOnReconnect": true,
+    "retryFailed": true,
+    "refugoRetention": {
+      "enabled": false,
+      "months": null
+    }
   }
 }

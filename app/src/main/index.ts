@@ -1,6 +1,12 @@
 import { app, shell, BrowserWindow, globalShortcut, ipcMain } from 'electron'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+
+const testUserDataDir = process.env.FACTORYFLOW_USER_DATA_DIR
+if (testUserDataDir) {
+  app.setPath('userData', resolve(testUserDataDir))
+  console.log(`[TEST INSTANCE] userData: ${app.getPath('userData')}`)
+}
 
 import { DatabaseManager } from './database/DatabaseManager'
 import { pool } from './database/postgres/connection'
@@ -39,6 +45,9 @@ function createWindow(): void {
     height: 670,
     show: false,
     autoHideMenuBar: true,
+    title: process.env.FACTORYFLOW_TEST_INSTANCE
+      ? `FactoryFlow — ${process.env.FACTORYFLOW_TEST_INSTANCE}`
+      : 'FactoryFlow',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false

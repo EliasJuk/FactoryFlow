@@ -1,9 +1,11 @@
 import db from '../database/database'
 import { IdGenerator } from '../shared/ids/IdGenerator'
 import type {
+  CircuitoComponentePullRecord,
   CircuitoPullRecord,
   ComponentePullRecord,
   DefeitoPullRecord,
+  PostoDefeitoPullRecord,
   PostoPullRecord,
   SetorPullRecord,
   SubsetorPullRecord,
@@ -82,6 +84,60 @@ export class SqliteRemoteApplyRepository {
       [record.uuid, record.codigo, record.descricao, record.ativo ? 1 : 0]
     )
   }
+
+  applyCircuitoComponente(record: CircuitoComponentePullRecord): void {
+    const circuitoId = this.requiredId('circuitos', record.circuitoUuid)
+    const componenteId = this.requiredId('componentes', record.componenteUuid)
+
+    this.applyAuditedEntity(
+      `
+      INSERT INTO circuito_componentes (
+        uuid, circuito_id, componente_id, quantidade, ativo,
+        created_at, updated_at, deleted_at,
+        created_by, updated_by, deleted_by
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(uuid) DO UPDATE SET
+        circuito_id = excluded.circuito_id,
+        componente_id = excluded.componente_id,
+        quantidade = excluded.quantidade,
+        ativo = excluded.ativo,
+        updated_at = excluded.updated_at,
+        deleted_at = excluded.deleted_at,
+        updated_by = excluded.updated_by,
+        deleted_by = excluded.deleted_by
+      `,
+      record,
+      [record.uuid, circuitoId, componenteId, record.quantidade, record.ativo ? 1 : 0]
+    )
+  }
+
+  applyPostoDefeito(record: PostoDefeitoPullRecord): void {
+    const postoId = this.requiredId('postos', record.postoUuid)
+    const defeitoId = this.requiredId('defeitos', record.defeitoUuid)
+
+    this.applyAuditedEntity(
+      `
+      INSERT INTO posto_defeitos (
+        uuid, posto_id, defeito_id, ativo,
+        created_at, updated_at, deleted_at,
+        created_by, updated_by, deleted_by
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(uuid) DO UPDATE SET
+        posto_id = excluded.posto_id,
+        defeito_id = excluded.defeito_id,
+        ativo = excluded.ativo,
+        updated_at = excluded.updated_at,
+        deleted_at = excluded.deleted_at,
+        updated_by = excluded.updated_by,
+        deleted_by = excluded.deleted_by
+      `,
+      record,
+      [record.uuid, postoId, defeitoId, record.ativo ? 1 : 0]
+    )
+  }
+
   private applyAuditedEntity(sql: string, record: any, values: unknown[]): void {
     db.transaction(() => {
       db.prepare(sql).run(
@@ -112,7 +168,10 @@ export class SqliteRemoteApplyRepository {
         `INSERT INTO componentes_precos (uuid,componente_id,valor_unitario,vigencia_inicio,vigencia_fim,ativo,criado_em) VALUES (?,?,?,date('now','localtime'),NULL,1,datetime('now','localtime'))`
       ).run(IdGenerator.generate(), componenteId, normalized)
   }
-  private requiredId(table: 'setores' | 'subsetores' | 'componentes', uuid: string): number {
+  private requiredId(
+    table: 'setores' | 'subsetores' | 'postos' | 'componentes' | 'circuitos' | 'defeitos',
+    uuid: string
+  ): number {
     const row = db.prepare(`SELECT id FROM ${table} WHERE uuid=? LIMIT 1`).get(uuid) as
       { id: number } | undefined
     if (!row) throw new Error(`Dependência ausente no SQLite: ${table}/${uuid}`)

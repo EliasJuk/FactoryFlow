@@ -35,6 +35,8 @@ export class SyncPullWorker {
       await this.pullComponentes()
       await this.pullCircuitos()
       await this.pullDefeitos()
+      await this.pullCircuitoComponentes()
+      await this.pullPostoDefeitos()
     } finally {
       this.running = false
     }
@@ -92,6 +94,23 @@ export class SyncPullWorker {
       (r) => this.local.applyDefeito(r)
     )
   }
+
+  private pullCircuitoComponentes(): Promise<void> {
+    return this.pullEntity(
+      'CIRCUITO_COMPONENTE',
+      (cursor) => this.remote.fetchCircuitoComponentes(cursor, this.batchSize),
+      (record) => this.local.applyCircuitoComponente(record)
+    )
+  }
+
+  private pullPostoDefeitos(): Promise<void> {
+    return this.pullEntity(
+      'POSTO_DEFEITO',
+      (cursor) => this.remote.fetchPostoDefeitos(cursor, this.batchSize),
+      (record) => this.local.applyPostoDefeito(record)
+    )
+  }
+
   private async pullEntity<T extends PullRecordBase>(
     entity: PullEntity,
     fetchBatch: (cursor: { lastUpdatedAt: string | null; lastUuid: string | null }) => Promise<T[]>,

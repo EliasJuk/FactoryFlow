@@ -1,5 +1,13 @@
 export type PullEntity =
-  'USUARIO' | 'SETOR' | 'SUBSETOR' | 'POSTO' | 'COMPONENTE' | 'CIRCUITO' | 'DEFEITO'
+  | 'USUARIO'
+  | 'SETOR'
+  | 'SUBSETOR'
+  | 'POSTO'
+  | 'COMPONENTE'
+  | 'CIRCUITO'
+  | 'DEFEITO'
+  | 'CIRCUITO_COMPONENTE'
+  | 'POSTO_DEFEITO'
 
 export type PullCursor = {
   lastUpdatedAt: string | null
@@ -62,5 +70,18 @@ export type CircuitoPullRecord = AuditPullFields & {
 export type DefeitoPullRecord = AuditPullFields & {
   codigo: string
   descricao: string
+  ativo: boolean
+}
+
+export type CircuitoComponentePullRecord = AuditPullFields & {
+  circuitoUuid: string
+  componenteUuid: string
+  quantidade: number
+  ativo: boolean
+}
+
+export type PostoDefeitoPullRecord = AuditPullFields & {
+  postoUuid: string
+  defeitoUuid: string
   ativo: boolean
 }

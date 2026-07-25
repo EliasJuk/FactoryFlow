@@ -1,8 +1,10 @@
 import { pool } from '../database/postgres/connection'
 import type {
+  CircuitoComponentePullRecord,
   CircuitoPullRecord,
   ComponentePullRecord,
   DefeitoPullRecord,
+  PostoDefeitoPullRecord,
   PostoPullRecord,
   PullCursor,
   SetorPullRecord,
@@ -174,6 +176,73 @@ export class PostgresPullRepository {
       `,
       [cursor.lastUpdatedAt, cursor.lastUuid, limit]
     )
+    return this.normalizeRows(result.rows)
+  }
+
+  async fetchCircuitoComponentes(
+    cursor: PullCursor,
+    limit: number
+  ): Promise<CircuitoComponentePullRecord[]> {
+    const result = await pool.query<CircuitoComponentePullRecord>(
+      `
+      SELECT
+        cc.uuid,
+        circuito.uuid AS "circuitoUuid",
+        componente.uuid AS "componenteUuid",
+        cc.quantidade,
+        cc.ativo,
+        cc.created_at AS "createdAt",
+        cc.updated_at AS "updatedAt",
+        cc.deleted_at AS "deletedAt",
+        created_by.uuid AS "createdByUuid",
+        updated_by.uuid AS "updatedByUuid",
+        deleted_by.uuid AS "deletedByUuid"
+      FROM circuito_componentes cc
+      INNER JOIN circuitos circuito ON circuito.id = cc.circuito_id
+      INNER JOIN componentes componente ON componente.id = cc.componente_id
+      LEFT JOIN usuarios created_by ON created_by.id = cc.created_by
+      LEFT JOIN usuarios updated_by ON updated_by.id = cc.updated_by
+      LEFT JOIN usuarios deleted_by ON deleted_by.id = cc.deleted_by
+      ${this.cursorWhere('cc')}
+      ORDER BY cc.updated_at, cc.uuid
+      LIMIT $3
+      `,
+      [cursor.lastUpdatedAt, cursor.lastUuid, limit]
+    )
+
+    return this.normalizeRows(result.rows).map((row) => ({
+      ...row,
+      quantidade: Number(row.quantidade)
+    }))
+  }
+
+  async fetchPostoDefeitos(cursor: PullCursor, limit: number): Promise<PostoDefeitoPullRecord[]> {
+    const result = await pool.query<PostoDefeitoPullRecord>(
+      `
+      SELECT
+        pd.uuid,
+        posto.uuid AS "postoUuid",
+        defeito.uuid AS "defeitoUuid",
+        pd.ativo,
+        pd.created_at AS "createdAt",
+        pd.updated_at AS "updatedAt",
+        pd.deleted_at AS "deletedAt",
+        created_by.uuid AS "createdByUuid",
+        updated_by.uuid AS "updatedByUuid",
+        deleted_by.uuid AS "deletedByUuid"
+      FROM posto_defeitos pd
+      INNER JOIN postos posto ON posto.id = pd.posto_id
+      INNER JOIN defeitos defeito ON defeito.id = pd.defeito_id
+      LEFT JOIN usuarios created_by ON created_by.id = pd.created_by
+      LEFT JOIN usuarios updated_by ON updated_by.id = pd.updated_by
+      LEFT JOIN usuarios deleted_by ON deleted_by.id = pd.deleted_by
+      ${this.cursorWhere('pd')}
+      ORDER BY pd.updated_at, pd.uuid
+      LIMIT $3
+      `,
+      [cursor.lastUpdatedAt, cursor.lastUuid, limit]
+    )
+
     return this.normalizeRows(result.rows)
   }
 

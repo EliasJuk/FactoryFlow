@@ -18,3 +18,10 @@ Reset:
 **OBS:.** Usuario Defaut: 
   - Matricula: 0000
   - Senha: admin123
+
+
+
+
+
+$env:PGPASSWORD = "12345678"  #SENHA POSTGRES
+npm.cmd run test:sync:inspect

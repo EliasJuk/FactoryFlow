@@ -24,7 +24,10 @@
     "test:run": "vitest run",
     "test:sync:pc-a": "powershell -ExecutionPolicy Bypass -File tests/sync/scripts/start-pc-a.ps1",
     "test:sync:pc-b": "powershell -ExecutionPolicy Bypass -File tests/sync/scripts/start-pc-b.ps1",
-    "test:sync:reset": "powershell -ExecutionPolicy Bypass -File tests/sync/scripts/reset-sync-test.ps1"
+    "test:sync:reset": "powershell -ExecutionPolicy Bypass -File tests/sync/scripts/reset-sync-test.ps1",
+    "test:sync:inspect": "electron tests/scripts/inspect-sync.cjs all",
+    "test:sync:inspect:pc-a": "electron tests/scripts/inspect-sync.cjs pc-a",
+    "test:sync:inspect:pc-b": "electron tests/scripts/inspect-sync.cjs pc-b"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

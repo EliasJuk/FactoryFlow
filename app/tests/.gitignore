@@ -1,0 +1,4 @@
+sync/databases/*.db
+sync/databases/*.db-shm
+sync/databases/*.db-wal
+sync/configs/*.local.json

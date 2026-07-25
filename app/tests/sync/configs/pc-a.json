@@ -1,0 +1,10 @@
+{
+  "database": {
+    "mode": "sqliteSync",
+    "sqlitePath": "tests/sync/databases/pc-a.db"
+  },
+  "sync": {
+    "enabled": true,
+    "destination": "postgres"
+  }
+}

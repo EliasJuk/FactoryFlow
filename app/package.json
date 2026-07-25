@@ -27,7 +27,9 @@
     "test:sync:reset": "powershell -ExecutionPolicy Bypass -File tests/sync/scripts/reset-sync-test.ps1",
     "test:sync:inspect": "electron tests/scripts/inspect-sync.cjs all",
     "test:sync:inspect:pc-a": "electron tests/scripts/inspect-sync.cjs pc-a",
-    "test:sync:inspect:pc-b": "electron tests/scripts/inspect-sync.cjs pc-b"
+    "test:sync:inspect:pc-b": "electron tests/scripts/inspect-sync.cjs pc-b",
+    "test:sync:integration": "vitest run tests/sync/integration",
+    "test:sync:usuario": "vitest run tests/sync/integration/usuario-sync.test.ts"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

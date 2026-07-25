@@ -37,6 +37,7 @@ export class SyncPullWorker {
       await this.pullDefeitos()
       await this.pullCircuitoComponentes()
       await this.pullPostoDefeitos()
+      await this.pullRefugos()
     } finally {
       this.running = false
     }
@@ -108,6 +109,14 @@ export class SyncPullWorker {
       'POSTO_DEFEITO',
       (cursor) => this.remote.fetchPostoDefeitos(cursor, this.batchSize),
       (record) => this.local.applyPostoDefeito(record)
+    )
+  }
+
+  private pullRefugos(): Promise<void> {
+    return this.pullEntity(
+      'REFUGO',
+      (cursor) => this.remote.fetchRefugos(cursor, this.batchSize),
+      (record) => this.local.applyRefugo(record)
     )
   }
 

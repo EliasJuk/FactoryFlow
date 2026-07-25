@@ -8,6 +8,7 @@ export type PullEntity =
   | 'DEFEITO'
   | 'CIRCUITO_COMPONENTE'
   | 'POSTO_DEFEITO'
+  | 'REFUGO'
 
 export type PullCursor = {
   lastUpdatedAt: string | null
@@ -84,4 +85,40 @@ export type PostoDefeitoPullRecord = AuditPullFields & {
   postoUuid: string
   defeitoUuid: string
   ativo: boolean
+}
+
+export type RefugoPullItemRecord = AuditPullFields & {
+  componenteUuid: string
+  defeitoUuid: string
+  quantidade: number
+  codigoComponenteSnapshot: string | null
+  nomeComponenteSnapshot: string | null
+  codigoDefeitoSnapshot: string | null
+  descricaoDefeitoSnapshot: string | null
+  precoUnitarioSnapshot: number
+  custoTotalSnapshot: number
+}
+
+export type RefugoPullRecord = AuditPullFields & {
+  numeroRefugo: string
+  siglaSetor: string
+  ano: number
+  sequencia: number
+  dataHora: string
+  turno: string
+  matriculaOperador: string
+  usuarioUuid: string | null
+  setorUuid: string
+  subsetorUuid: string
+  postoUuid: string
+  circuitoUuid: string
+  quantidadeProduzida: number
+  observacao: string | null
+  status: string
+  motivoCancelamento: string | null
+  origem: string
+  idOrigem: string | null
+  importadoEm: string | null
+  importadoPorUuid: string | null
+  itens: RefugoPullItemRecord[]
 }

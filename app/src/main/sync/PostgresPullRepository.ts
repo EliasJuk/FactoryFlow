@@ -7,10 +7,14 @@ import type {
   PostoDefeitoPullRecord,
   PostoPullRecord,
   PullCursor,
+  RefugoPullItemRecord,
+  RefugoPullRecord,
   SetorPullRecord,
   SubsetorPullRecord,
   UsuarioPullRecord
 } from './pull.types'
+
+type RefugoItemPullRow = RefugoPullItemRecord & { refugoUuid: string }
 
 export class PostgresPullRepository {
   async fetchUsuarios(cursor: PullCursor, limit: number): Promise<UsuarioPullRecord[]> {
@@ -244,6 +248,123 @@ export class PostgresPullRepository {
     )
 
     return this.normalizeRows(result.rows)
+  }
+
+  async fetchRefugos(cursor: PullCursor, limit: number): Promise<RefugoPullRecord[]> {
+    const result = await pool.query<Omit<RefugoPullRecord, 'itens'>>(
+      `
+      SELECT
+        r.uuid,
+        r.numero_refugo AS "numeroRefugo",
+        r.sigla_setor AS "siglaSetor",
+        r.ano,
+        r.sequencia,
+        r.data_hora AS "dataHora",
+        r.turno,
+        r.matricula_operador AS "matriculaOperador",
+        usuario.uuid AS "usuarioUuid",
+        setor.uuid AS "setorUuid",
+        subsetor.uuid AS "subsetorUuid",
+        posto.uuid AS "postoUuid",
+        circuito.uuid AS "circuitoUuid",
+        r.quantidade_produzida AS "quantidadeProduzida",
+        r.observacao,
+        r.status,
+        r.motivo_cancelamento AS "motivoCancelamento",
+        r.origem,
+        r.id_origem AS "idOrigem",
+        r.importado_em AS "importadoEm",
+        importador.uuid AS "importadoPorUuid",
+        r.created_at AS "createdAt",
+        r.updated_at AS "updatedAt",
+        r.deleted_at AS "deletedAt",
+        created_by.uuid AS "createdByUuid",
+        updated_by.uuid AS "updatedByUuid",
+        deleted_by.uuid AS "deletedByUuid"
+      FROM refugos r
+      INNER JOIN setores setor ON setor.id = r.setor_id
+      INNER JOIN subsetores subsetor ON subsetor.id = r.subsetor_id
+      INNER JOIN postos posto ON posto.id = r.posto_id
+      INNER JOIN circuitos circuito ON circuito.id = r.circuito_id
+      LEFT JOIN usuarios usuario ON usuario.id = r.usuario_id
+      LEFT JOIN usuarios importador ON importador.id = r.importado_por
+      LEFT JOIN usuarios created_by ON created_by.id = r.created_by
+      LEFT JOIN usuarios updated_by ON updated_by.id = r.updated_by
+      LEFT JOIN usuarios deleted_by ON deleted_by.id = r.deleted_by
+      ${this.cursorWhere('r')}
+      ORDER BY r.updated_at, r.uuid
+      LIMIT $3
+      `,
+      [cursor.lastUpdatedAt, cursor.lastUuid, limit]
+    )
+
+    const refugos = this.normalizeRows(result.rows).map((row) => ({
+      ...row,
+      ano: Number(row.ano),
+      sequencia: Number(row.sequencia),
+      quantidadeProduzida: Number(row.quantidadeProduzida),
+      dataHora: this.normalizeDate(row.dataHora),
+      importadoEm: this.normalizeNullableDate(row.importadoEm)
+    }))
+
+    if (refugos.length === 0) {
+      return []
+    }
+
+    const uuids = refugos.map((refugo) => refugo.uuid)
+    const itensResult = await pool.query<RefugoItemPullRow>(
+      `
+      SELECT
+        r.uuid AS "refugoUuid",
+        item.uuid,
+        componente.uuid AS "componenteUuid",
+        defeito.uuid AS "defeitoUuid",
+        item.quantidade,
+        item.codigo_componente_snapshot AS "codigoComponenteSnapshot",
+        item.nome_componente_snapshot AS "nomeComponenteSnapshot",
+        item.codigo_defeito_snapshot AS "codigoDefeitoSnapshot",
+        item.descricao_defeito_snapshot AS "descricaoDefeitoSnapshot",
+        item.preco_unitario_snapshot AS "precoUnitarioSnapshot",
+        item.custo_total_snapshot AS "custoTotalSnapshot",
+        item.created_at AS "createdAt",
+        item.updated_at AS "updatedAt",
+        item.deleted_at AS "deletedAt",
+        created_by.uuid AS "createdByUuid",
+        updated_by.uuid AS "updatedByUuid",
+        deleted_by.uuid AS "deletedByUuid"
+      FROM refugo_itens item
+      INNER JOIN refugos r ON r.id = item.refugo_id
+      INNER JOIN componentes componente ON componente.id = item.componente_id
+      INNER JOIN defeitos defeito ON defeito.id = item.defeito_id
+      LEFT JOIN usuarios created_by ON created_by.id = item.created_by
+      LEFT JOIN usuarios updated_by ON updated_by.id = item.updated_by
+      LEFT JOIN usuarios deleted_by ON deleted_by.id = item.deleted_by
+      WHERE r.uuid = ANY($1::uuid[])
+      ORDER BY item.id
+      `,
+      [uuids]
+    )
+
+    const itensPorRefugo = new Map<string, RefugoPullItemRecord[]>()
+
+    for (const rawItem of itensResult.rows) {
+      const [item] = this.normalizeRows([rawItem])
+      const normalizedItem: RefugoPullItemRecord = {
+        ...item,
+        quantidade: Number(item.quantidade),
+        precoUnitarioSnapshot: Number(item.precoUnitarioSnapshot ?? 0),
+        custoTotalSnapshot: Number(item.custoTotalSnapshot ?? 0)
+      }
+
+      const lista = itensPorRefugo.get(rawItem.refugoUuid) ?? []
+      lista.push(normalizedItem)
+      itensPorRefugo.set(rawItem.refugoUuid, lista)
+    }
+
+    return refugos.map((refugo) => ({
+      ...refugo,
+      itens: itensPorRefugo.get(refugo.uuid) ?? []
+    }))
   }
 
   private cursorWhere(alias: string): string {

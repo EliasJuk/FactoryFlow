@@ -7,6 +7,7 @@ import type {
   DefeitoPullRecord,
   PostoDefeitoPullRecord,
   PostoPullRecord,
+  RefugoPullRecord,
   SetorPullRecord,
   SubsetorPullRecord,
   UsuarioPullRecord
@@ -138,6 +139,172 @@ export class SqliteRemoteApplyRepository {
     )
   }
 
+  applyRefugo(record: RefugoPullRecord): void {
+    db.transaction(() => {
+      const usuarioId = this.userId(record.usuarioUuid)
+      const setorId = this.requiredId('setores', record.setorUuid)
+      const subsetorId = this.requiredId('subsetores', record.subsetorUuid)
+      const postoId = this.requiredId('postos', record.postoUuid)
+      const circuitoId = this.requiredId('circuitos', record.circuitoUuid)
+      const importadoPor = this.userId(record.importadoPorUuid)
+
+      db.prepare(
+        `
+        INSERT INTO refugos (
+          uuid,
+          numero_refugo,
+          sigla_setor,
+          ano,
+          sequencia,
+          data_hora,
+          turno,
+          matricula_operador,
+          usuario_id,
+          setor_id,
+          subsetor_id,
+          posto_id,
+          circuito_id,
+          quantidade_produzida,
+          observacao,
+          status,
+          motivo_cancelamento,
+          origem,
+          id_origem,
+          importado_em,
+          importado_por,
+          created_at,
+          updated_at,
+          deleted_at,
+          created_by,
+          updated_by,
+          deleted_by
+        )
+        VALUES (
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?
+        )
+        ON CONFLICT(uuid) DO UPDATE SET
+          numero_refugo = excluded.numero_refugo,
+          sigla_setor = excluded.sigla_setor,
+          ano = excluded.ano,
+          sequencia = excluded.sequencia,
+          data_hora = excluded.data_hora,
+          turno = excluded.turno,
+          matricula_operador = excluded.matricula_operador,
+          usuario_id = excluded.usuario_id,
+          setor_id = excluded.setor_id,
+          subsetor_id = excluded.subsetor_id,
+          posto_id = excluded.posto_id,
+          circuito_id = excluded.circuito_id,
+          quantidade_produzida = excluded.quantidade_produzida,
+          observacao = excluded.observacao,
+          status = excluded.status,
+          motivo_cancelamento = excluded.motivo_cancelamento,
+          origem = excluded.origem,
+          id_origem = excluded.id_origem,
+          importado_em = excluded.importado_em,
+          importado_por = excluded.importado_por,
+          updated_at = excluded.updated_at,
+          deleted_at = excluded.deleted_at,
+          updated_by = excluded.updated_by,
+          deleted_by = excluded.deleted_by
+        `
+      ).run(
+        record.uuid,
+        record.numeroRefugo,
+        record.siglaSetor,
+        record.ano,
+        record.sequencia,
+        record.dataHora,
+        record.turno,
+        record.matriculaOperador,
+        usuarioId,
+        setorId,
+        subsetorId,
+        postoId,
+        circuitoId,
+        record.quantidadeProduzida,
+        record.observacao,
+        record.status,
+        record.motivoCancelamento,
+        record.origem,
+        record.idOrigem,
+        record.importadoEm,
+        importadoPor,
+        record.createdAt,
+        record.updatedAt,
+        record.deletedAt,
+        this.userId(record.createdByUuid),
+        this.userId(record.updatedByUuid),
+        this.userId(record.deletedByUuid)
+      )
+
+      const refugoId = this.requiredId('refugos', record.uuid)
+
+      const upsertItem = db.prepare(
+        `
+        INSERT INTO refugo_itens (
+          uuid,
+          refugo_id,
+          componente_id,
+          defeito_id,
+          quantidade,
+          codigo_componente_snapshot,
+          nome_componente_snapshot,
+          codigo_defeito_snapshot,
+          descricao_defeito_snapshot,
+          preco_unitario_snapshot,
+          custo_total_snapshot,
+          created_at,
+          updated_at,
+          deleted_at,
+          created_by,
+          updated_by,
+          deleted_by
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(uuid) DO UPDATE SET
+          refugo_id = excluded.refugo_id,
+          componente_id = excluded.componente_id,
+          defeito_id = excluded.defeito_id,
+          quantidade = excluded.quantidade,
+          codigo_componente_snapshot = excluded.codigo_componente_snapshot,
+          nome_componente_snapshot = excluded.nome_componente_snapshot,
+          codigo_defeito_snapshot = excluded.codigo_defeito_snapshot,
+          descricao_defeito_snapshot = excluded.descricao_defeito_snapshot,
+          preco_unitario_snapshot = excluded.preco_unitario_snapshot,
+          custo_total_snapshot = excluded.custo_total_snapshot,
+          updated_at = excluded.updated_at,
+          deleted_at = excluded.deleted_at,
+          updated_by = excluded.updated_by,
+          deleted_by = excluded.deleted_by
+        `
+      )
+
+      for (const item of record.itens) {
+        upsertItem.run(
+          item.uuid,
+          refugoId,
+          this.requiredId('componentes', item.componenteUuid),
+          this.requiredId('defeitos', item.defeitoUuid),
+          item.quantidade,
+          item.codigoComponenteSnapshot,
+          item.nomeComponenteSnapshot,
+          item.codigoDefeitoSnapshot,
+          item.descricaoDefeitoSnapshot,
+          item.precoUnitarioSnapshot,
+          item.custoTotalSnapshot,
+          item.createdAt,
+          item.updatedAt,
+          item.deletedAt,
+          this.userId(item.createdByUuid),
+          this.userId(item.updatedByUuid),
+          this.userId(item.deletedByUuid)
+        )
+      }
+    })()
+  }
+
   private applyAuditedEntity(sql: string, record: any, values: unknown[]): void {
     db.transaction(() => {
       db.prepare(sql).run(
@@ -169,7 +336,8 @@ export class SqliteRemoteApplyRepository {
       ).run(IdGenerator.generate(), componenteId, normalized)
   }
   private requiredId(
-    table: 'setores' | 'subsetores' | 'postos' | 'componentes' | 'circuitos' | 'defeitos',
+    table:
+      'setores' | 'subsetores' | 'postos' | 'componentes' | 'circuitos' | 'defeitos' | 'refugos',
     uuid: string
   ): number {
     const row = db.prepare(`SELECT id FROM ${table} WHERE uuid=? LIMIT 1`).get(uuid) as

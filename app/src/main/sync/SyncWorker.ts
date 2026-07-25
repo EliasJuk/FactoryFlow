@@ -1,6 +1,11 @@
 import db from '../database/database'
 import { loadConfig } from '../config/appConfig'
 
+import { PostgresCircuitoComponenteSyncRepository } from './postgres/PostgresCircuitoComponenteSyncRepository'
+import { PostgresCircuitoSyncRepository } from './postgres/PostgresCircuitoSyncRepository'
+import { PostgresComponenteSyncRepository } from './postgres/PostgresComponenteSyncRepository'
+import { PostgresDefeitoSyncRepository } from './postgres/PostgresDefeitoSyncRepository'
+import { PostgresPostoDefeitoSyncRepository } from './postgres/PostgresPostoDefeitoSyncRepository'
 import { PostgresPostoSyncRepository } from './postgres/PostgresPostoSyncRepository'
 import { PostgresRefugoSyncRepository } from './postgres/PostgresRefugoSyncRepository'
 import { PostgresSetorSyncRepository } from './postgres/PostgresSetorSyncRepository'
@@ -21,6 +26,11 @@ export class SyncWorker {
   private readonly setorRepository = new PostgresSetorSyncRepository()
   private readonly subsetorRepository = new PostgresSubsetorSyncRepository()
   private readonly postoRepository = new PostgresPostoSyncRepository()
+  private readonly componenteRepository = new PostgresComponenteSyncRepository()
+  private readonly circuitoRepository = new PostgresCircuitoSyncRepository()
+  private readonly circuitoComponenteRepository = new PostgresCircuitoComponenteSyncRepository()
+  private readonly defeitoRepository = new PostgresDefeitoSyncRepository()
+  private readonly postoDefeitoRepository = new PostgresPostoDefeitoSyncRepository()
   private readonly refugoRepository = new PostgresRefugoSyncRepository()
 
   constructor(private readonly intervalMs = 30_000) {}
@@ -92,7 +102,12 @@ export class SyncWorker {
             WHEN 'SETOR' THEN 1
             WHEN 'SUBSETOR' THEN 2
             WHEN 'POSTO' THEN 3
-            WHEN 'REFUGO' THEN 4
+            WHEN 'COMPONENTE' THEN 4
+            WHEN 'CIRCUITO' THEN 5
+            WHEN 'CIRCUITO_COMPONENTE' THEN 6
+            WHEN 'DEFEITO' THEN 7
+            WHEN 'POSTO_DEFEITO' THEN 8
+            WHEN 'REFUGO' THEN 9
             ELSE 99
           END,
           id ASC
@@ -136,6 +151,21 @@ export class SyncWorker {
           break
         case 'POSTO':
           await this.postoRepository.apply(payload)
+          break
+        case 'COMPONENTE':
+          await this.componenteRepository.apply(payload)
+          break
+        case 'CIRCUITO':
+          await this.circuitoRepository.apply(payload)
+          break
+        case 'CIRCUITO_COMPONENTE':
+          await this.circuitoComponenteRepository.apply(payload)
+          break
+        case 'DEFEITO':
+          await this.defeitoRepository.apply(payload)
+          break
+        case 'POSTO_DEFEITO':
+          await this.postoDefeitoRepository.apply(payload)
           break
         case 'REFUGO':
           await this.refugoRepository.apply(payload)

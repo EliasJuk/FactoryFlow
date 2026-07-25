@@ -46,6 +46,30 @@ export function runSyncMigrations() {
       remote_cursor TEXT,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS sync_pull_state (
+      entity TEXT PRIMARY KEY,
+      last_updated_at TEXT,
+      last_uuid TEXT,
+      last_pull_at TEXT,
+      last_success_at TEXT,
+      last_error TEXT,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS sync_pull_conflicts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity TEXT NOT NULL,
+      record_uuid TEXT NOT NULL,
+      remote_updated_at TEXT,
+      reason TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDENTE',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      resolved_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sync_pull_conflicts_pending
+    ON sync_pull_conflicts(status, entity, record_uuid);
   `)
 
   const installation = db

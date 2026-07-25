@@ -5,6 +5,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { DatabaseManager } from './database/DatabaseManager'
 import { pool } from './database/postgres/connection'
 import { SyncWorker } from './sync/SyncWorker'
+import { SyncPullWorker } from './sync/SyncPullWorker'
 
 import { registerSetorIpc } from './ipc/setor.ipc'
 import { registerSubsetorIpc } from './ipc/subsetor.ipc'
@@ -28,6 +29,7 @@ let mainWindow: BrowserWindow | null = null
 let appReady = false
 
 const syncWorker = new SyncWorker(30_000)
+const syncPullWorker = new SyncPullWorker(30_000)
 const syncBackfillService = new SyncBackfillService()
 
 function createWindow(): void {
@@ -116,6 +118,7 @@ async function initializeApplication(): Promise<void> {
 
     syncBackfillService.runBaseEntitiesBackfill()
     syncWorker.start()
+    syncPullWorker.start()
 
     sendStartupProgress('Registrando módulos...', 75)
     registerDatabaseIpcHandlers()
@@ -174,6 +177,7 @@ app.on('window-all-closed', () => {
 // explicitly with Cmd + Q.
 app.on('will-quit', () => {
   syncWorker.stop()
+  syncPullWorker.stop()
   globalShortcut.unregisterAll()
   void pool.end()
 })

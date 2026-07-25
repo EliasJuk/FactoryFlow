@@ -164,6 +164,11 @@ function UsuariosPage() {
   async function salvarUsuario() {
     if (processando) return
 
+    if (!usuarioLogado.id) {
+      setMensagemErro('Não foi possível identificar o usuário logado.')
+      return
+    }
+
     setMensagemErro('')
 
     if (!nome.trim() || !matricula.trim()) {
@@ -186,7 +191,7 @@ function UsuariosPage() {
       matricula: matricula.trim(),
       perfil,
       senha: modalModo === 'novo' || alterarSenha ? senha.trim() || undefined : undefined,
-      usuarioId: 1
+      usuarioId: usuarioLogado.id
     }
 
     setProcessando(true)
@@ -216,11 +221,16 @@ function UsuariosPage() {
   async function confirmarInativacao() {
     if (!usuarioParaInativar || processando) return
 
+    if (!usuarioLogado.id) {
+      setMensagemErro('Não foi possível identificar o usuário logado.')
+      return
+    }
+
     setProcessando(true)
     limparMensagens()
 
     try {
-      const resultado = await window.api.usuarios.excluir(usuarioParaInativar.id, 1)
+      const resultado = await window.api.usuarios.excluir(usuarioParaInativar.id, usuarioLogado.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -238,11 +248,16 @@ function UsuariosPage() {
   async function confirmarRestauracao() {
     if (!usuarioParaRestaurar || processando) return
 
+    if (!usuarioLogado.id) {
+      setMensagemErro('Não foi possível identificar o usuário logado.')
+      return
+    }
+
     setProcessando(true)
     limparMensagens()
 
     try {
-      const resultado = await window.api.usuarios.ativar(usuarioParaRestaurar.id, 1)
+      const resultado = await window.api.usuarios.ativar(usuarioParaRestaurar.id, usuarioLogado.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -260,11 +275,16 @@ function UsuariosPage() {
   async function confirmarRemocao() {
     if (!usuarioParaRemover || processando) return
 
+    if (!usuarioLogado.id) {
+      setMensagemErro('Não foi possível identificar o usuário logado.')
+      return
+    }
+
     setProcessando(true)
     limparMensagens()
 
     try {
-      const resultado = await window.api.usuarios.remover(usuarioParaRemover.id, 1)
+      const resultado = await window.api.usuarios.remover(usuarioParaRemover.id, usuarioLogado.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)

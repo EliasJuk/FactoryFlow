@@ -8,7 +8,7 @@
     "postgres": {
       "host": "localhost",
       "port": 5433,
-      "database": "factoryflow",
+      "database": "postgres",
       "user": "postgres",
       "timeoutSeconds": 15,
       "ssl": false

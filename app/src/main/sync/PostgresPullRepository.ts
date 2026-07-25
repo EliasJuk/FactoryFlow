@@ -36,7 +36,12 @@ export class PostgresPullRepository {
       [cursor.lastUpdatedAt, cursor.lastUuid, limit]
     )
 
-    return result.rows
+    return result.rows.map((row) => ({
+      ...row,
+      createdAt: this.normalizeDate(row.createdAt),
+      updatedAt: this.normalizeDate(row.updatedAt),
+      deletedAt: this.normalizeNullableDate(row.deletedAt)
+    }))
   }
 
   async fetchSetores(cursor: PullCursor, limit: number): Promise<SetorPullRecord[]> {
@@ -70,6 +75,31 @@ export class PostgresPullRepository {
       [cursor.lastUpdatedAt, cursor.lastUuid, limit]
     )
 
-    return result.rows
+    return result.rows.map((row) => ({
+      ...row,
+      createdAt: this.normalizeDate(row.createdAt),
+      updatedAt: this.normalizeDate(row.updatedAt),
+      deletedAt: this.normalizeNullableDate(row.deletedAt)
+    }))
+  }
+
+  private normalizeDate(value: unknown): string {
+    if (value instanceof Date) {
+      return value.toISOString()
+    }
+
+    if (typeof value === 'string') {
+      return value
+    }
+
+    throw new Error('Data inválida recebida do PostgreSQL.')
+  }
+
+  private normalizeNullableDate(value: unknown): string | null {
+    if (value === null || value === undefined) {
+      return null
+    }
+
+    return this.normalizeDate(value)
   }
 }

@@ -150,7 +150,13 @@ export class SyncPullWorker {
               record.updatedAt,
               'Existe alteração local ainda não sincronizada.'
             )
-            return
+
+            this.state.markSuccess(entity, {
+              lastUpdatedAt: record.updatedAt,
+              lastUuid: record.uuid
+            })
+
+            continue
           }
           applyRecord(record)
           this.state.markSuccess(entity, { lastUpdatedAt: record.updatedAt, lastUuid: record.uuid })

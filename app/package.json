@@ -27,6 +27,7 @@
     "test:sync:reset": "powershell -ExecutionPolicy Bypass -File tests/sync/scripts/reset-sync-test.ps1",
     "test:sync:migrate:postgres": "powershell -ExecutionPolicy Bypass -File tests/migrations/run-postgres-test-migrations.ps1",
     "test:sync:integration": "vitest run tests/sync/integration",
+    "test:sync:setor": "vitest run tests/sync/integration/setor-sync.test.ts",
     "test:sync:usuario": "vitest run tests/sync/integration/usuario-sync.test.ts",
 
     "test:sync:inspect": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/sync/scripts/run-with-postgres-config.ps1 -NpmScript test:sync:inspect:raw",

@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
 
@@ -57,23 +57,25 @@ echo(
 echo(%MAGENTA%%BOLD%[ TESTES AUTOMATIZADOS ]%RESET%
 echo(%GRAY%------------------------------------------------------------%RESET%
 echo(  %MAGENTA%[4]%RESET% Executar teste de usuarios
+echo(  %MAGENTA%[5]%RESET% Executar teste de setores
+
 echo(
 
 echo(%CYAN%%BOLD%[ INSPECAO DOS BANCOS ]%RESET%
 echo(%GRAY%------------------------------------------------------------%RESET%
-echo(  %CYAN%[5]%RESET% Inspecionar PC-A
-echo(  %CYAN%[6]%RESET% Inspecionar PC-B
-echo(  %CYAN%[7]%RESET% Inspecionar PC-A e PC-B
+echo(  %CYAN%[6]%RESET% Inspecionar PC-A
+echo(  %CYAN%[7]%RESET% Inspecionar PC-B
+echo(  %CYAN%[8]%RESET% Inspecionar PC-A e PC-B
 echo(
 
 echo(%YELLOW%%BOLD%[ MANUTENCAO DO AMBIENTE ]%RESET%
 echo(%GRAY%------------------------------------------------------------%RESET%
-echo(  %YELLOW%[8]%RESET% Resetar ambiente de sincronizacao
+echo(  %YELLOW%[9]%RESET% Resetar ambiente de sincronizacao
 echo(
 
 echo(%GREEN%%BOLD%[ FLUXO COMPLETO ]%RESET%
 echo(%GRAY%------------------------------------------------------------%RESET%
-echo(  %GREEN%[9]%RESET% Abrir PCs, aguardar workers e testar usuarios
+echo(  %GREEN%[10]%RESET% Abrir PCs, aguardar workers e testar usuarios
 echo(
 
 echo(%RED%%BOLD%[ ENCERRAR ]%RESET%
@@ -91,16 +93,17 @@ if "%opcao%"=="1" goto abrir_pc_a
 if "%opcao%"=="2" goto abrir_pc_b
 if "%opcao%"=="3" goto abrir_ambos
 if "%opcao%"=="4" goto teste_usuario
-if "%opcao%"=="5" goto inspecionar_pc_a
-if "%opcao%"=="6" goto inspecionar_pc_b
-if "%opcao%"=="7" goto inspecionar_ambos
-if "%opcao%"=="8" goto resetar
-if "%opcao%"=="9" goto fluxo_completo
+if "%opcao%"=="5" goto teste_setor
+if "%opcao%"=="6" goto inspecionar_pc_a
+if "%opcao%"=="7" goto inspecionar_pc_b
+if "%opcao%"=="8" goto inspecionar_ambos
+if "%opcao%"=="9" goto resetar
+if "%opcao%"=="10" goto fluxo_completo
 if "%opcao%"=="0" goto fim
 
 echo(
 echo(%RED%%BOLD%Opcao invalida.%RESET%
-echo(%GRAY%Digite um numero entre 0 e 9.%RESET%
+echo(%GRAY%Digite um numero entre 0 e 10.%RESET%
 echo(
 pause
 goto menu
@@ -281,6 +284,37 @@ if not "%TEST_RESULT%"=="0" (
     echo(%RED%%BOLD%O teste terminou com erro.%RESET%
 ) else (
     echo(%GREEN%%BOLD%O teste foi finalizado com sucesso.%RESET%
+)
+
+echo(
+pause
+goto menu
+
+rem ============================================================
+rem TESTE DE SETORES
+rem ============================================================
+
+:teste_setor
+cls
+
+echo(%MAGENTA%%BOLD%============================================================%RESET%
+echo(%MAGENTA%%BOLD%           TESTE DE SINCRONIZACAO DE SETORES%RESET%
+echo(%MAGENTA%%BOLD%============================================================%RESET%
+echo(
+
+echo(%YELLOW%ATENCAO:%RESET%
+echo(PC-A e PC-B precisam estar abertos e inicializados.
+echo(
+
+call :executar_npm "test:sync:setor"
+set "TEST_RESULT=%ERRORLEVEL%"
+
+echo(
+
+if not "%TEST_RESULT%"=="0" (
+    echo(%RED%%BOLD%O teste de setores terminou com erro.%RESET%
+) else (
+    echo(%GREEN%%BOLD%O teste de setores foi finalizado com sucesso.%RESET%
 )
 
 echo(

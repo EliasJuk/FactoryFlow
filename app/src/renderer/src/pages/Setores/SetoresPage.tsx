@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Eye, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
+import { useApp } from '../../contexts/AppContext'
 import type { Setor } from '../../models/Setor'
 import { ui } from '../../theme/ui'
 
@@ -18,6 +19,7 @@ type ModalModo = 'novo' | 'editar'
 const ITENS_POR_PAGINA = 10
 
 function SetoresPage() {
+  const { usuario } = useApp()
   const [setores, setSetores] = useState<Setor[]>([])
   const [setoresInativos, setSetoresInativos] = useState<Setor[]>([])
 
@@ -86,6 +88,15 @@ function SetoresPage() {
     }
   }, [paginaAtual, totalPaginas])
 
+  function obterUsuarioId(): number | null {
+    if (!usuario.id) {
+      setMensagemErro('Usuário logado não identificado.')
+      return null
+    }
+
+    return usuario.id
+  }
+
   function limparMensagens() {
     setMensagemErro('')
     setMensagemSucesso('')
@@ -133,6 +144,10 @@ function SetoresPage() {
       return
     }
 
+    const usuarioId = obterUsuarioId()
+
+    if (!usuarioId) return
+
     setProcessando(true)
 
     try {
@@ -140,7 +155,8 @@ function SetoresPage() {
         const resultado = await window.api.setores.editar(
           setorEditando.id,
           nome.trim(),
-          sigla.trim().toUpperCase()
+          sigla.trim().toUpperCase(),
+          usuarioId
         )
 
         if (!resultado.sucesso) {
@@ -150,7 +166,11 @@ function SetoresPage() {
 
         setMensagemSucesso('Setor atualizado com sucesso.')
       } else {
-        const resultado = await window.api.setores.criar(nome.trim(), sigla.trim().toUpperCase())
+        const resultado = await window.api.setores.criar(
+          nome.trim(),
+          sigla.trim().toUpperCase(),
+          usuarioId
+        )
 
         if (!resultado.sucesso) {
           setMensagemErro(resultado.mensagem)
@@ -188,11 +208,16 @@ function SetoresPage() {
   async function confirmarInativacao() {
     if (!setorParaInativar || processando) return
 
-    setProcessando(true)
     limparMensagens()
 
+    const usuarioId = obterUsuarioId()
+
+    if (!usuarioId) return
+
+    setProcessando(true)
+
     try {
-      const resultado = await window.api.setores.excluir(setorParaInativar.id)
+      const resultado = await window.api.setores.excluir(setorParaInativar.id, usuarioId)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -210,11 +235,16 @@ function SetoresPage() {
   async function confirmarRestauracao() {
     if (!setorParaRestaurar || processando) return
 
-    setProcessando(true)
     limparMensagens()
 
+    const usuarioId = obterUsuarioId()
+
+    if (!usuarioId) return
+
+    setProcessando(true)
+
     try {
-      const resultado = await window.api.setores.restaurar(setorParaRestaurar.id)
+      const resultado = await window.api.setores.restaurar(setorParaRestaurar.id, usuarioId)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)

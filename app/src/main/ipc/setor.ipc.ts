@@ -1,115 +1,100 @@
-import { ipcMain } from "electron"
-import { SetorService } from "../services/SetorService"
+import { ipcMain } from 'electron'
+import { SetorService } from '../services/SetorService'
 
 const setorService = new SetorService()
 
 export function registerSetorIpc() {
-  ipcMain.handle("setores:listar", async () => {
+  ipcMain.handle('setores:listar', async () => {
     return await setorService.listar()
   })
 
-  ipcMain.handle("setores:criar", async (_, nome: string, sigla: string) => {
+  ipcMain.handle('setores:criar', async (_, nome: string, sigla: string, usuarioId: number) => {
     try {
-      await setorService.criar(nome, sigla)
+      await setorService.criar(nome, sigla, usuarioId)
 
       return {
         sucesso: true,
-        mensagem: "Setor cadastrado com sucesso."
+        mensagem: 'Setor cadastrado com sucesso.'
       }
     } catch (error) {
       return {
         sucesso: false,
-        mensagem:
-          error instanceof Error
-            ? error.message
-            : "Erro ao cadastrar setor."
+        mensagem: error instanceof Error ? error.message : 'Erro ao cadastrar setor.'
       }
     }
   })
 
   ipcMain.handle(
-    "setores:editar",
-    async (_, id: number, nome: string, sigla: string) => {
+    'setores:editar',
+    async (_, id: number, nome: string, sigla: string, usuarioId: number) => {
       try {
-        await setorService.editar(id, nome, sigla)
+        await setorService.editar(id, nome, sigla, usuarioId)
 
         return {
           sucesso: true,
-          mensagem: "Setor atualizado com sucesso."
+          mensagem: 'Setor atualizado com sucesso.'
         }
       } catch (error) {
         return {
           sucesso: false,
-          mensagem:
-            error instanceof Error
-              ? error.message
-              : "Erro ao editar setor."
+          mensagem: error instanceof Error ? error.message : 'Erro ao editar setor.'
         }
       }
     }
   )
 
-  ipcMain.handle("setores:excluir", async (_, id: number) => {
+  ipcMain.handle('setores:excluir', async (_, id: number, usuarioId: number) => {
     try {
-      await setorService.excluir(id)
+      await setorService.excluir(id, usuarioId)
 
       return {
         sucesso: true,
-        mensagem: "Setor inativado com sucesso."
+        mensagem: 'Setor inativado com sucesso.'
       }
     } catch (error) {
       return {
         sucesso: false,
-        mensagem:
-          error instanceof Error
-            ? error.message
-            : "Erro ao inativar setor."
+        mensagem: error instanceof Error ? error.message : 'Erro ao inativar setor.'
       }
     }
   })
 
-  ipcMain.handle("setores:contar-subsetores-ativos", async (_, id: number) => {
+  ipcMain.handle('setores:contar-subsetores-ativos', async (_, id: number) => {
     return await setorService.contarSubsetoresAtivos(id)
   })
 
-  ipcMain.handle("setores:listar-inativos", async () => {
+  ipcMain.handle('setores:listar-inativos', async () => {
     return await setorService.listarInativos()
   })
 
-  ipcMain.handle("setores:restaurar", async (_, id: number) => {
+  ipcMain.handle('setores:restaurar', async (_, id: number, usuarioId: number) => {
     try {
-      await setorService.restaurar(id)
+      await setorService.restaurar(id, usuarioId)
 
       return {
         sucesso: true,
-        mensagem: "Setor restaurado com sucesso."
+        mensagem: 'Setor restaurado com sucesso.'
       }
     } catch (error) {
       return {
         sucesso: false,
-        mensagem:
-          error instanceof Error
-            ? error.message
-            : "Erro ao restaurar setor."
+        mensagem: error instanceof Error ? error.message : 'Erro ao restaurar setor.'
       }
     }
   })
 
-  ipcMain.handle("setores:excluir-permanente", async (_, id: number) => {
+  ipcMain.handle('setores:excluir-permanente', async (_, id: number) => {
     try {
       await setorService.excluirPermanente(id)
 
       return {
         sucesso: true,
-        mensagem: "Setor excluído permanentemente."
+        mensagem: 'Setor excluído permanentemente.'
       }
     } catch (error) {
       return {
         sucesso: false,
-        mensagem:
-          error instanceof Error
-            ? error.message
-            : "Erro ao excluir setor permanentemente."
+        mensagem: error instanceof Error ? error.message : 'Erro ao excluir setor permanentemente.'
       }
     }
   })

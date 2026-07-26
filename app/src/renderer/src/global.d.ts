@@ -381,7 +381,8 @@ declare global {
 
         criar: (
           nome: string,
-          sigla: string
+          sigla: string,
+          usuarioId: number
         ) => Promise<{
           sucesso: boolean
           mensagem: string
@@ -390,24 +391,33 @@ declare global {
         editar: (
           id: number,
           nome: string,
-          sigla: string
+          sigla: string,
+          usuarioId: number
         ) => Promise<{
           sucesso: boolean
           mensagem: string
         }>
 
-        excluir: (id: number) => Promise<{
+        excluir: (
+          id: number,
+          usuarioId: number
+        ) => Promise<{
           sucesso: boolean
           mensagem: string
         }>
+
         contarSubsetoresAtivos: (id: number) => Promise<number>
 
         listarInativos: () => Promise<SetorApi[]>
 
-        restaurar: (id: number) => Promise<{
+        restaurar: (
+          id: number,
+          usuarioId: number
+        ) => Promise<{
           sucesso: boolean
           mensagem: string
         }>
+
         excluirPermanente: (id: number) => Promise<{
           sucesso: boolean
           mensagem: string

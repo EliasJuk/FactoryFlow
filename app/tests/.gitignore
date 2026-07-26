@@ -8,4 +8,6 @@ sync/pc-b/config/
 sync/pc-a/user-data/
 sync/pc-b/user-data/
 
-tests/gitignore-sync-snippet.txt
+sync/configs/postgres.local.json
+
+sync/migration-runner/

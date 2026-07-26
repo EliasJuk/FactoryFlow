@@ -1,0 +1,28 @@
+{
+  "database": {
+    "mode": "postgres",
+    "provider": "postgres",
+    "sqlite": {
+      "path": "ignored-by-postgres-migration"
+    },
+    "api": {
+      "baseUrl": "http://localhost:8080",
+      "version": "v1",
+      "authMethod": "bearer",
+      "timeoutSeconds": 15,
+      "validateSsl": true,
+      "retryOnError": true
+    }
+  },
+  "sync": {
+    "enabled": false,
+    "destination": "postgres",
+    "syncOnStartup": false,
+    "syncOnReconnect": false,
+    "retryFailed": false,
+    "refugoRetention": {
+      "enabled": false,
+      "months": null
+    }
+  }
+}

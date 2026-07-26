@@ -111,13 +111,16 @@ contextBridge.exposeInMainWorld('api', {
 
   subsetores: {
     listar: () => ipcRenderer.invoke('subsetores:listar'),
-    criar: (nome: string, setorId: number) => ipcRenderer.invoke('subsetores:criar', nome, setorId),
-    editar: (id: number, nome: string, setorId: number) =>
-      ipcRenderer.invoke('subsetores:editar', id, nome, setorId),
+    criar: (nome: string, setorId: number, usuarioId: number) =>
+      ipcRenderer.invoke('subsetores:criar', nome, setorId, usuarioId),
+    editar: (id: number, nome: string, setorId: number, usuarioId: number) =>
+      ipcRenderer.invoke('subsetores:editar', id, nome, setorId, usuarioId),
     contarPostosAtivos: (id: number) => ipcRenderer.invoke('subsetores:contar-postos-ativos', id),
-    excluir: (id: number) => ipcRenderer.invoke('subsetores:excluir', id),
+    excluir: (id: number, usuarioId: number) =>
+      ipcRenderer.invoke('subsetores:excluir', id, usuarioId),
     listarInativos: () => ipcRenderer.invoke('subsetores:listar-inativos'),
-    restaurar: (id: number) => ipcRenderer.invoke('subsetores:restaurar', id),
+    restaurar: (id: number, usuarioId: number) =>
+      ipcRenderer.invoke('subsetores:restaurar', id, usuarioId),
     excluirPermanente: (id: number) => ipcRenderer.invoke('subsetores:excluir-permanente', id)
   },
 

@@ -1,4 +1,4 @@
-import { RepositoryProvider } from "../repositories/RepositoryProvider"
+import { RepositoryProvider } from '../repositories/RepositoryProvider'
 
 export class SubsetorService {
   private repository = RepositoryProvider.subsetores
@@ -11,20 +11,20 @@ export class SubsetorService {
     return await this.repository.listarInativos()
   }
 
-  async criar(nome: string, setorId: number) {
-    return await this.repository.criar(nome, setorId)
+  async criar(nome: string, setorId: number, usuarioId: number) {
+    return await this.repository.criar(nome, setorId, usuarioId)
   }
 
-  async editar(id: number, nome: string, setorId: number) {
-    return await this.repository.editar(id, nome, setorId)
+  async editar(id: number, nome: string, setorId: number, usuarioId: number) {
+    return await this.repository.editar(id, nome, setorId, usuarioId)
   }
 
-  async excluir(id: number) {
-    return await this.repository.excluir(id)
+  async excluir(id: number, usuarioId: number) {
+    return await this.repository.excluir(id, usuarioId)
   }
 
-  async restaurar(id: number) {
-    return await this.repository.restaurar(id)
+  async restaurar(id: number, usuarioId: number) {
+    return await this.repository.restaurar(id, usuarioId)
   }
 
   async excluirPermanente(id: number) {

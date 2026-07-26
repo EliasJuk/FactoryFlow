@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Eye, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
+import { useApp } from '../../contexts/AppContext'
 import type { Setor } from '../../models/Setor'
 import type { Subsetor } from '../../models/Subsetor'
 import { ui } from '../../theme/ui'
@@ -19,6 +20,7 @@ type ModalModo = 'novo' | 'editar'
 const ITENS_POR_PAGINA = 10
 
 function SubsetoresPage() {
+  const { usuario } = useApp()
   const [setores, setSetores] = useState<Setor[]>([])
   const [subsetores, setSubsetores] = useState<Subsetor[]>([])
   const [subsetoresInativos, setSubsetoresInativos] = useState<Subsetor[]>([])
@@ -76,8 +78,7 @@ function SubsetoresPage() {
         subsetor.nome.toLowerCase().includes(termo) ||
         subsetor.setorNome.toLowerCase().includes(termo)
 
-      const correspondeSetor =
-        filtroSetorId === '' || subsetor.setorId === Number(filtroSetorId)
+      const correspondeSetor = filtroSetorId === '' || subsetor.setorId === Number(filtroSetorId)
 
       return correspondeBusca && correspondeSetor
     })
@@ -99,6 +100,15 @@ function SubsetoresPage() {
       setPaginaAtual(totalPaginas)
     }
   }, [paginaAtual, totalPaginas])
+
+  function obterUsuarioId(): number | null {
+    if (!usuario.id) {
+      setMensagemErro('Usuário logado não identificado.')
+      return null
+    }
+
+    return usuario.id
+  }
 
   function limparMensagens() {
     setMensagemErro('')
@@ -147,6 +157,10 @@ function SubsetoresPage() {
       return
     }
 
+    const usuarioId = obterUsuarioId()
+
+    if (!usuarioId) return
+
     setProcessando(true)
 
     try {
@@ -154,7 +168,8 @@ function SubsetoresPage() {
         const resultado = await window.api.subsetores.editar(
           subsetorEditando.id,
           nome.trim(),
-          Number(setorId)
+          Number(setorId),
+          usuarioId
         )
 
         if (!resultado.sucesso) {
@@ -164,7 +179,7 @@ function SubsetoresPage() {
 
         setMensagemSucesso('Subsetor atualizado com sucesso.')
       } else {
-        const resultado = await window.api.subsetores.criar(nome.trim(), Number(setorId))
+        const resultado = await window.api.subsetores.criar(nome.trim(), Number(setorId), usuarioId)
 
         if (!resultado.sucesso) {
           setMensagemErro(resultado.mensagem)
@@ -202,11 +217,16 @@ function SubsetoresPage() {
   async function confirmarInativacao() {
     if (!subsetorParaInativar || processando) return
 
-    setProcessando(true)
     limparMensagens()
 
+    const usuarioId = obterUsuarioId()
+
+    if (!usuarioId) return
+
+    setProcessando(true)
+
     try {
-      const resultado = await window.api.subsetores.excluir(subsetorParaInativar.id)
+      const resultado = await window.api.subsetores.excluir(subsetorParaInativar.id, usuarioId)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -224,11 +244,16 @@ function SubsetoresPage() {
   async function confirmarRestauracao() {
     if (!subsetorParaRestaurar || processando) return
 
-    setProcessando(true)
     limparMensagens()
 
+    const usuarioId = obterUsuarioId()
+
+    if (!usuarioId) return
+
+    setProcessando(true)
+
     try {
-      const resultado = await window.api.subsetores.restaurar(subsetorParaRestaurar.id)
+      const resultado = await window.api.subsetores.restaurar(subsetorParaRestaurar.id, usuarioId)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)

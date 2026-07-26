@@ -426,16 +426,31 @@ declare global {
 
       subsetores: {
         listar: () => Promise<SubsetorApi[]>
-        criar: (nome: string, setorId: number) => Promise<{ sucesso: boolean; mensagem: string }>
+
+        criar: (
+          nome: string,
+          setorId: number,
+          usuarioId: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
+
         editar: (
           id: number,
           nome: string,
-          setorId: number
+          setorId: number,
+          usuarioId: number
         ) => Promise<{ sucesso: boolean; mensagem: string }>
+
         contarPostosAtivos: (id: number) => Promise<number>
-        excluir: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+
+        excluir: (id: number, usuarioId: number) => Promise<{ sucesso: boolean; mensagem: string }>
+
         listarInativos: () => Promise<SubsetorApi[]>
-        restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+
+        restaurar: (
+          id: number,
+          usuarioId: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
+
         excluirPermanente: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
       }
 

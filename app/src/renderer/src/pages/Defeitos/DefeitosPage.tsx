@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Eye, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
+import { useApp } from '../../contexts/AppContext'
 import type { Defeito } from '../../models/Defeitos'
 import { ui } from '../../theme/ui'
 
@@ -18,6 +19,7 @@ type ModalModo = 'novo' | 'editar'
 const ITENS_POR_PAGINA = 10
 
 function DefeitosPage() {
+  const { usuario } = useApp()
   const [defeitos, setDefeitos] = useState<Defeito[]>([])
   const [defeitosInativos, setDefeitosInativos] = useState<Defeito[]>([])
 
@@ -88,6 +90,15 @@ function DefeitosPage() {
     }
   }, [paginaAtual, totalPaginas])
 
+  function obterUsuarioId(): number | null {
+    if (!usuario.id) {
+      setMensagemErro('Usuário logado não identificado.')
+      return null
+    }
+
+    return usuario.id
+  }
+
   function limparMensagens() {
     setMensagemErro('')
     setMensagemSucesso('')
@@ -135,6 +146,10 @@ function DefeitosPage() {
       return
     }
 
+    const usuarioId = obterUsuarioId()
+
+    if (!usuarioId) return
+
     setProcessando(true)
 
     try {
@@ -142,7 +157,8 @@ function DefeitosPage() {
         const resultado = await window.api.defeitos.editar(
           defeitoEditando.id,
           codigo.trim().toUpperCase(),
-          descricao.trim()
+          descricao.trim(),
+          usuarioId
         )
 
         if (!resultado.sucesso) {
@@ -154,7 +170,8 @@ function DefeitosPage() {
       } else {
         const resultado = await window.api.defeitos.criar(
           codigo.trim().toUpperCase(),
-          descricao.trim()
+          descricao.trim(),
+          usuarioId
         )
 
         if (!resultado.sucesso) {
@@ -175,11 +192,16 @@ function DefeitosPage() {
   async function confirmarInativacao() {
     if (!defeitoParaInativar || processando) return
 
-    setProcessando(true)
     limparMensagens()
 
+    const usuarioId = obterUsuarioId()
+
+    if (!usuarioId) return
+
+    setProcessando(true)
+
     try {
-      const resultado = await window.api.defeitos.excluir(defeitoParaInativar.id)
+      const resultado = await window.api.defeitos.excluir(defeitoParaInativar.id, usuarioId)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -197,11 +219,16 @@ function DefeitosPage() {
   async function confirmarRestauracao() {
     if (!defeitoParaRestaurar || processando) return
 
-    setProcessando(true)
     limparMensagens()
 
+    const usuarioId = obterUsuarioId()
+
+    if (!usuarioId) return
+
+    setProcessando(true)
+
     try {
-      const resultado = await window.api.defeitos.restaurar(defeitoParaRestaurar.id)
+      const resultado = await window.api.defeitos.restaurar(defeitoParaRestaurar.id, usuarioId)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)

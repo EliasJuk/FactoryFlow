@@ -31,36 +31,42 @@ export function registerDefeitoIpc() {
     return await defeitoRepository.listarInativos()
   })
 
-  ipcMain.handle('defeitos:criar', async (_, codigo: string, descricao: string) => {
-    try {
-      await defeitoRepository.criar(codigo, descricao)
-      return sucesso('Defeito cadastrado com sucesso.')
-    } catch (error) {
-      return falha(error, 'Erro ao cadastrar defeito.')
+  ipcMain.handle(
+    'defeitos:criar',
+    async (_, codigo: string, descricao: string, usuarioId: number) => {
+      try {
+        await defeitoRepository.criar(codigo, descricao, usuarioId)
+        return sucesso('Defeito cadastrado com sucesso.')
+      } catch (error) {
+        return falha(error, 'Erro ao cadastrar defeito.')
+      }
     }
-  })
+  )
 
-  ipcMain.handle('defeitos:editar', async (_, id: number, codigo: string, descricao: string) => {
-    try {
-      await defeitoRepository.editar(id, codigo, descricao)
-      return sucesso('Defeito atualizado com sucesso.')
-    } catch (error) {
-      return falha(error, 'Erro ao editar defeito.')
+  ipcMain.handle(
+    'defeitos:editar',
+    async (_, id: number, codigo: string, descricao: string, usuarioId: number) => {
+      try {
+        await defeitoRepository.editar(id, codigo, descricao, usuarioId)
+        return sucesso('Defeito atualizado com sucesso.')
+      } catch (error) {
+        return falha(error, 'Erro ao editar defeito.')
+      }
     }
-  })
+  )
 
-  ipcMain.handle('defeitos:excluir', async (_, id: number) => {
+  ipcMain.handle('defeitos:excluir', async (_, id: number, usuarioId: number) => {
     try {
-      await defeitoRepository.excluir(id)
+      await defeitoRepository.excluir(id, usuarioId)
       return sucesso('Defeito inativado com sucesso.')
     } catch (error) {
       return falha(error, 'Erro ao inativar defeito.')
     }
   })
 
-  ipcMain.handle('defeitos:restaurar', async (_, id: number) => {
+  ipcMain.handle('defeitos:restaurar', async (_, id: number, usuarioId: number) => {
     try {
-      await defeitoRepository.restaurar(id)
+      await defeitoRepository.restaurar(id, usuarioId)
       return sucesso('Defeito restaurado com sucesso.')
     } catch (error) {
       return falha(error, 'Erro ao restaurar defeito.')

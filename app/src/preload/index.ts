@@ -208,12 +208,14 @@ contextBridge.exposeInMainWorld('api', {
   defeitos: {
     listar: () => ipcRenderer.invoke('defeitos:listar'),
     listarInativos: () => ipcRenderer.invoke('defeitos:listar-inativos'),
-    criar: (codigo: string, descricao: string) =>
-      ipcRenderer.invoke('defeitos:criar', codigo, descricao),
-    editar: (id: number, codigo: string, descricao: string) =>
-      ipcRenderer.invoke('defeitos:editar', id, codigo, descricao),
-    excluir: (id: number) => ipcRenderer.invoke('defeitos:excluir', id),
-    restaurar: (id: number) => ipcRenderer.invoke('defeitos:restaurar', id),
+    criar: (codigo: string, descricao: string, usuarioId: number) =>
+      ipcRenderer.invoke('defeitos:criar', codigo, descricao, usuarioId),
+    editar: (id: number, codigo: string, descricao: string, usuarioId: number) =>
+      ipcRenderer.invoke('defeitos:editar', id, codigo, descricao, usuarioId),
+    excluir: (id: number, usuarioId: number) =>
+      ipcRenderer.invoke('defeitos:excluir', id, usuarioId),
+    restaurar: (id: number, usuarioId: number) =>
+      ipcRenderer.invoke('defeitos:restaurar', id, usuarioId),
     excluirPermanente: (id: number) => ipcRenderer.invoke('defeitos:excluir-permanente', id)
   },
 

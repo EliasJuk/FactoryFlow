@@ -1,17 +1,23 @@
-﻿@echo off
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
 
+rem ============================================================
+rem CAMINHOS
+rem Este arquivo deve ficar em: app\tests\sync\run-tests-sync.bat
+rem ============================================================
+
 cd /d "%~dp0"
+
+for %%I in ("%~dp0..\..") do set "PROJECT_ROOT=%%~fI"
 
 title FactoryFlow - Testes de Sincronizacao
 
 rem ============================================================
-rem CAPTURA SEGURA DO CARACTERE ESC PARA CORES ANSI
+rem CORES ANSI
 rem ============================================================
 
-for /F "delims=" %%E in ('echo prompt $E^| %ComSpec% /Q') do set "ESC=%%E"
+for /F "delims=" %%E in ('echo prompt $E^| %ComSpec% /D /Q') do set "ESC=%%E"
 
 set "RESET=%ESC%[0m"
 set "BOLD=%ESC%[1m"
@@ -24,6 +30,12 @@ set "MAGENTA=%ESC%[95m"
 set "CYAN=%ESC%[96m"
 set "WHITE=%ESC%[97m"
 set "GRAY=%ESC%[90m"
+
+rem ============================================================
+rem CONFIGURACAO INICIAL
+rem ============================================================
+
+call :configurar_postgres
 
 rem ============================================================
 rem MENU PRINCIPAL
@@ -68,7 +80,7 @@ echo(
 
 echo(%RED%%BOLD%[ ENCERRAR ]%RESET%
 echo(%GRAY%------------------------------------------------------------%RESET%
-echo(  %RED%[0]%RESET% Fechar o menu
+echo(  %RED%[0]%RESET% Voltar ao menu principal de testes
 echo(
 
 echo(%CYAN%============================================================%RESET%
@@ -108,6 +120,30 @@ set "PGPASSWORD=admin123"
 exit /b 0
 
 rem ============================================================
+rem EXECUTAR SCRIPT NPM NA RAIZ DO PROJETO
+rem ============================================================
+
+:executar_npm
+pushd "%PROJECT_ROOT%" >nul
+
+call npm.cmd run %~1
+set "NPM_RESULT=%ERRORLEVEL%"
+
+popd >nul
+exit /b %NPM_RESULT%
+
+rem ============================================================
+rem ABRIR UMA INSTANCIA EM JANELA INDEPENDENTE
+rem
+rem %~1 = titulo da janela
+rem %~2 = nome do script npm
+rem ============================================================
+
+:iniciar_instancia
+start "%~1" /D "%PROJECT_ROOT%" "%ComSpec%" /D /K "set PGHOST=%PGHOST%&&set PGPORT=%PGPORT%&&set PGDATABASE=%PGDATABASE%&&set PGUSER=%PGUSER%&&set PGPASSWORD=%PGPASSWORD%&&npm.cmd run %~2"
+exit /b 0
+
+rem ============================================================
 rem ABRIR PC-A
 rem ============================================================
 
@@ -119,9 +155,10 @@ echo(%BLUE%%BOLD%                     ABRINDO PC-A%RESET%
 echo(%BLUE%%BOLD%============================================================%RESET%
 echo(
 
-start "FactoryFlow PC-A" cmd /k "cd /d ""%~dp0"" && npm.cmd run test:sync:pc-a"
+call :configurar_postgres
+call :iniciar_instancia "FactoryFlow PC-A" "test:sync:pc-a"
 
-echo(%GREEN%PC-A iniciado.%RESET%
+echo(%GREEN%PC-A iniciado em uma nova janela.%RESET%
 echo(
 pause
 goto menu
@@ -138,15 +175,16 @@ echo(%BLUE%%BOLD%                     ABRINDO PC-B%RESET%
 echo(%BLUE%%BOLD%============================================================%RESET%
 echo(
 
-start "FactoryFlow PC-B" cmd /k "cd /d ""%~dp0"" && npm.cmd run test:sync:pc-b"
+call :configurar_postgres
+call :iniciar_instancia "FactoryFlow PC-B" "test:sync:pc-b"
 
-echo(%GREEN%PC-B iniciado.%RESET%
+echo(%GREEN%PC-B iniciado em uma nova janela.%RESET%
 echo(
 pause
 goto menu
 
 rem ============================================================
-rem ABRIR AS DUAS INSTANCIAS
+rem ABRIR PC-A E PC-B
 rem ============================================================
 
 :abrir_ambos
@@ -157,19 +195,19 @@ echo(%BLUE%%BOLD%                ABRINDO PC-A E PC-B%RESET%
 echo(%BLUE%%BOLD%============================================================%RESET%
 echo(
 
+call :configurar_postgres
+
 echo(%CYAN%Abrindo PC-A...%RESET%
+call :iniciar_instancia "FactoryFlow PC-A" "test:sync:pc-a"
 
-start "FactoryFlow PC-A" cmd /k "cd /d ""%~dp0"" && npm.cmd run test:sync:pc-a"
-
-timeout /t 2 /nobreak >nul
+timeout /t 3 /nobreak >nul
 
 echo(%CYAN%Abrindo PC-B...%RESET%
-
-start "FactoryFlow PC-B" cmd /k "cd /d ""%~dp0"" && npm.cmd run test:sync:pc-b"
+call :iniciar_instancia "FactoryFlow PC-B" "test:sync:pc-b"
 
 echo(
-echo(%GREEN%%BOLD%As duas instancias foram abertas.%RESET%
-echo(%YELLOW%Aguarde aproximadamente 35 segundos antes de testar.%RESET%
+echo(%GREEN%%BOLD%As duas instancias foram solicitadas.%RESET%
+echo(%YELLOW%Aguarde aproximadamente 40 segundos antes de testar.%RESET%
 echo(
 pause
 goto menu
@@ -192,7 +230,7 @@ echo(%YELLOW%ATENCAO:%RESET%
 echo(PC-A e PC-B precisam estar abertos e inicializados.
 echo(
 
-call npm.cmd run test:sync:usuario
+call :executar_npm "test:sync:usuario"
 set "TEST_RESULT=%ERRORLEVEL%"
 
 echo(
@@ -219,7 +257,8 @@ echo(%CYAN%%BOLD%                    INSPECAO DO PC-A%RESET%
 echo(%CYAN%%BOLD%============================================================%RESET%
 echo(
 
-call npm.cmd run test:sync:inspect:pc-a
+call :configurar_postgres
+call :executar_npm "test:sync:inspect:pc-a"
 
 echo(
 pause
@@ -237,14 +276,15 @@ echo(%CYAN%%BOLD%                    INSPECAO DO PC-B%RESET%
 echo(%CYAN%%BOLD%============================================================%RESET%
 echo(
 
-call npm.cmd run test:sync:inspect:pc-b
+call :configurar_postgres
+call :executar_npm "test:sync:inspect:pc-b"
 
 echo(
 pause
 goto menu
 
 rem ============================================================
-rem INSPECIONAR AS DUAS INSTANCIAS
+rem INSPECIONAR PC-A E PC-B
 rem ============================================================
 
 :inspecionar_ambos
@@ -255,7 +295,8 @@ echo(%CYAN%%BOLD%                INSPECAO DO PC-A E PC-B%RESET%
 echo(%CYAN%%BOLD%============================================================%RESET%
 echo(
 
-call npm.cmd run test:sync:inspect
+call :configurar_postgres
+call :executar_npm "test:sync:inspect"
 
 echo(
 pause
@@ -274,8 +315,8 @@ echo(%RED%%BOLD%============================================================%RES
 echo(
 
 echo(%RED%%BOLD%ATENCAO%RESET%
-echo(%YELLOW%Esta opcao limpa e recria o ambiente de testes.%RESET%
-echo(%YELLOW%Os bancos locais usados nos testes poderao ser removidos.%RESET%
+echo(%YELLOW%Feche PC-A e PC-B antes de executar o reset.%RESET%
+echo(%YELLOW%Esta opcao limpa e recria os bancos locais de testes.%RESET%
 echo(
 
 choice /c SN /n /m "Deseja continuar? [S/N]: "
@@ -291,7 +332,8 @@ echo(
 echo(%CYAN%Resetando o ambiente de sincronizacao...%RESET%
 echo(
 
-call npm.cmd run test:sync:reset
+call :configurar_postgres
+call :executar_npm "test:sync:reset"
 set "RESET_RESULT=%ERRORLEVEL%"
 
 echo(
@@ -321,14 +363,12 @@ echo(
 call :configurar_postgres
 
 echo(%CYAN%[1/4] Abrindo PC-A...%RESET%
+call :iniciar_instancia "FactoryFlow PC-A" "test:sync:pc-a"
 
-start "FactoryFlow PC-A" cmd /k "cd /d ""%~dp0"" && npm.cmd run test:sync:pc-a"
-
-timeout /t 2 /nobreak >nul
+timeout /t 3 /nobreak >nul
 
 echo(%CYAN%[2/4] Abrindo PC-B...%RESET%
-
-start "FactoryFlow PC-B" cmd /k "cd /d ""%~dp0"" && npm.cmd run test:sync:pc-b"
+call :iniciar_instancia "FactoryFlow PC-B" "test:sync:pc-b"
 
 echo(
 echo(%YELLOW%[3/4] Aguardando 40 segundos para os workers iniciarem...%RESET%
@@ -340,7 +380,7 @@ echo(
 echo(%MAGENTA%[4/4] Executando o teste de usuarios...%RESET%
 echo(
 
-call npm.cmd run test:sync:usuario
+call :executar_npm "test:sync:usuario"
 set "FLOW_RESULT=%ERRORLEVEL%"
 
 echo(
@@ -366,7 +406,7 @@ echo(%CYAN%%BOLD%============================================================%RE
 echo(%CYAN%%BOLD%                         SAINDO%RESET%
 echo(%CYAN%%BOLD%============================================================%RESET%
 echo(
-echo(%GREEN%Menu de testes encerrado.%RESET%
+echo(%GREEN%Retornando ao menu principal de testes.%RESET%
 echo(
 
 endlocal

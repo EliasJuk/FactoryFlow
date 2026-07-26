@@ -1,5 +1,5 @@
 import { app, shell, BrowserWindow, globalShortcut, ipcMain } from 'electron'
-import { join, resolve } from 'path'
+import { isAbsolute, join, relative, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
 const testUserDataDir = process.env.FACTORYFLOW_USER_DATA_DIR
@@ -30,13 +30,116 @@ import { registerConfiguracaoIpc } from './ipc/configuracao.ipc'
 import { registerAuthIpc } from './ipc/auth.ipc'
 import { registerPasswordResetIpc } from './ipc/passwordReset.ipc'
 import { SyncBackfillService } from './sync/SyncBackfillService'
+import { SecretStorageService } from './services/SecretStorageService'
 
 let mainWindow: BrowserWindow | null = null
 let appReady = false
 
 const syncWorker = new SyncWorker(30_000)
 const syncPullWorker = new SyncPullWorker(30_000)
+
 const syncBackfillService = new SyncBackfillService()
+
+type SyncTestInstance = 'PC-A' | 'PC-B'
+
+function isPathInside(basePath: string, candidatePath: string): boolean {
+  const relativePath = relative(
+    resolve(basePath),
+    resolve(candidatePath)
+  )
+
+  return (
+    relativePath === '' ||
+    (!relativePath.startsWith('..') && !isAbsolute(relativePath))
+  )
+}
+
+/**
+ * Valida se o processo atual e realmente uma instancia isolada
+ * dos testes de sincronizacao.
+ *
+ * Essa verificacao impede que a senha recebida para os testes seja
+ * usada por uma instalacao normal ou empacotada do projeto.
+ */
+
+function getSyncTestInstance(): SyncTestInstance | null {
+  if (app.isPackaged || !is.dev) {
+    return null
+  }
+
+  const instance =
+    process.env.FACTORYFLOW_TEST_INSTANCE?.trim()
+
+  if (instance !== 'PC-A' && instance !== 'PC-B') {
+    return null
+  }
+
+  const configDirectory =
+    process.env.FACTORYFLOW_CONFIG_DIR?.trim()
+  const userDataDirectory =
+    process.env.FACTORYFLOW_USER_DATA_DIR?.trim()
+  const sqlitePath =
+    process.env.FACTORYFLOW_SQLITE_PATH?.trim()
+
+  if (
+    !configDirectory ||
+    !userDataDirectory ||
+    !sqlitePath
+  ) {
+    return null
+  }
+
+  const syncTestRoot = resolve(
+    process.cwd(),
+    'tests',
+    'sync'
+  )
+
+  const pathsAreIsolated = [
+    configDirectory,
+    userDataDirectory,
+    sqlitePath
+  ].every((path) => isPathInside(syncTestRoot, path))
+
+  return pathsAreIsolated ? instance : null
+}
+
+/**
+ * Grava a senha **descartavel** dos testes no mesmo SecretStorageService
+ * utilizado pela aplicacao.
+ *
+ * A senha:
+ * - somente e aceita em desenvolvimento;
+ * - somente e aceita para PC-A ou PC-B;
+ * - somente e aceita quando todos os caminhos apontam para tests/sync;
+ * - e criptografada pelo safeStorage do proprio processo principal;
+ * - e removida do ambiente logo apos ser armazenada.
+ */
+function prepareSyncTestPostgresCredential(): void {
+  const instance = getSyncTestInstance()
+
+  if (!instance) {
+    return
+  }
+
+  const password =
+    process.env.FACTORYFLOW_TEST_POSTGRES_PASSWORD
+
+  if (!password?.trim()) {
+    throw new Error(
+      `A senha protegida de teste nao foi recebida pelo ${instance}.`
+    )
+  }
+
+  const secrets = new SecretStorageService()
+  secrets.savePostgresPassword(password)
+
+  delete process.env.FACTORYFLOW_TEST_POSTGRES_PASSWORD
+
+  console.log(
+    `[SYNC TEST] Credencial PostgreSQL protegida preparada para ${instance}.`
+  )
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -118,6 +221,8 @@ function registerShortcuts(): void {
 
 async function initializeApplication(): Promise<void> {
   try {
+    prepareSyncTestPostgresCredential()
+
     sendStartupProgress('Preparando sistema...', 20)
 
     sendStartupProgress('Inicializando banco de dados...', 45)

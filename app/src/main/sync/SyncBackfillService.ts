@@ -1,6 +1,7 @@
 import db from '../database/database'
 import { loadConfig } from '../config/appConfig'
 import { SyncQueueRepository } from './SyncQueueRepository'
+import { SYSTEM_IDS } from '../shared/ids/systemIds'
 
 export class SyncBackfillService {
   private readonly queue = new SyncQueueRepository()
@@ -17,7 +18,16 @@ export class SyncBackfillService {
     }
 
     db.transaction(() => {
-      const usuarios = db.prepare('SELECT id FROM usuarios ORDER BY id').all() as Array<{
+      const usuarios = db
+        .prepare(
+          `
+            SELECT id
+            FROM usuarios
+            WHERE uuid <> ?
+            ORDER BY id
+          `
+        )
+        .all(SYSTEM_IDS.usuarioSistema) as Array<{
         id: number
       }>
       for (const usuario of usuarios) {

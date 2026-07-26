@@ -1,4 +1,5 @@
 import { loadConfig } from '../config/appConfig'
+import { SYSTEM_IDS } from '../shared/ids/systemIds'
 import { PostgresPullRepository } from './PostgresPullRepository'
 import { SqliteRemoteApplyRepository } from './SqliteRemoteApplyRepository'
 import { SyncPullStateRepository } from './SyncPullStateRepository'
@@ -11,7 +12,7 @@ export class SyncPullWorker {
   private readonly local = new SqliteRemoteApplyRepository()
   private readonly state = new SyncPullStateRepository()
   constructor(
-    private readonly intervalMs = 30000,
+    private readonly intervalMs = 8000,  //TEMPO DE SINCRONIZAÇÃO
     private readonly batchSize = 200
   ) {}
   start(): void {
@@ -143,7 +144,14 @@ export class SyncPullWorker {
           return
         }
         for (const record of records) {
-          if (this.state.hasLocalConflict(entity, record.uuid)) {
+          const isReservedSystemUser =
+            entity === 'USUARIO' &&
+            record.uuid === SYSTEM_IDS.usuarioSistema
+
+          if (
+            !isReservedSystemUser &&
+            this.state.hasLocalConflict(entity, record.uuid)
+          ) {
             this.state.registerConflict(
               entity,
               record.uuid,
@@ -158,6 +166,7 @@ export class SyncPullWorker {
 
             continue
           }
+
           applyRecord(record)
           this.state.markSuccess(entity, { lastUpdatedAt: record.updatedAt, lastUuid: record.uuid })
         }

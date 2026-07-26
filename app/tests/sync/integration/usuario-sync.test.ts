@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
@@ -11,6 +11,8 @@ const { Client } = pg
 const appRoot = process.cwd()
 const pcAPath = resolve(appRoot, 'tests/sync/databases/pc-a.db')
 const pcBPath = resolve(appRoot, 'tests/sync/databases/pc-b.db')
+const postgresConfigPath = resolve(appRoot, 'config/postgres.json')
+const postgresLocalConfigPath = resolve(appRoot, 'config/postgres.local.json')
 
 const WAIT_TIMEOUT_MS = 75_000
 const WAIT_INTERVAL_MS = 1_000
@@ -27,6 +29,24 @@ type TestUser = {
 
 type SyncOperation = 'CREATE' | 'UPDATE'
 
+type PostgresConnectionConfig = {
+  host: string
+  port: number
+  database: string
+  user: string
+  password: string
+  timeoutSeconds: number
+  ssl: boolean
+}
+
+type PostgresPublicConfigFile = {
+  connection?: Partial<Omit<PostgresConnectionConfig, 'password'>>
+}
+
+type PostgresLocalConfigFile = {
+  password?: string
+}
+
 let pcA: DatabaseSync
 let pcB: DatabaseSync
 let postgres: pg.Client | null = null
@@ -36,6 +56,50 @@ const testUuid = randomUUID()
 const testMatricula = `SYNC-${Date.now()}`
 const testName = 'Usuario Integracao'
 const updatedName = 'Usuario Integracao Atualizado'
+
+function readJsonFile<T>(path: string): T {
+  if (!existsSync(path)) {
+    throw new Error(`Arquivo de configuracao nao encontrado: ${path}`)
+  }
+
+  const content = readFileSync(path, 'utf8')
+
+  try {
+    return JSON.parse(content) as T
+  } catch {
+    throw new Error(`JSON invalido no arquivo: ${path}`)
+  }
+}
+
+function loadPostgresConfig(): PostgresConnectionConfig {
+  const publicConfig = readJsonFile<PostgresPublicConfigFile>(postgresConfigPath)
+  const localConfig = readJsonFile<PostgresLocalConfigFile>(postgresLocalConfigPath)
+
+  const connection = publicConfig.connection
+  const password = localConfig.password
+
+  if (
+    !connection?.host ||
+    !connection.port ||
+    !connection.database ||
+    !connection.user ||
+    !password
+  ) {
+    throw new Error(
+      'Configuracao PostgreSQL de teste incompleta. Verifique config/postgres.json e config/postgres.local.json.'
+    )
+  }
+
+  return {
+    host: connection.host,
+    port: connection.port,
+    database: connection.database,
+    user: connection.user,
+    password,
+    timeoutSeconds: connection.timeoutSeconds ?? 15,
+    ssl: connection.ssl ?? false
+  }
+}
 
 function nowSqlite(): string {
   const date = new Date()
@@ -222,13 +286,16 @@ describe.sequential('sincronizacao de usuarios entre PC-A e PC-B', () => {
     pcA = new DatabaseSync(pcAPath)
     pcB = new DatabaseSync(pcBPath)
 
+    const postgresConfig = loadPostgresConfig()
+
     const postgresClient = new Client({
-      host: process.env.PGHOST ?? '127.0.0.1',
-      port: Number(process.env.PGPORT ?? 5433),
-      database: process.env.PGDATABASE ?? 'postgres',
-      user: process.env.PGUSER ?? 'postgres',
-      password: process.env.PGPASSWORD,
-      ssl: false
+      host: postgresConfig.host,
+      port: postgresConfig.port,
+      database: postgresConfig.database,
+      user: postgresConfig.user,
+      password: postgresConfig.password,
+      ssl: postgresConfig.ssl,
+      connectionTimeoutMillis: postgresConfig.timeoutSeconds * 1_000
     })
 
     postgres = postgresClient

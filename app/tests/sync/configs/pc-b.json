@@ -5,14 +5,6 @@
     "sqlite": {
       "path": "ignored-by-test-env"
     },
-    "postgres": {
-      "host": "localhost",
-      "port": 5433,
-      "database": "postgres",
-      "user": "postgres",
-      "timeoutSeconds": 15,
-      "ssl": false
-    },
     "api": {
       "baseUrl": "http://localhost:8080",
       "version": "v1",

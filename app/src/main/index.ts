@@ -31,6 +31,7 @@ import { registerAuthIpc } from './ipc/auth.ipc'
 import { registerPasswordResetIpc } from './ipc/passwordReset.ipc'
 import { SyncBackfillService } from './sync/SyncBackfillService'
 import { SecretStorageService } from './services/SecretStorageService'
+import { loadConfig } from './config/appConfig'
 
 let mainWindow: BrowserWindow | null = null
 let appReady = false
@@ -230,11 +231,23 @@ async function initializeApplication(): Promise<void> {
     await DatabaseManager.initialize()
     console.timeEnd('DatabaseManager.initialize')
 
-    syncBackfillService.runBaseEntitiesBackfill()
-    syncWorker.start()
-    syncPullWorker.start()
 
-    sendStartupProgress('Registrando módulos...', 75)
+
+    const config = loadConfig()
+
+    const shouldStartSyncWorkers =
+      config.database.mode === 'sqliteSync' &&
+      config.sync.enabled &&
+      config.sync.destination === 'postgres'
+
+    if (shouldStartSyncWorkers) {
+      syncBackfillService.runBaseEntitiesBackfill()
+      syncWorker.start()
+      syncPullWorker.start()
+    }
+
+
+        sendStartupProgress('Registrando módulos...', 75)
     registerDatabaseIpcHandlers()
 
     sendStartupProgress('Finalizando...', 100)

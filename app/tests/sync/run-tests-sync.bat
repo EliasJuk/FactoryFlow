@@ -4,12 +4,16 @@ chcp 65001 >nul
 
 rem ============================================================
 rem CAMINHOS
-rem Este arquivo deve ficar em: app\tests\sync\run-tests-sync.bat
+rem Este arquivo deve ficar em:
+rem app\tests\sync\run-tests-sync.bat
 rem ============================================================
 
 cd /d "%~dp0"
 
 for %%I in ("%~dp0..\..") do set "PROJECT_ROOT=%%~fI"
+
+set "SYNC_SCRIPTS_DIR=%~dp0scripts"
+set "RUN_WITH_POSTGRES=%SYNC_SCRIPTS_DIR%\run-with-postgres-config.ps1"
 
 title FactoryFlow - Testes de Sincronizacao
 
@@ -30,12 +34,6 @@ set "MAGENTA=%ESC%[95m"
 set "CYAN=%ESC%[96m"
 set "WHITE=%ESC%[97m"
 set "GRAY=%ESC%[90m"
-
-rem ============================================================
-rem CONFIGURACAO INICIAL
-rem ============================================================
-
-call :configurar_postgres
 
 rem ============================================================
 rem MENU PRINCIPAL
@@ -108,39 +106,70 @@ pause
 goto menu
 
 rem ============================================================
-rem CONFIGURACAO DO POSTGRESQL DE TESTES
+rem VALIDAR ARQUIVOS DE CONFIGURACAO
 rem ============================================================
 
-:configurar_postgres
-set "PGHOST=127.0.0.1"
-set "PGPORT=5433"
-set "PGDATABASE=postgres"
-set "PGUSER=postgres"
-set "PGPASSWORD=admin123"
+:validar_configuracao
+if not exist "%RUN_WITH_POSTGRES%" (
+    echo(
+    echo(%RED%%BOLD%ERRO: carregador do PostgreSQL nao encontrado.%RESET%
+    echo(%RUN_WITH_POSTGRES%
+    echo(
+    exit /b 1
+)
+
+if not exist "%~dp0configs\postgres.json" (
+    echo(
+    echo(%RED%%BOLD%ERRO: postgres.json nao encontrado.%RESET%
+    echo(%~dp0configs\postgres.json
+    echo(
+    exit /b 1
+)
+
+if not exist "%~dp0configs\postgres.local.json" (
+    echo(
+    echo(%RED%%BOLD%ERRO: postgres.local.json nao encontrado.%RESET%
+    echo(
+    echo Crie o arquivo usando:
+    echo %~dp0configs\postgres.local.example.json
+    echo(
+    exit /b 1
+)
+
 exit /b 0
 
 rem ============================================================
-rem EXECUTAR SCRIPT NPM NA RAIZ DO PROJETO
+rem EXECUTAR NPM COM A CONFIGURACAO COMPARTILHADA
 rem ============================================================
 
 :executar_npm
-pushd "%PROJECT_ROOT%" >nul
+call :validar_configuracao
+if errorlevel 1 exit /b 1
 
-call npm.cmd run %~1
-set "NPM_RESULT=%ERRORLEVEL%"
+powershell.exe ^
+  -NoLogo ^
+  -NoProfile ^
+  -ExecutionPolicy Bypass ^
+  -File "%RUN_WITH_POSTGRES%" ^
+  -NpmScript "%~1"
 
-popd >nul
-exit /b %NPM_RESULT%
+exit /b %ERRORLEVEL%
 
 rem ============================================================
-rem ABRIR UMA INSTANCIA EM JANELA INDEPENDENTE
+rem ABRIR UMA INSTANCIA INDEPENDENTE
 rem
-rem %~1 = titulo da janela
-rem %~2 = nome do script npm
+rem O start-pc-a.ps1 ou start-pc-b.ps1 carrega postgres.json
+rem e postgres.local.json diretamente.
 rem ============================================================
 
 :iniciar_instancia
-start "%~1" /D "%PROJECT_ROOT%" "%ComSpec%" /D /K "set PGHOST=%PGHOST%&&set PGPORT=%PGPORT%&&set PGDATABASE=%PGDATABASE%&&set PGUSER=%PGUSER%&&set PGPASSWORD=%PGPASSWORD%&&npm.cmd run %~2"
+call :validar_configuracao
+if errorlevel 1 exit /b 1
+
+start "%~1" ^
+  /D "%PROJECT_ROOT%" ^
+  "%ComSpec%" /D /K "npm.cmd run %~2"
+
 exit /b 0
 
 rem ============================================================
@@ -155,10 +184,14 @@ echo(%BLUE%%BOLD%                     ABRINDO PC-A%RESET%
 echo(%BLUE%%BOLD%============================================================%RESET%
 echo(
 
-call :configurar_postgres
 call :iniciar_instancia "FactoryFlow PC-A" "test:sync:pc-a"
 
-echo(%GREEN%PC-A iniciado em uma nova janela.%RESET%
+if errorlevel 1 (
+    echo(%RED%Nao foi possivel iniciar o PC-A.%RESET%
+) else (
+    echo(%GREEN%PC-A iniciado em uma nova janela.%RESET%
+)
+
 echo(
 pause
 goto menu
@@ -175,10 +208,14 @@ echo(%BLUE%%BOLD%                     ABRINDO PC-B%RESET%
 echo(%BLUE%%BOLD%============================================================%RESET%
 echo(
 
-call :configurar_postgres
 call :iniciar_instancia "FactoryFlow PC-B" "test:sync:pc-b"
 
-echo(%GREEN%PC-B iniciado em uma nova janela.%RESET%
+if errorlevel 1 (
+    echo(%RED%Nao foi possivel iniciar o PC-B.%RESET%
+) else (
+    echo(%GREEN%PC-B iniciado em uma nova janela.%RESET%
+)
+
 echo(
 pause
 goto menu
@@ -195,19 +232,26 @@ echo(%BLUE%%BOLD%                ABRINDO PC-A E PC-B%RESET%
 echo(%BLUE%%BOLD%============================================================%RESET%
 echo(
 
-call :configurar_postgres
-
 echo(%CYAN%Abrindo PC-A...%RESET%
 call :iniciar_instancia "FactoryFlow PC-A" "test:sync:pc-a"
+if errorlevel 1 goto erro_abrir_ambos
 
 timeout /t 3 /nobreak >nul
 
 echo(%CYAN%Abrindo PC-B...%RESET%
 call :iniciar_instancia "FactoryFlow PC-B" "test:sync:pc-b"
+if errorlevel 1 goto erro_abrir_ambos
 
 echo(
 echo(%GREEN%%BOLD%As duas instancias foram solicitadas.%RESET%
 echo(%YELLOW%Aguarde aproximadamente 40 segundos antes de testar.%RESET%
+echo(
+pause
+goto menu
+
+:erro_abrir_ambos
+echo(
+echo(%RED%%BOLD%Nao foi possivel abrir as duas instancias.%RESET%
 echo(
 pause
 goto menu
@@ -223,8 +267,6 @@ echo(%MAGENTA%%BOLD%============================================================
 echo(%MAGENTA%%BOLD%          TESTE DE SINCRONIZACAO DE USUARIOS%RESET%
 echo(%MAGENTA%%BOLD%============================================================%RESET%
 echo(
-
-call :configurar_postgres
 
 echo(%YELLOW%ATENCAO:%RESET%
 echo(PC-A e PC-B precisam estar abertos e inicializados.
@@ -257,7 +299,6 @@ echo(%CYAN%%BOLD%                    INSPECAO DO PC-A%RESET%
 echo(%CYAN%%BOLD%============================================================%RESET%
 echo(
 
-call :configurar_postgres
 call :executar_npm "test:sync:inspect:pc-a"
 
 echo(
@@ -276,7 +317,6 @@ echo(%CYAN%%BOLD%                    INSPECAO DO PC-B%RESET%
 echo(%CYAN%%BOLD%============================================================%RESET%
 echo(
 
-call :configurar_postgres
 call :executar_npm "test:sync:inspect:pc-b"
 
 echo(
@@ -295,7 +335,6 @@ echo(%CYAN%%BOLD%                INSPECAO DO PC-A E PC-B%RESET%
 echo(%CYAN%%BOLD%============================================================%RESET%
 echo(
 
-call :configurar_postgres
 call :executar_npm "test:sync:inspect"
 
 echo(
@@ -316,7 +355,7 @@ echo(
 
 echo(%RED%%BOLD%ATENCAO%RESET%
 echo(%YELLOW%Feche PC-A e PC-B antes de executar o reset.%RESET%
-echo(%YELLOW%Esta opcao limpa e recria os bancos locais de testes.%RESET%
+echo(%YELLOW%Esta opcao limpa os bancos e perfis locais de testes.%RESET%
 echo(
 
 choice /c SN /n /m "Deseja continuar? [S/N]: "
@@ -332,7 +371,6 @@ echo(
 echo(%CYAN%Resetando o ambiente de sincronizacao...%RESET%
 echo(
 
-call :configurar_postgres
 call :executar_npm "test:sync:reset"
 set "RESET_RESULT=%ERRORLEVEL%"
 
@@ -341,7 +379,7 @@ echo(
 if not "%RESET_RESULT%"=="0" (
     echo(%RED%%BOLD%Nao foi possivel resetar o ambiente.%RESET%
 ) else (
-    echo(%GREEN%%BOLD%Ambiente resetado com sucesso.%RESET%
+    echo(%GREEN%%BOLD%Ambiente local resetado com sucesso.%RESET%
 )
 
 echo(
@@ -360,15 +398,15 @@ echo(%GREEN%%BOLD%                    FLUXO COMPLETO%RESET%
 echo(%GREEN%%BOLD%============================================================%RESET%
 echo(
 
-call :configurar_postgres
-
 echo(%CYAN%[1/4] Abrindo PC-A...%RESET%
 call :iniciar_instancia "FactoryFlow PC-A" "test:sync:pc-a"
+if errorlevel 1 goto erro_fluxo_completo
 
 timeout /t 3 /nobreak >nul
 
 echo(%CYAN%[2/4] Abrindo PC-B...%RESET%
 call :iniciar_instancia "FactoryFlow PC-B" "test:sync:pc-b"
+if errorlevel 1 goto erro_fluxo_completo
 
 echo(
 echo(%YELLOW%[3/4] Aguardando 40 segundos para os workers iniciarem...%RESET%
@@ -391,6 +429,13 @@ if not "%FLOW_RESULT%"=="0" (
     echo(%GREEN%%BOLD%O fluxo completo foi finalizado com sucesso.%RESET%
 )
 
+echo(
+pause
+goto menu
+
+:erro_fluxo_completo
+echo(
+echo(%RED%%BOLD%Nao foi possivel iniciar o fluxo completo.%RESET%
 echo(
 pause
 goto menu

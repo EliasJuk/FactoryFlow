@@ -1,0 +1,10 @@
+{
+  "connection": {
+    "host": "127.0.0.1",
+    "port": 5435,
+    "database": "postgres_test",
+    "user": "postgres_test",
+    "timeoutSeconds": 15,
+    "ssl": false
+  }
+}

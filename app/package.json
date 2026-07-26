@@ -25,11 +25,17 @@
     "test:sync:pc-a": "powershell -ExecutionPolicy Bypass -File tests/sync/scripts/start-pc-a.ps1",
     "test:sync:pc-b": "powershell -ExecutionPolicy Bypass -File tests/sync/scripts/start-pc-b.ps1",
     "test:sync:reset": "powershell -ExecutionPolicy Bypass -File tests/sync/scripts/reset-sync-test.ps1",
-    "test:sync:inspect": "electron tests/scripts/inspect-sync.cjs all",
-    "test:sync:inspect:pc-a": "electron tests/scripts/inspect-sync.cjs pc-a",
-    "test:sync:inspect:pc-b": "electron tests/scripts/inspect-sync.cjs pc-b",
+    "test:sync:migrate:postgres": "powershell -ExecutionPolicy Bypass -File tests/migrations/run-postgres-test-migrations.ps1",
     "test:sync:integration": "vitest run tests/sync/integration",
-    "test:sync:usuario": "vitest run tests/sync/integration/usuario-sync.test.ts"
+    "test:sync:usuario": "vitest run tests/sync/integration/usuario-sync.test.ts",
+
+    "test:sync:inspect": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/sync/scripts/run-with-postgres-config.ps1 -NpmScript test:sync:inspect:raw",
+    "test:sync:inspect:pc-a": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/sync/scripts/run-with-postgres-config.ps1 -NpmScript test:sync:inspect:pc-a:raw",
+    "test:sync:inspect:pc-b": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/sync/scripts/run-with-postgres-config.ps1 -NpmScript test:sync:inspect:pc-b:raw",
+
+    "test:sync:inspect:raw": "electron tests/scripts/inspect-sync.cjs all",
+    "test:sync:inspect:pc-a:raw": "electron tests/scripts/inspect-sync.cjs pc-a",
+    "test:sync:inspect:pc-b:raw": "electron tests/scripts/inspect-sync.cjs pc-b"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

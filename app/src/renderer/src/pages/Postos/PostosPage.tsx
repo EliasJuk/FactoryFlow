@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Eye, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
+import { useApp } from '../../contexts/AppContext'
 import type { Posto } from '../../models/Posto'
 import type { Setor } from '../../models/Setor'
 import type { Subsetor } from '../../models/Subsetor'
@@ -22,6 +23,7 @@ type ModalModo = 'novo' | 'editar'
 const ITENS_POR_PAGINA = 10
 
 function PostosPage() {
+  const { usuario } = useApp()
   const [setores, setSetores] = useState<Setor[]>([])
   const [subsetores, setSubsetores] = useState<Subsetor[]>([])
   const [postos, setPostos] = useState<Posto[]>([])
@@ -88,9 +90,7 @@ function PostosPage() {
     const termo = busca.trim().toLowerCase()
 
     return postos.filter((posto) => {
-      const subsetorDoPosto = subsetores.find(
-        (subsetor) => subsetor.id === posto.subsetorId
-      )
+      const subsetorDoPosto = subsetores.find((subsetor) => subsetor.id === posto.subsetorId)
 
       const correspondeBusca =
         !termo ||
@@ -99,8 +99,7 @@ function PostosPage() {
         posto.setorNome.toLowerCase().includes(termo)
 
       const correspondeSetor =
-        filtroSetorId === '' ||
-        subsetorDoPosto?.setorId === Number(filtroSetorId)
+        filtroSetorId === '' || subsetorDoPosto?.setorId === Number(filtroSetorId)
 
       const correspondeSubsetor =
         filtroSubsetorId === '' || posto.subsetorId === Number(filtroSubsetorId)
@@ -126,6 +125,15 @@ function PostosPage() {
     }
   }, [paginaAtual, totalPaginas])
 
+  function obterUsuarioId(): number | null {
+    if (!usuario.id) {
+      setMensagemErro('Usuário logado não identificado.')
+      return null
+    }
+
+    return usuario.id
+  }
+
   function limparMensagens() {
     setMensagemErro('')
     setMensagemSucesso('')
@@ -146,9 +154,7 @@ function PostosPage() {
     setModalSetorId(primeiroSetorId)
 
     const primeiroSubsetor = primeiroSetor
-      ? subsetores.find(
-          (subsetor) => subsetor.setorId === primeiroSetor.id
-        )
+      ? subsetores.find((subsetor) => subsetor.setorId === primeiroSetor.id)
       : undefined
 
     setSubsetorId(primeiroSubsetor?.id ?? '')
@@ -191,6 +197,10 @@ function PostosPage() {
       return
     }
 
+    const usuarioId = obterUsuarioId()
+
+    if (!usuarioId) return
+
     setProcessando(true)
 
     try {
@@ -198,7 +208,8 @@ function PostosPage() {
         const resultado = await window.api.postos.editar(
           postoEditando.id,
           nome.trim(),
-          Number(subsetorId)
+          Number(subsetorId),
+          usuarioId
         )
 
         if (!resultado.sucesso) {
@@ -208,7 +219,7 @@ function PostosPage() {
 
         setMensagemSucesso('Posto atualizado com sucesso.')
       } else {
-        const resultado = await window.api.postos.criar(nome.trim(), Number(subsetorId))
+        const resultado = await window.api.postos.criar(nome.trim(), Number(subsetorId), usuarioId)
 
         if (!resultado.sucesso) {
           setMensagemErro(resultado.mensagem)
@@ -246,11 +257,16 @@ function PostosPage() {
   async function confirmarInativacao() {
     if (!postoParaInativar || processando) return
 
-    setProcessando(true)
     limparMensagens()
 
+    const usuarioId = obterUsuarioId()
+
+    if (!usuarioId) return
+
+    setProcessando(true)
+
     try {
-      const resultado = await window.api.postos.excluir(postoParaInativar.id)
+      const resultado = await window.api.postos.excluir(postoParaInativar.id, usuarioId)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -268,11 +284,16 @@ function PostosPage() {
   async function confirmarRestauracao() {
     if (!postoParaRestaurar || processando) return
 
-    setProcessando(true)
     limparMensagens()
 
+    const usuarioId = obterUsuarioId()
+
+    if (!usuarioId) return
+
+    setProcessando(true)
+
     try {
-      const resultado = await window.api.postos.restaurar(postoParaRestaurar.id)
+      const resultado = await window.api.postos.restaurar(postoParaRestaurar.id, usuarioId)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -595,9 +616,7 @@ function PostosPage() {
                     const primeiroSubsetor =
                       novoSetorId === ''
                         ? undefined
-                        : subsetores.find(
-                            (subsetor) => subsetor.setorId === Number(novoSetorId)
-                          )
+                        : subsetores.find((subsetor) => subsetor.setorId === Number(novoSetorId))
 
                     setSubsetorId(primeiroSubsetor?.id ?? '')
                   }}

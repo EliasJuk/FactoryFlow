@@ -173,14 +173,22 @@ contextBridge.exposeInMainWorld('api', {
 
   postos: {
     listar: () => ipcRenderer.invoke('postos:listar'),
-    criar: (nome: string, subsetorId: number) =>
-      ipcRenderer.invoke('postos:criar', nome, subsetorId),
-    editar: (id: number, nome: string, subsetorId: number) =>
-      ipcRenderer.invoke('postos:editar', id, nome, subsetorId),
+
+    criar: (nome: string, subsetorId: number, usuarioId: number) =>
+      ipcRenderer.invoke('postos:criar', nome, subsetorId, usuarioId),
+
+    editar: (id: number, nome: string, subsetorId: number, usuarioId: number) =>
+      ipcRenderer.invoke('postos:editar', id, nome, subsetorId, usuarioId),
+
     contarRoteirosAtivos: (id: number) => ipcRenderer.invoke('postos:contar-roteiros-ativos', id),
-    excluir: (id: number) => ipcRenderer.invoke('postos:excluir', id),
+
+    excluir: (id: number, usuarioId: number) => ipcRenderer.invoke('postos:excluir', id, usuarioId),
+
     listarInativos: () => ipcRenderer.invoke('postos:listar-inativos'),
-    restaurar: (id: number) => ipcRenderer.invoke('postos:restaurar', id),
+
+    restaurar: (id: number, usuarioId: number) =>
+      ipcRenderer.invoke('postos:restaurar', id, usuarioId),
+
     excluirPermanente: (id: number) => ipcRenderer.invoke('postos:excluir-permanente', id)
   },
 

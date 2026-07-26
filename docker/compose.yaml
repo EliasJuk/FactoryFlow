@@ -40,6 +40,45 @@ services:
 
 
   ########################################################
+  ################## POSTGRES DE TESTE ###################
+  ########################################################
+  postgres_test:
+    image: postgres:17-alpine
+    container_name: "${PROJECT_NAME:-postgres}-test-db"
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_TEST_DB:-postgres_test}
+      POSTGRES_USER: ${POSTGRES_TEST_USER:-postgres_test}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_test_password
+      TZ: ${TZ:-America/Sao_Paulo}
+      PGTZ: ${TZ:-America/Sao_Paulo}
+
+    ports:
+      - "${POSTGRES_TEST_PORT:-5435}:5432"
+
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+
+    secrets:
+      - postgres_test_password
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_TEST_USER:-postgres_test} -d ${POSTGRES_TEST_DB:-postgres_test}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+    networks:
+      - postgres_network
+
+
+  ########################################################
   ####################### PGADMIN ########################
   ########################################################
   pgadmin:
@@ -66,22 +105,34 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      postgres_test:
+        condition: service_healthy
 
 
-  ########################################################
-  ############### CONFIGURACOES GLOBAIS  #################
-  ########################################################
+########################################################
+############### CONFIGURACOES GLOBAIS ###################
+########################################################
 secrets:
   postgres_password:
     file: ./secrets/postgres_password.txt
+
+  postgres_test_password:
+    file: ./secrets/postgres_test_password.txt
+
   pgadmin_password:
     file: ./secrets/pgadmin_password.txt
+
 
 volumes:
   postgres_data:
     name: "${PROJECT_NAME:-postgres}_postgres_data"
+
+  postgres_test_data:
+    name: "${PROJECT_NAME:-postgres}_postgres_test_data"
+
   pgadmin_data:
     name: "${PROJECT_NAME:-postgres}_pgadmin_data"
+
 
 networks:
   postgres_network:

@@ -11,6 +11,7 @@ import type {
   RefugoPullRecord,
   RoteiroPullRecord,
   SetorPullRecord,
+  SolicitacaoAlteracaoSenhaPullRecord,
   SubsetorPullRecord,
   UsuarioPullRecord
 } from './pull.types'
@@ -401,6 +402,47 @@ export class PostgresPullRepository {
     return refugos.map((refugo) => ({
       ...refugo,
       itens: itensPorRefugo.get(refugo.uuid) ?? []
+    }))
+  }
+
+
+  async fetchSolicitacoesAlteracaoSenha(
+    cursor: PullCursor,
+    limit: number
+  ): Promise<SolicitacaoAlteracaoSenhaPullRecord[]> {
+    const result = await pool.query<SolicitacaoAlteracaoSenhaPullRecord>(
+      `
+      SELECT
+        s.uuid,
+        usuario.uuid AS "usuarioUuid",
+        s.status,
+        s.solicitado_em AS "solicitadoEm",
+        s.atendido_em AS "atendidoEm",
+        s.cancelado_em AS "canceladoEm",
+        atendente.uuid AS "atendidoPorUuid",
+        cancelador.uuid AS "canceladoPorUuid",
+        s.created_at AS "createdAt",
+        s.updated_at AS "updatedAt",
+        NULL::timestamp AS "deletedAt",
+        NULL::uuid AS "createdByUuid",
+        NULL::uuid AS "updatedByUuid",
+        NULL::uuid AS "deletedByUuid"
+      FROM solicitacoes_alteracao_senha s
+      INNER JOIN usuarios usuario ON usuario.id = s.usuario_id
+      LEFT JOIN usuarios atendente ON atendente.id = s.atendido_por
+      LEFT JOIN usuarios cancelador ON cancelador.id = s.cancelado_por
+      ${this.cursorWhere('s')}
+      ORDER BY s.updated_at, s.uuid
+      LIMIT $3
+      `,
+      [cursor.lastUpdatedAt, cursor.lastUuid, limit]
+    )
+
+    return this.normalizeRows(result.rows).map((row) => ({
+      ...row,
+      solicitadoEm: this.normalizeDate(row.solicitadoEm),
+      atendidoEm: this.normalizeNullableDate(row.atendidoEm),
+      canceladoEm: this.normalizeNullableDate(row.canceladoEm)
     }))
   }
 

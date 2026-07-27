@@ -10,6 +10,7 @@ export type PullEntity =
   | 'POSTO_DEFEITO'
   | 'ROTEIRO'
   | 'REFUGO'
+  | 'SOLICITACAO_ALTERACAO_SENHA'
 
 export type PullCursor = {
   lastUpdatedAt: string | null
@@ -130,4 +131,14 @@ export type RefugoPullRecord = AuditPullFields & {
   importadoEm: string | null
   importadoPorUuid: string | null
   itens: RefugoPullItemRecord[]
+}
+
+export type SolicitacaoAlteracaoSenhaPullRecord = AuditPullFields & {
+  usuarioUuid: string
+  status: string
+  solicitadoEm: string
+  atendidoEm: string | null
+  canceladoEm: string | null
+  atendidoPorUuid: string | null
+  canceladoPorUuid: string | null
 }

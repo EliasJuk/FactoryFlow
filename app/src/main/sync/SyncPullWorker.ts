@@ -30,6 +30,7 @@ export class SyncPullWorker {
     this.running = true
     try {
       await this.pullUsuarios()
+      await this.pullSolicitacoesAlteracaoSenha()
       await this.pullSetores()
       await this.pullSubsetores()
       await this.pullPostos()
@@ -55,6 +56,15 @@ export class SyncPullWorker {
       (r) => this.local.applyUsuario(r)
     )
   }
+
+  private pullSolicitacoesAlteracaoSenha(): Promise<void> {
+    return this.pullEntity(
+      'SOLICITACAO_ALTERACAO_SENHA',
+      (cursor) => this.remote.fetchSolicitacoesAlteracaoSenha(cursor, this.batchSize),
+      (record) => this.local.applySolicitacaoAlteracaoSenha(record)
+    )
+  }
+
   private pullSetores() {
     return this.pullEntity(
       'SETOR',

@@ -10,6 +10,7 @@ import type {
   RefugoPullRecord,
   RoteiroPullRecord,
   SetorPullRecord,
+  SolicitacaoAlteracaoSenhaPullRecord,
   SubsetorPullRecord,
   UsuarioPullRecord
 } from './pull.types'
@@ -30,6 +31,53 @@ export class SqliteRemoteApplyRepository {
       ]
     )
   }
+
+  applySolicitacaoAlteracaoSenha(record: SolicitacaoAlteracaoSenhaPullRecord): void {
+    const usuarioId = this.requiredId('usuarios', record.usuarioUuid)
+    const atendidoPor = this.userId(record.atendidoPorUuid)
+    const canceladoPor = this.userId(record.canceladoPorUuid)
+
+    db.transaction(() => {
+      db.prepare(
+        `
+        INSERT INTO solicitacoes_alteracao_senha (
+          uuid,
+          usuario_id,
+          status,
+          solicitado_em,
+          atendido_em,
+          cancelado_em,
+          atendido_por,
+          cancelado_por,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(uuid) DO UPDATE SET
+          usuario_id = excluded.usuario_id,
+          status = excluded.status,
+          solicitado_em = excluded.solicitado_em,
+          atendido_em = excluded.atendido_em,
+          cancelado_em = excluded.cancelado_em,
+          atendido_por = excluded.atendido_por,
+          cancelado_por = excluded.cancelado_por,
+          updated_at = excluded.updated_at
+        `
+      ).run(
+        record.uuid,
+        usuarioId,
+        record.status,
+        record.solicitadoEm,
+        record.atendidoEm,
+        record.canceladoEm,
+        atendidoPor,
+        canceladoPor,
+        record.createdAt,
+        record.updatedAt
+      )
+    })()
+  }
+
   applySetor(record: SetorPullRecord): void {
     this.applyAuditedEntity(
       `INSERT INTO setores (uuid,nome,sigla,ativo,created_at,updated_at,deleted_at,created_by,updated_by,deleted_by) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(uuid) DO UPDATE SET nome=excluded.nome,sigla=excluded.sigla,ativo=excluded.ativo,updated_at=excluded.updated_at,deleted_at=excluded.deleted_at,updated_by=excluded.updated_by,deleted_by=excluded.deleted_by`,
@@ -376,7 +424,14 @@ export class SqliteRemoteApplyRepository {
   }
   private requiredId(
     table:
-      'setores' | 'subsetores' | 'postos' | 'componentes' | 'circuitos' | 'defeitos' | 'refugos',
+      | 'usuarios'
+      | 'setores'
+      | 'subsetores'
+      | 'postos'
+      | 'componentes'
+      | 'circuitos'
+      | 'defeitos'
+      | 'refugos',
     uuid: string
   ): number {
     const row = db.prepare(`SELECT id FROM ${table} WHERE uuid=? LIMIT 1`).get(uuid) as

@@ -16,8 +16,9 @@ export function registerPostoDefeitoIpc() {
 
   ipcMain.handle(
     'posto-defeitos:adicionar',
-    async (_, postoId: number, defeitoId: number, usuarioId?: number | null) =>
-      service.adicionar(postoId, defeitoId, usuarioId)
+    async (_, postoId: number, defeitoId: number, usuarioId?: number | null) => {
+      return await service.adicionar(postoId, defeitoId, usuarioId)
+    }
   )
 
   ipcMain.handle('posto-defeitos:remover', async (_, id: number, usuarioId?: number | null) =>

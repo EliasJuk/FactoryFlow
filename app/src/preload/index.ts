@@ -173,34 +173,31 @@ contextBridge.exposeInMainWorld('api', {
 
   postos: {
     listar: () => ipcRenderer.invoke('postos:listar'),
-
     criar: (nome: string, subsetorId: number, usuarioId: number) =>
       ipcRenderer.invoke('postos:criar', nome, subsetorId, usuarioId),
-
     editar: (id: number, nome: string, subsetorId: number, usuarioId: number) =>
       ipcRenderer.invoke('postos:editar', id, nome, subsetorId, usuarioId),
-
     contarRoteirosAtivos: (id: number) => ipcRenderer.invoke('postos:contar-roteiros-ativos', id),
-
     excluir: (id: number, usuarioId: number) => ipcRenderer.invoke('postos:excluir', id, usuarioId),
-
     listarInativos: () => ipcRenderer.invoke('postos:listar-inativos'),
-
     restaurar: (id: number, usuarioId: number) =>
       ipcRenderer.invoke('postos:restaurar', id, usuarioId),
-
     excluirPermanente: (id: number) => ipcRenderer.invoke('postos:excluir-permanente', id)
   },
 
   postoDefeitos: {
     listarPorPosto: (postoId: number, incluirInativos = false) =>
       ipcRenderer.invoke('posto-defeitos:listar-por-posto', postoId, incluirInativos),
+
     listarPermitidosPorPosto: (postoId: number) =>
       ipcRenderer.invoke('posto-defeitos:listar-permitidos-por-posto', postoId),
+
     adicionar: (postoId: number, defeitoId: number, usuarioId?: number | null) =>
       ipcRenderer.invoke('posto-defeitos:adicionar', postoId, defeitoId, usuarioId),
+
     remover: (id: number, usuarioId?: number | null) =>
       ipcRenderer.invoke('posto-defeitos:remover', id, usuarioId),
+
     restaurar: (id: number, usuarioId?: number | null) =>
       ipcRenderer.invoke('posto-defeitos:restaurar', id, usuarioId)
   },

@@ -13,6 +13,7 @@ import type {
   RoteiroSyncPayload,
   RefugoSyncPayload,
   SetorSyncPayload,
+  SolicitacaoAlteracaoSenhaSyncPayload,
   SubsetorSyncPayload,
   SyncEntity,
   SyncOperation,
@@ -130,6 +131,62 @@ export class SyncQueueRepository {
     }
 
     this.enqueue('USUARIO', row.uuid, operation, payload, ifMissing)
+  }
+
+
+  enqueueSolicitacaoAlteracaoSenha(
+    id: number,
+    operation: SolicitacaoAlteracaoSenhaSyncPayload['operation'],
+    ifMissing = false
+  ): void {
+    if (!this.shouldEnqueue()) return
+
+    const row = db
+      .prepare(
+        `
+        SELECT
+          solicitacao.uuid,
+          usuario.uuid AS usuarioUuid,
+          solicitacao.status,
+          solicitacao.solicitado_em AS solicitadoEm,
+          solicitacao.atendido_em AS atendidoEm,
+          solicitacao.cancelado_em AS canceladoEm,
+          atendente.uuid AS atendidoPorUuid,
+          cancelador.uuid AS canceladoPorUuid,
+          solicitacao.created_at AS createdAt,
+          solicitacao.updated_at AS updatedAt,
+          NULL AS deletedAt,
+          NULL AS createdByUuid,
+          NULL AS updatedByUuid,
+          NULL AS deletedByUuid
+        FROM solicitacoes_alteracao_senha solicitacao
+        INNER JOIN usuarios usuario ON usuario.id = solicitacao.usuario_id
+        LEFT JOIN usuarios atendente ON atendente.id = solicitacao.atendido_por
+        LEFT JOIN usuarios cancelador ON cancelador.id = solicitacao.cancelado_por
+        WHERE solicitacao.id = ?
+        `
+      )
+      .get(id) as SolicitacaoAlteracaoSenhaSyncPayload['record'] | undefined
+
+    if (!row) {
+      throw new Error('Solicitação de alteração de senha não encontrada para sincronização.')
+    }
+
+    const payload: SolicitacaoAlteracaoSenhaSyncPayload = {
+      schemaVersion: 1,
+      sourceInstallationUuid: this.installationUuid(),
+      entity: 'SOLICITACAO_ALTERACAO_SENHA',
+      operation,
+      record: row
+    }
+
+    this.enqueue(
+      'SOLICITACAO_ALTERACAO_SENHA',
+      row.uuid,
+      operation,
+      payload,
+      ifMissing
+    )
   }
 
   enqueueSetor(id: number, operation: SetorSyncPayload['operation'], ifMissing = false): void {

@@ -12,6 +12,7 @@ export type SyncEntity =
   | 'POSTO_DEFEITO'
   | 'ROTEIRO'
   | 'REFUGO'
+  | 'SOLICITACAO_ALTERACAO_SENHA'
 
 export type AuditSyncFields = {
   createdAt: string
@@ -215,6 +216,23 @@ export type RefugoSyncPayload = {
   }
 }
 
+export type SolicitacaoAlteracaoSenhaSyncPayload = {
+  schemaVersion: 1
+  sourceInstallationUuid: string
+  entity: 'SOLICITACAO_ALTERACAO_SENHA'
+  operation: Extract<SyncOperation, 'CREATE' | 'UPDATE'>
+  record: AuditSyncFields & {
+    uuid: string
+    usuarioUuid: string
+    status: string
+    solicitadoEm: string
+    atendidoEm: string | null
+    canceladoEm: string | null
+    atendidoPorUuid: string | null
+    canceladoPorUuid: string | null
+  }
+}
+
 export type SyncPayload =
   | UsuarioSyncPayload
   | SetorSyncPayload
@@ -227,3 +245,4 @@ export type SyncPayload =
   | PostoDefeitoSyncPayload
   | RoteiroSyncPayload
   | RefugoSyncPayload
+  | SolicitacaoAlteracaoSenhaSyncPayload

@@ -2,6 +2,7 @@ import { getDatabase } from '../database/connection'
 import { pool } from '../database/postgres/connection'
 import { getDatabaseProvider } from '../repositories/factory/getDatabaseProvider'
 import { IdGenerator } from '../shared/ids/IdGenerator'
+import { SyncQueueRepository } from '../sync/SyncQueueRepository'
 import {
   gerarHashSenha,
   gerarSenhaTemporaria,
@@ -31,6 +32,7 @@ type Resultado = {
 }
 
 const db = getDatabase()
+const syncQueue = new SyncQueueRepository()
 
 function podeAdministrarSenha(perfil: string): boolean {
   return perfil === 'ADMIN' || perfil === 'QUALIDADE'
@@ -115,31 +117,42 @@ export class PasswordResetService {
       | undefined
 
     if (usuario && Boolean(usuario.ativo) && !usuario.deletedAt) {
-      db.prepare(
-        `
-          INSERT INTO solicitacoes_alteracao_senha (
-            uuid,
-            usuario_id,
-            status,
-            solicitado_em,
-            created_at,
-            updated_at
+      db.transaction(() => {
+        const result = db
+          .prepare(
+            `
+              INSERT INTO solicitacoes_alteracao_senha (
+                uuid,
+                usuario_id,
+                status,
+                solicitado_em,
+                created_at,
+                updated_at
+              )
+              SELECT
+                ?,
+                ?,
+                'PENDENTE',
+                datetime('now','localtime'),
+                datetime('now','localtime'),
+                datetime('now','localtime')
+              WHERE NOT EXISTS (
+                SELECT 1
+                FROM solicitacoes_alteracao_senha
+                WHERE usuario_id = ?
+                  AND status = 'PENDENTE'
+              )
+            `
           )
-          SELECT
-            ?,
-            ?,
-            'PENDENTE',
-            datetime('now','localtime'),
-            datetime('now','localtime'),
-            datetime('now','localtime')
-          WHERE NOT EXISTS (
-            SELECT 1
-            FROM solicitacoes_alteracao_senha
-            WHERE usuario_id = ?
-              AND status = 'PENDENTE'
+          .run(IdGenerator.generate(), usuario.id, usuario.id)
+
+        if (result.changes > 0) {
+          syncQueue.enqueueSolicitacaoAlteracaoSenha(
+            Number(result.lastInsertRowid),
+            'CREATE'
           )
-        `
-      ).run(IdGenerator.generate(), usuario.id, usuario.id)
+        }
+      })()
     }
 
     return {
@@ -328,31 +341,47 @@ export class PasswordResetService {
         throw new Error('SOLICITACAO_INDISPONIVEL')
       }
 
-      db.prepare(
-        `
-          UPDATE usuarios
-          SET
-            senha_hash = ?,
-            deve_trocar_senha = 1,
-            updated_at = datetime('now','localtime'),
-            updated_by = ?
-          WHERE id = ?
-            AND ativo = 1
-            AND deleted_at IS NULL
-        `
-      ).run(senhaHash, atendenteId, solicitacao.usuarioId)
+      const usuarioAtualizado = db
+        .prepare(
+          `
+            UPDATE usuarios
+            SET
+              senha_hash = ?,
+              deve_trocar_senha = 1,
+              updated_at = datetime('now','localtime'),
+              updated_by = ?
+            WHERE id = ?
+              AND ativo = 1
+              AND deleted_at IS NULL
+          `
+        )
+        .run(senhaHash, atendenteId, solicitacao.usuarioId)
 
-      db.prepare(
-        `
-          UPDATE solicitacoes_alteracao_senha
-          SET
-            status = 'ATENDIDA',
-            atendido_em = datetime('now','localtime'),
-            atendido_por = ?,
-            updated_at = datetime('now','localtime')
-          WHERE id = ?
-        `
-      ).run(atendenteId, solicitacaoId)
+      if (usuarioAtualizado.changes !== 1) {
+        throw new Error('SOLICITACAO_INDISPONIVEL')
+      }
+
+      const solicitacaoAtualizada = db
+        .prepare(
+          `
+            UPDATE solicitacoes_alteracao_senha
+            SET
+              status = 'ATENDIDA',
+              atendido_em = datetime('now','localtime'),
+              atendido_por = ?,
+              updated_at = datetime('now','localtime')
+            WHERE id = ?
+              AND status = 'PENDENTE'
+          `
+        )
+        .run(atendenteId, solicitacaoId)
+
+      if (solicitacaoAtualizada.changes !== 1) {
+        throw new Error('SOLICITACAO_INDISPONIVEL')
+      }
+
+      syncQueue.enqueueUsuario(solicitacao.usuarioId, 'UPDATE')
+      syncQueue.enqueueSolicitacaoAlteracaoSenha(solicitacaoId, 'UPDATE')
     })
 
     try {
@@ -437,25 +466,33 @@ export class PasswordResetService {
       }
     }
 
-    const result = db
-      .prepare(
-        `
-          UPDATE solicitacoes_alteracao_senha
-          SET
-            status = 'CANCELADA',
-            cancelado_em = datetime('now','localtime'),
-            cancelado_por = ?,
-            updated_at = datetime('now','localtime')
-          WHERE id = ?
-            AND status = 'PENDENTE'
-        `
-      )
-      .run(responsavelId, solicitacaoId)
+    const changes = db.transaction(() => {
+      const result = db
+        .prepare(
+          `
+            UPDATE solicitacoes_alteracao_senha
+            SET
+              status = 'CANCELADA',
+              cancelado_em = datetime('now','localtime'),
+              cancelado_por = ?,
+              updated_at = datetime('now','localtime')
+            WHERE id = ?
+              AND status = 'PENDENTE'
+          `
+        )
+        .run(responsavelId, solicitacaoId)
+
+      if (result.changes > 0) {
+        syncQueue.enqueueSolicitacaoAlteracaoSenha(solicitacaoId, 'UPDATE')
+      }
+
+      return result.changes
+    })()
 
     return {
-      sucesso: result.changes > 0,
+      sucesso: changes > 0,
       mensagem:
-        result.changes > 0
+        changes > 0
           ? 'Solicitação cancelada.'
           : 'Esta solicitação já foi atendida ou cancelada.'
     }
@@ -528,49 +565,68 @@ export class PasswordResetService {
       }
     }
 
-    const usuario = db
-      .prepare(
-        `
-          SELECT
-            senha_hash AS senhaHash,
-            deve_trocar_senha AS deveTrocarSenha
-          FROM usuarios
-          WHERE id = ?
-            AND ativo = 1
-            AND deleted_at IS NULL
-        `
-      )
-      .get(usuarioId) as
-      | { senhaHash: string | null; deveTrocarSenha: number }
-      | undefined
+    try {
+      db.transaction(() => {
+        const usuario = db
+          .prepare(
+            `
+              SELECT
+                senha_hash AS senhaHash,
+                deve_trocar_senha AS deveTrocarSenha
+              FROM usuarios
+              WHERE id = ?
+                AND ativo = 1
+                AND deleted_at IS NULL
+            `
+          )
+          .get(usuarioId) as
+          | { senhaHash: string | null; deveTrocarSenha: number }
+          | undefined
 
-    if (
-      !usuario?.senhaHash ||
-      !Boolean(usuario.deveTrocarSenha) ||
-      !verificarSenha(senhaAtual, usuario.senhaHash)
-    ) {
+        if (
+          !usuario?.senhaHash ||
+          !Boolean(usuario.deveTrocarSenha) ||
+          !verificarSenha(senhaAtual, usuario.senhaHash)
+        ) {
+          throw new Error('SENHA_TEMPORARIA_INVALIDA')
+        }
+
+        const result = db
+          .prepare(
+            `
+              UPDATE usuarios
+              SET
+                senha_hash = ?,
+                deve_trocar_senha = 0,
+                senha_alterada_em = datetime('now','localtime'),
+                updated_at = datetime('now','localtime'),
+                updated_by = ?
+              WHERE id = ?
+                AND ativo = 1
+                AND deleted_at IS NULL
+            `
+          )
+          .run(gerarHashSenha(novaSenha), usuarioId, usuarioId)
+
+        if (result.changes !== 1) {
+          throw new Error('SENHA_TEMPORARIA_INVALIDA')
+        }
+
+        syncQueue.enqueueUsuario(usuarioId, 'UPDATE')
+      })()
+
+      return {
+        sucesso: true,
+        mensagem: 'Senha alterada com sucesso.'
+      }
+    } catch (error) {
       return {
         sucesso: false,
-        mensagem: 'Senha temporária inválida.'
+        mensagem:
+          error instanceof Error && error.message === 'SENHA_TEMPORARIA_INVALIDA'
+            ? 'Senha temporária inválida.'
+            : 'Não foi possível alterar a senha.'
       }
-    }
-
-    db.prepare(
-      `
-        UPDATE usuarios
-        SET
-          senha_hash = ?,
-          deve_trocar_senha = 0,
-          senha_alterada_em = datetime('now','localtime'),
-          updated_at = datetime('now','localtime'),
-          updated_by = ?
-        WHERE id = ?
-      `
-    ).run(gerarHashSenha(novaSenha), usuarioId, usuarioId)
-
-    return {
-      sucesso: true,
-      mensagem: 'Senha alterada com sucesso.'
     }
   }
 }

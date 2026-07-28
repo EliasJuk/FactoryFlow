@@ -33,9 +33,15 @@ export function registerComponenteIpc() {
 
   ipcMain.handle(
     "componentes:criar",
-    async (_, codigo: string, nome: string, precoAtual: number) => {
+    async (
+      _,
+      codigo: string,
+      nome: string,
+      precoAtual: number,
+      usuarioId: number
+    ) => {
       try {
-        await componenteRepository.criar(codigo, nome, precoAtual)
+        await componenteRepository.criar(codigo, nome, precoAtual, usuarioId)
         return sucesso("Componente cadastrado com sucesso.")
       } catch (error) {
         return falha(error, "Erro ao cadastrar componente.")
@@ -45,9 +51,16 @@ export function registerComponenteIpc() {
 
   ipcMain.handle(
     "componentes:editar",
-    async (_, id: number, codigo: string, nome: string, precoAtual: number) => {
+    async (
+      _,
+      id: number,
+      codigo: string,
+      nome: string,
+      precoAtual: number,
+      usuarioId: number
+    ) => {
       try {
-        await componenteRepository.editar(id, codigo, nome, precoAtual)
+        await componenteRepository.editar(id, codigo, nome, precoAtual, usuarioId)
         return sucesso("Componente atualizado com sucesso.")
       } catch (error) {
         return falha(error, "Erro ao editar componente.")
@@ -55,18 +68,18 @@ export function registerComponenteIpc() {
     }
   )
 
-  ipcMain.handle("componentes:excluir", async (_, id: number) => {
+  ipcMain.handle("componentes:excluir", async (_, id: number, usuarioId: number) => {
     try {
-      await componenteRepository.excluir(id)
+      await componenteRepository.excluir(id, usuarioId)
       return sucesso("Componente inativado com sucesso.")
     } catch (error) {
       return falha(error, "Erro ao inativar componente.")
     }
   })
 
-  ipcMain.handle("componentes:restaurar", async (_, id: number) => {
+  ipcMain.handle("componentes:restaurar", async (_, id: number, usuarioId: number) => {
     try {
-      await componenteRepository.restaurar(id)
+      await componenteRepository.restaurar(id, usuarioId)
       return sucesso("Componente restaurado com sucesso.")
     } catch (error) {
       return falha(error, "Erro ao restaurar componente.")

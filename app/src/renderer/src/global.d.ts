@@ -461,18 +461,28 @@ declare global {
         criar: (
           codigo: string,
           nome: string,
-          precoAtual: number
+          precoAtual: number,
+          usuarioId: number
         ) => Promise<{ sucesso: boolean; mensagem: string }>
 
         editar: (
           id: number,
           codigo: string,
           nome: string,
-          precoAtual: number
+          precoAtual: number,
+          usuarioId: number
         ) => Promise<{ sucesso: boolean; mensagem: string }>
 
-        excluir: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
-        restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+        excluir: (
+          id: number,
+          usuarioId: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
+
+        restaurar: (
+          id: number,
+          usuarioId: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
+
         excluirPermanente: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
       }
 

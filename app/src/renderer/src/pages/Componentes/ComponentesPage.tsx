@@ -3,6 +3,7 @@ import { DollarSign, Eye, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
 import type { Componente } from '../../models/Componente'
+import { useApp } from '../../contexts/AppContext'
 import { ui } from '../../theme/ui'
 
 import { Pagination } from '../../components/Pagination/Pagination'
@@ -32,6 +33,8 @@ function converterValorMonetario(valor: string) {
 }
 
 function ComponentesPage() {
+  const { usuario } = useApp()
+
   const [componentes, setComponentes] = useState<Componente[]>([])
   const [componentesInativos, setComponentesInativos] = useState<Componente[]>([])
 
@@ -152,6 +155,13 @@ function ComponentesPage() {
       return
     }
 
+    const usuarioId = usuario.id
+
+    if (!usuarioId) {
+      setMensagemErro('Não foi possível identificar o usuário conectado.')
+      return
+    }
+
     setProcessando(true)
 
     try {
@@ -162,7 +172,8 @@ function ComponentesPage() {
           componenteEditando.id,
           codigo.trim().toUpperCase(),
           nome.trim(),
-          valor
+          valor,
+          usuarioId
         )
 
         if (!resultado.sucesso) {
@@ -175,7 +186,8 @@ function ComponentesPage() {
         const resultado = await window.api.componentes.criar(
           codigo.trim().toUpperCase(),
           nome.trim(),
-          valor
+          valor,
+          usuarioId
         )
 
         if (!resultado.sucesso) {
@@ -196,11 +208,21 @@ function ComponentesPage() {
   async function confirmarInativacao() {
     if (!componenteParaInativar || processando) return
 
+    const usuarioId = usuario.id
+
+    if (!usuarioId) {
+      setMensagemErro('Não foi possível identificar o usuário conectado.')
+      return
+    }
+
     setProcessando(true)
     limparMensagens()
 
     try {
-      const resultado = await window.api.componentes.excluir(componenteParaInativar.id)
+      const resultado = await window.api.componentes.excluir(
+        componenteParaInativar.id,
+        usuarioId
+      )
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -218,11 +240,21 @@ function ComponentesPage() {
   async function confirmarRestauracao() {
     if (!componenteParaRestaurar || processando) return
 
+    const usuarioId = usuario.id
+
+    if (!usuarioId) {
+      setMensagemErro('Não foi possível identificar o usuário conectado.')
+      return
+    }
+
     setProcessando(true)
     limparMensagens()
 
     try {
-      const resultado = await window.api.componentes.restaurar(componenteParaRestaurar.id)
+      const resultado = await window.api.componentes.restaurar(
+        componenteParaRestaurar.id,
+        usuarioId
+      )
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)

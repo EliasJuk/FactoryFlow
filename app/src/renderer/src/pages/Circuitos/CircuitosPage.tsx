@@ -9,6 +9,7 @@ import { CrudHeader } from '../../components/Crud/CrudHeader/CrudHeader'
 import { SearchBar } from '../../components/Crud/SearchBar/SearchBar'
 import { InativosCard } from '../../components/Crud/InativosCard/InativosCard'
 import { ui } from '../../theme/ui'
+import { useApp } from '../../contexts/AppContext'
 
 import { CircuitoFormModal, type CircuitoFormModo } from './components/CircuitoFormModal'
 import { CircuitoInfoModal } from './components/CircuitoInfoModal'
@@ -16,6 +17,8 @@ import { CircuitoInfoModal } from './components/CircuitoInfoModal'
 const ITENS_POR_PAGINA = 10
 
 function CircuitosPage() {
+  const { usuario } = useApp()
+
   const [circuitos, setCircuitos] = useState<Circuito[]>([])
   const [circuitosInativos, setCircuitosInativos] = useState<Circuito[]>([])
 
@@ -129,6 +132,13 @@ function CircuitosPage() {
       return
     }
 
+    const usuarioId = usuario.id
+
+    if (!usuarioId) {
+      setMensagemErro('Não foi possível identificar o usuário conectado.')
+      return
+    }
+
     setProcessando(true)
 
     try {
@@ -136,7 +146,8 @@ function CircuitosPage() {
         const resultado = await window.api.circuitos.editar(
           circuitoEditando.id,
           codigo.trim().toUpperCase(),
-          nome.trim()
+          nome.trim(),
+          usuarioId
         )
 
         if (!resultado.sucesso) {
@@ -146,7 +157,11 @@ function CircuitosPage() {
 
         setMensagemSucesso('Circuito atualizado com sucesso.')
       } else {
-        const resultado = await window.api.circuitos.criar(codigo.trim().toUpperCase(), nome.trim())
+        const resultado = await window.api.circuitos.criar(
+          codigo.trim().toUpperCase(),
+          nome.trim(),
+          usuarioId
+        )
 
         if (!resultado.sucesso) {
           setMensagemErro(resultado.mensagem)
@@ -166,11 +181,21 @@ function CircuitosPage() {
   async function confirmarInativacao() {
     if (!circuitoParaInativar || processando) return
 
+    const usuarioId = usuario.id
+
+    if (!usuarioId) {
+      setMensagemErro('Não foi possível identificar o usuário conectado.')
+      return
+    }
+
     setProcessando(true)
     limparMensagens()
 
     try {
-      const resultado = await window.api.circuitos.excluir(circuitoParaInativar.id)
+      const resultado = await window.api.circuitos.excluir(
+        circuitoParaInativar.id,
+        usuarioId
+      )
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -188,11 +213,21 @@ function CircuitosPage() {
   async function confirmarRestauracao() {
     if (!circuitoParaRestaurar || processando) return
 
+    const usuarioId = usuario.id
+
+    if (!usuarioId) {
+      setMensagemErro('Não foi possível identificar o usuário conectado.')
+      return
+    }
+
     setProcessando(true)
     limparMensagens()
 
     try {
-      const resultado = await window.api.circuitos.restaurar(circuitoParaRestaurar.id)
+      const resultado = await window.api.circuitos.restaurar(
+        circuitoParaRestaurar.id,
+        usuarioId
+      )
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)

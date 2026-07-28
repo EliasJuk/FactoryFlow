@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Lightbulb, Plus, RotateCcw } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
+import { useApp } from '../../contexts/AppContext'
 import { SearchBar } from '../../components/Crud/SearchBar/SearchBar'
 import { Pagination } from '../../components/Pagination/Pagination'
 import type { Circuito } from '../../models/Circuito'
@@ -22,6 +23,8 @@ type FiltroComponentes = 'todos' | 'com' | 'sem'
 const ITENS_POR_PAGINA = 10
 
 function ComposicaoCircuitosPage() {
+  const { usuario } = useApp()
+
   const [circuitos, setCircuitos] = useState<Circuito[]>([])
   const [componentes, setComponentes] = useState<
     Awaited<ReturnType<typeof window.api.componentes.listar>>
@@ -192,11 +195,22 @@ function ComposicaoCircuitosPage() {
   async function salvarNovoCircuito() {
     if (!codigo.trim() || !nome.trim() || processando) return
 
+    const usuarioId = usuario.id
+
+    if (!usuarioId) {
+      setMensagemErro('Não foi possível identificar o usuário conectado.')
+      return
+    }
+
     setProcessando(true)
     setMensagemErro('')
 
     try {
-      const resultado = await window.api.circuitos.criar(codigo.trim().toUpperCase(), nome.trim())
+      const resultado = await window.api.circuitos.criar(
+        codigo.trim().toUpperCase(),
+        nome.trim(),
+        usuarioId
+      )
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -214,6 +228,13 @@ function ComposicaoCircuitosPage() {
   async function adicionarComponente(componenteId: number, quantidade: number) {
     if (!circuitoSelecionado || processando) return
 
+    const usuarioId = usuario.id
+
+    if (!usuarioId) {
+      setErroAdicionarComponente('Não foi possível identificar o usuário conectado.')
+      return
+    }
+
     setProcessando(true)
     setErroAdicionarComponente('')
 
@@ -221,7 +242,8 @@ function ComposicaoCircuitosPage() {
       const resultado = await window.api.circuitoComponentes.adicionar(
         circuitoSelecionado.id,
         componenteId,
-        quantidade
+        quantidade,
+        usuarioId
       )
 
       if (!resultado.sucesso) {
@@ -249,10 +271,17 @@ function ComposicaoCircuitosPage() {
   }
 
   async function editarQuantidade(circuitoId: number, id: number, quantidade: number) {
+    const usuarioId = usuario.id
+
+    if (!usuarioId) {
+      setMensagemErro('Não foi possível identificar o usuário conectado.')
+      return
+    }
+
     setProcessando(true)
 
     try {
-      await window.api.circuitoComponentes.editarQuantidade(id, quantidade)
+      await window.api.circuitoComponentes.editarQuantidade(id, quantidade, usuarioId)
 
       const itens = await window.api.circuitoComponentes.listarPorCircuito(circuitoId)
 
@@ -269,10 +298,17 @@ function ComposicaoCircuitosPage() {
   }
 
   async function removerComponente(circuitoId: number, id: number) {
+    const usuarioId = usuario.id
+
+    if (!usuarioId) {
+      setMensagemErro('Não foi possível identificar o usuário conectado.')
+      return
+    }
+
     setProcessando(true)
 
     try {
-      await window.api.circuitoComponentes.remover(id)
+      await window.api.circuitoComponentes.remover(id, usuarioId)
 
       const itens = await window.api.circuitoComponentes.listarPorCircuito(circuitoId)
 

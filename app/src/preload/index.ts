@@ -146,11 +146,14 @@ contextBridge.exposeInMainWorld('api', {
   circuitos: {
     listar: () => ipcRenderer.invoke('circuitos:listar'),
     listarInativos: () => ipcRenderer.invoke('circuitos:listar-inativos'),
-    criar: (codigo: string, nome: string) => ipcRenderer.invoke('circuitos:criar', codigo, nome),
-    editar: (id: number, codigo: string, nome: string) =>
-      ipcRenderer.invoke('circuitos:editar', id, codigo, nome),
-    excluir: (id: number) => ipcRenderer.invoke('circuitos:excluir', id),
-    restaurar: (id: number) => ipcRenderer.invoke('circuitos:restaurar', id),
+    criar: (codigo: string, nome: string, usuarioId: number) =>
+      ipcRenderer.invoke('circuitos:criar', codigo, nome, usuarioId),
+    editar: (id: number, codigo: string, nome: string, usuarioId: number) =>
+      ipcRenderer.invoke('circuitos:editar', id, codigo, nome, usuarioId),
+    excluir: (id: number, usuarioId: number) =>
+      ipcRenderer.invoke('circuitos:excluir', id, usuarioId),
+    restaurar: (id: number, usuarioId: number) =>
+      ipcRenderer.invoke('circuitos:restaurar', id, usuarioId),
     excluirPermanente: (id: number) => ipcRenderer.invoke('circuitos:excluir-permanente', id)
   },
 
@@ -161,7 +164,7 @@ contextBridge.exposeInMainWorld('api', {
       circuitoId: number,
       componenteId: number,
       quantidade: number,
-      usuarioId?: number | null
+      usuarioId: number
     ) =>
       ipcRenderer.invoke(
         'circuito-componentes:adicionar',
@@ -170,11 +173,11 @@ contextBridge.exposeInMainWorld('api', {
         quantidade,
         usuarioId
       ),
-    editarQuantidade: (id: number, quantidade: number, usuarioId?: number | null) =>
+    editarQuantidade: (id: number, quantidade: number, usuarioId: number) =>
       ipcRenderer.invoke('circuito-componentes:editar-quantidade', id, quantidade, usuarioId),
-    remover: (id: number, usuarioId?: number | null) =>
+    remover: (id: number, usuarioId: number) =>
       ipcRenderer.invoke('circuito-componentes:remover', id, usuarioId),
-    restaurar: (id: number, usuarioId?: number | null) =>
+    restaurar: (id: number, usuarioId: number) =>
       ipcRenderer.invoke('circuito-componentes:restaurar', id, usuarioId)
   },
 

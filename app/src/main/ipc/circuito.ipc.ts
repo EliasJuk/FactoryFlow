@@ -31,36 +31,42 @@ export function registerCircuitoIpc() {
     return await circuitoRepository.listarInativos()
   })
 
-  ipcMain.handle('circuitos:criar', async (_, codigo: string, nome: string) => {
-    try {
-      await circuitoRepository.criar(codigo, nome)
-      return sucesso('Circuito cadastrado com sucesso.')
-    } catch (error) {
-      return falha(error, 'Erro ao cadastrar circuito.')
+  ipcMain.handle(
+    'circuitos:criar',
+    async (_, codigo: string, nome: string, usuarioId: number) => {
+      try {
+        await circuitoRepository.criar(codigo, nome, usuarioId)
+        return sucesso('Circuito cadastrado com sucesso.')
+      } catch (error) {
+        return falha(error, 'Erro ao cadastrar circuito.')
+      }
     }
-  })
+  )
 
-  ipcMain.handle('circuitos:editar', async (_, id: number, codigo: string, nome: string) => {
-    try {
-      await circuitoRepository.editar(id, codigo, nome)
-      return sucesso('Circuito atualizado com sucesso.')
-    } catch (error) {
-      return falha(error, 'Erro ao editar circuito.')
+  ipcMain.handle(
+    'circuitos:editar',
+    async (_, id: number, codigo: string, nome: string, usuarioId: number) => {
+      try {
+        await circuitoRepository.editar(id, codigo, nome, usuarioId)
+        return sucesso('Circuito atualizado com sucesso.')
+      } catch (error) {
+        return falha(error, 'Erro ao editar circuito.')
+      }
     }
-  })
+  )
 
-  ipcMain.handle('circuitos:excluir', async (_, id: number) => {
+  ipcMain.handle('circuitos:excluir', async (_, id: number, usuarioId: number) => {
     try {
-      await circuitoRepository.excluir(id)
+      await circuitoRepository.excluir(id, usuarioId)
       return sucesso('Circuito inativado com sucesso.')
     } catch (error) {
       return falha(error, 'Erro ao inativar circuito.')
     }
   })
 
-  ipcMain.handle('circuitos:restaurar', async (_, id: number) => {
+  ipcMain.handle('circuitos:restaurar', async (_, id: number, usuarioId: number) => {
     try {
-      await circuitoRepository.restaurar(id)
+      await circuitoRepository.restaurar(id, usuarioId)
       return sucesso('Circuito restaurado com sucesso.')
     } catch (error) {
       return falha(error, 'Erro ao restaurar circuito.')

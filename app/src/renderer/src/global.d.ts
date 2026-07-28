@@ -490,16 +490,27 @@ declare global {
         listar: () => Promise<CircuitoApi[]>
         listarInativos: () => Promise<CircuitoApi[]>
 
-        criar: (codigo: string, nome: string) => Promise<{ sucesso: boolean; mensagem: string }>
+        criar: (
+          codigo: string,
+          nome: string,
+          usuarioId: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
 
         editar: (
           id: number,
           codigo: string,
-          nome: string
+          nome: string,
+          usuarioId: number
         ) => Promise<{ sucesso: boolean; mensagem: string }>
 
-        excluir: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
-        restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+        excluir: (
+          id: number,
+          usuarioId: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
+        restaurar: (
+          id: number,
+          usuarioId: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
         excluirPermanente: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
       }
 
@@ -509,7 +520,7 @@ declare global {
           circuitoId: number,
           componenteId: number,
           quantidade: number,
-          usuarioId?: number | null
+          usuarioId: number
         ) => Promise<
           | {
               sucesso: true
@@ -524,10 +535,10 @@ declare global {
         editarQuantidade: (
           id: number,
           quantidade: number,
-          usuarioId?: number | null
+          usuarioId: number
         ) => Promise<void>
-        remover: (id: number, usuarioId?: number | null) => Promise<void>
-        restaurar: (id: number, usuarioId?: number | null) => Promise<void>
+        remover: (id: number, usuarioId: number) => Promise<void>
+        restaurar: (id: number, usuarioId: number) => Promise<void>
       }
 
       postos: {

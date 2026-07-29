@@ -25,26 +25,28 @@ export function registerRoteiroIpc() {
       circuitoId: number,
       postoId: number,
       componenteId: number,
-      quantidade: number
+      quantidade: number,
+      usuarioId: number
     ) => {
       return await repository.adicionar(
         circuitoId,
         postoId,
         componenteId,
-        quantidade
+        quantidade,
+        usuarioId
       )
     }
   )
 
   ipcMain.handle(
     "roteiro:editar-quantidade",
-    async (_, id: number, quantidade: number) => {
-      return await repository.editarQuantidade(id, quantidade)
+    async (_, id: number, quantidade: number, usuarioId: number) => {
+      return await repository.editarQuantidade(id, quantidade, usuarioId)
     }
   )
 
-  ipcMain.handle("roteiro:remover", async (_, id: number) => {
-    return await repository.remover(id)
+  ipcMain.handle("roteiro:remover", async (_, id: number, usuarioId: number) => {
+    return await repository.remover(id, usuarioId)
   })
 
   ipcMain.handle("roteiro:listar-todos", async () => {

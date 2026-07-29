@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Plus, RotateCcw, Search } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
+import { useApp } from '../../contexts/AppContext'
 import { Circuito } from '../../models/Circuito'
 import { Posto } from '../../models/Posto'
 import { Setor } from '../../models/Setor'
@@ -33,6 +34,8 @@ type CircuitoComponente = {
 type ModalModo = 'novo' | 'editar'
 
 function RoteiroPage() {
+  const { usuario } = useApp()
+
   const [setores, setSetores] = useState<Setor[]>([])
   const [subsetores, setSubsetores] = useState<Subsetor[]>([])
   const [postos, setPostos] = useState<Posto[]>([])
@@ -305,11 +308,16 @@ function RoteiroPage() {
 
     if (quantidade < 1) return
 
+    const usuarioId = usuario.id
+
+    if (!usuarioId) return
+
     await window.api.roteiro.adicionar(
       Number(modalCircuitoId),
       Number(postoAtualId),
       Number(componenteId),
-      quantidade
+      quantidade,
+      usuarioId
     )
 
     setComponenteId('')
@@ -321,7 +329,11 @@ function RoteiroPage() {
   async function alterarQuantidadeModal(id: number, novaQuantidade: number) {
     if (novaQuantidade < 1) return
 
-    await window.api.roteiro.editarQuantidade(id, novaQuantidade)
+    const usuarioId = usuario.id
+
+    if (!usuarioId) return
+
+    await window.api.roteiro.editarQuantidade(id, novaQuantidade, usuarioId)
 
     const postoAtualId =
       modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId
@@ -332,7 +344,11 @@ function RoteiroPage() {
   }
 
   async function removerComponenteModal(id: number) {
-    await window.api.roteiro.remover(id)
+    const usuarioId = usuario.id
+
+    if (!usuarioId) return
+
+    await window.api.roteiro.remover(id, usuarioId)
 
     const postoAtualId =
       modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId

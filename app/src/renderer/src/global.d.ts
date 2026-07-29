@@ -682,12 +682,17 @@ declare global {
           circuitoId: number,
           postoId: number,
           componenteId: number,
-          quantidade: number
+          quantidade: number,
+          usuarioId: number
         ) => Promise<void>
 
-        editarQuantidade: (id: number, quantidade: number) => Promise<void>
+        editarQuantidade: (
+          id: number,
+          quantidade: number,
+          usuarioId: number
+        ) => Promise<void>
 
-        remover: (id: number) => Promise<void>
+        remover: (id: number, usuarioId: number) => Promise<void>
       }
 
       usuarios: {

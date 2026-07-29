@@ -24,7 +24,7 @@ export function registerRefugoIpc() {
       quantidadeProduzida: number,
       observacao: string | undefined,
       itens: { id: number; defeitoId: number; quantidade: number }[],
-      usuarioId?: number | null
+      usuarioId: number
     ) => {
       return await service.editarCompleto(
         id,
@@ -38,12 +38,9 @@ export function registerRefugoIpc() {
     }
   )
 
-  ipcMain.handle(
-    'refugos:cancelar',
-    async (_, id: number, motivo: string, usuarioId?: number | null) => {
-      return await service.cancelar(id, motivo, usuarioId)
-    }
-  )
+  ipcMain.handle('refugos:cancelar', async (_, id: number, motivo: string, usuarioId: number) => {
+    return await service.cancelar(id, motivo, usuarioId)
+  })
 
   ipcMain.handle('refugos:imprimir', async (_, id: number) => {
     return await service.imprimir(id)

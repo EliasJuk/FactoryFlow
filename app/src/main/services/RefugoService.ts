@@ -12,20 +12,35 @@ export class RefugoService {
   private usuarioRepository = RepositoryFactory.usuarios()
   private postoDefeitoRepository = RepositoryFactory.postoDefeitos()
 
-  private async validarPermissaoAlteracao(usuarioId?: number | null) {
+  private async validarUsuarioAtivo(
+    usuarioId?: number | null,
+    perfisPermitidos?: ReadonlySet<string>
+  ): Promise<number> {
     if (!usuarioId) {
       throw new Error('USUARIO_NAO_IDENTIFICADO')
     }
 
     const usuario = await this.usuarioRepository.buscarPerfilPorId(usuarioId)
-    const perfisPermitidos = new Set(['ADMIN', 'TECNICO', 'QUALIDADE', 'LIDER'])
 
-    if (!usuario || !usuario.ativo || !perfisPermitidos.has(usuario.perfil)) {
+    if (!usuario || !usuario.ativo) {
+      throw new Error('USUARIO_NAO_IDENTIFICADO')
+    }
+
+    if (perfisPermitidos && !perfisPermitidos.has(usuario.perfil)) {
       throw new Error('SEM_PERMISSAO_REFUGO')
     }
+
+    return usuarioId
+  }
+
+  private async validarPermissaoAlteracao(usuarioId?: number | null): Promise<number> {
+    const perfisPermitidos = new Set(['ADMIN', 'TECNICO', 'QUALIDADE', 'LIDER'])
+    return await this.validarUsuarioAtivo(usuarioId, perfisPermitidos)
   }
 
   async criar(input: CriarRefugoInput) {
+    const usuarioId = await this.validarUsuarioAtivo(input.usuarioId)
+
     const defeitosValidos = await this.postoDefeitoRepository.defeitosPertencemAoPosto(
       input.postoId,
       input.itens.map((item) => item.defeitoId)
@@ -35,7 +50,7 @@ export class RefugoService {
       throw new Error('DEFEITO_NAO_PERMITIDO_NO_POSTO')
     }
 
-    const resultado = await this.repository.criar(input)
+    const resultado = await this.repository.criar({ ...input, usuarioId })
 
     try {
       const refugo = await this.repository.buscarParaImpressao(resultado.id)
@@ -60,7 +75,7 @@ export class RefugoService {
     itens: { id: number; defeitoId: number; quantidade: number }[],
     usuarioId?: number | null
   ) {
-    await this.validarPermissaoAlteracao(usuarioId)
+    const responsavelId = await this.validarPermissaoAlteracao(usuarioId)
 
     return await this.repository.editarCompleto(
       id,
@@ -69,13 +84,13 @@ export class RefugoService {
       quantidadeProduzida,
       observacao,
       itens,
-      usuarioId
+      responsavelId
     )
   }
 
   async cancelar(id: number, motivo: string, usuarioId?: number | null) {
-    await this.validarPermissaoAlteracao(usuarioId)
-    return await this.repository.cancelar(id, motivo, usuarioId)
+    const responsavelId = await this.validarPermissaoAlteracao(usuarioId)
+    return await this.repository.cancelar(id, motivo, responsavelId)
   }
 
   async imprimir(id: number) {

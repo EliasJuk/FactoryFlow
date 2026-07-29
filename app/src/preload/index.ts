@@ -13,7 +13,8 @@ type RefugoItemInput = {
 
 type RefugoInput = {
   matriculaOperador: string
-  usuarioId?: number | null
+  usuarioId: number
+  dataHora?: string
   setorId: number
   subsetorId: number
   postoId: number
@@ -129,13 +130,8 @@ contextBridge.exposeInMainWorld('api', {
     listarInativos: () => ipcRenderer.invoke('componentes:listar-inativos'),
     criar: (codigo: string, nome: string, precoAtual: number, usuarioId: number) =>
       ipcRenderer.invoke('componentes:criar', codigo, nome, precoAtual, usuarioId),
-    editar: (
-      id: number,
-      codigo: string,
-      nome: string,
-      precoAtual: number,
-      usuarioId: number
-    ) => ipcRenderer.invoke('componentes:editar', id, codigo, nome, precoAtual, usuarioId),
+    editar: (id: number, codigo: string, nome: string, precoAtual: number, usuarioId: number) =>
+      ipcRenderer.invoke('componentes:editar', id, codigo, nome, precoAtual, usuarioId),
     excluir: (id: number, usuarioId: number) =>
       ipcRenderer.invoke('componentes:excluir', id, usuarioId),
     restaurar: (id: number, usuarioId: number) =>
@@ -160,12 +156,7 @@ contextBridge.exposeInMainWorld('api', {
   circuitoComponentes: {
     listarPorCircuito: (circuitoId: number) =>
       ipcRenderer.invoke('circuito-componentes:listar-por-circuito', circuitoId),
-    adicionar: (
-      circuitoId: number,
-      componenteId: number,
-      quantidade: number,
-      usuarioId: number
-    ) =>
+    adicionar: (circuitoId: number, componenteId: number, quantidade: number, usuarioId: number) =>
       ipcRenderer.invoke(
         'circuito-componentes:adicionar',
         circuitoId,
@@ -237,7 +228,7 @@ contextBridge.exposeInMainWorld('api', {
       quantidadeProduzida: number,
       observacao: string | undefined,
       itens: { id: number; defeitoId: number; quantidade: number }[],
-      usuarioId?: number | null
+      usuarioId: number
     ) =>
       ipcRenderer.invoke(
         'refugos:editar-completo',
@@ -249,7 +240,7 @@ contextBridge.exposeInMainWorld('api', {
         itens,
         usuarioId
       ),
-    cancelar: (id: number, motivo: string, usuarioId?: number | null) =>
+    cancelar: (id: number, motivo: string, usuarioId: number) =>
       ipcRenderer.invoke('refugos:cancelar', id, motivo, usuarioId),
     imprimir: (id: number) => ipcRenderer.invoke('refugos:imprimir', id),
     resultados: (filtros: Record<string, unknown>) =>
@@ -279,8 +270,7 @@ contextBridge.exposeInMainWorld('api', {
       ),
     editarQuantidade: (id: number, quantidade: number, usuarioId: number) =>
       ipcRenderer.invoke('roteiro:editar-quantidade', id, quantidade, usuarioId),
-    remover: (id: number, usuarioId: number) =>
-      ipcRenderer.invoke('roteiro:remover', id, usuarioId)
+    remover: (id: number, usuarioId: number) => ipcRenderer.invoke('roteiro:remover', id, usuarioId)
   },
 
   usuarios: {

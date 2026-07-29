@@ -389,12 +389,13 @@ export class RefugoRepository {
     itens: { id: number; defeitoId: number; quantidade: number }[],
     usuarioId?: number | null
   ): Promise<void> {
+    const responsavelId = usuarioId ?? 1
     const client = await pool.connect()
 
     try {
       await client.query('BEGIN')
 
-      await client.query(
+      const resultadoRefugo = await client.query(
         `
           UPDATE refugos
           SET
@@ -407,10 +408,18 @@ export class RefugoRepository {
           WHERE id = $6
             AND status = 'ATIVO'
         `,
-        [matriculaOperador, turno, quantidadeProduzida, observacao ?? null, usuarioId ?? 1, id]
+        [matriculaOperador, turno, quantidadeProduzida, observacao ?? null, responsavelId, id]
       )
 
+      if ((resultadoRefugo.rowCount ?? 0) === 0) {
+        throw new Error('Refugo não encontrado ou não está ativo.')
+      }
+
       for (const item of itens) {
+        if (!Number.isInteger(item.quantidade) || item.quantidade <= 0) {
+          throw new Error('QUANTIDADE_INVALIDA')
+        }
+
         const defeitoResult = await client.query<{
           codigo: string
           descricao: string
@@ -419,6 +428,7 @@ export class RefugoRepository {
             SELECT codigo, descricao
             FROM defeitos
             WHERE id = $1
+              AND ativo = true
           `,
           [item.defeitoId]
         )
@@ -426,10 +436,10 @@ export class RefugoRepository {
         const defeito = defeitoResult.rows[0]
 
         if (!defeito) {
-          throw new Error('Defeito não encontrado.')
+          throw new Error('Defeito não encontrado ou inativo.')
         }
 
-        await client.query(
+        const resultadoItem = await client.query(
           `
             UPDATE refugo_itens
             SET
@@ -441,6 +451,8 @@ export class RefugoRepository {
               updated_at = NOW(),
               updated_by = $6
             WHERE id = $7
+              AND refugo_id = $8
+              AND deleted_at IS NULL
           `,
           [
             item.defeitoId,
@@ -448,10 +460,15 @@ export class RefugoRepository {
             defeito.codigo,
             defeito.descricao,
             item.quantidade,
-            usuarioId ?? 1,
-            item.id
+            responsavelId,
+            item.id,
+            id
           ]
         )
+
+        if ((resultadoItem.rowCount ?? 0) === 0) {
+          throw new Error('Item não encontrado neste refugo ou já está removido.')
+        }
       }
 
       await client.query('COMMIT')
@@ -464,33 +481,53 @@ export class RefugoRepository {
   }
 
   async cancelar(id: number, motivo: string, usuarioId?: number | null): Promise<void> {
-    await pool.query(
-      `
-        UPDATE refugos
-        SET
-          status = 'CANCELADO',
-          motivo_cancelamento = $1,
-          updated_at = NOW(),
-          updated_by = $2,
-          deleted_at = NOW(),
-          deleted_by = $2
-        WHERE id = $3
-          AND status = 'ATIVO'
-      `,
-      [motivo, usuarioId ?? 1, id]
-    )
+    const responsavelId = usuarioId ?? 1
+    const client = await pool.connect()
 
-    await pool.query(
-      `
-        UPDATE refugo_itens
-        SET updated_at = NOW(),
+    try {
+      await client.query('BEGIN')
+
+      const resultado = await client.query(
+        `
+          UPDATE refugos
+          SET
+            status = 'CANCELADO',
+            motivo_cancelamento = $1,
+            updated_at = NOW(),
+            updated_by = $2,
+            deleted_at = NOW(),
+            deleted_by = $2
+          WHERE id = $3
+            AND status = 'ATIVO'
+        `,
+        [motivo, responsavelId, id]
+      )
+
+      if ((resultado.rowCount ?? 0) === 0) {
+        throw new Error('Refugo não encontrado ou já cancelado.')
+      }
+
+      await client.query(
+        `
+          UPDATE refugo_itens
+          SET
+            updated_at = NOW(),
             updated_by = $1,
             deleted_at = NOW(),
             deleted_by = $1
-        WHERE refugo_id = $2
-      `,
-      [usuarioId ?? 1, id]
-    )
+          WHERE refugo_id = $2
+            AND deleted_at IS NULL
+        `,
+        [responsavelId, id]
+      )
+
+      await client.query('COMMIT')
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
   }
 
   async buscarParaImpressao(id: number) {

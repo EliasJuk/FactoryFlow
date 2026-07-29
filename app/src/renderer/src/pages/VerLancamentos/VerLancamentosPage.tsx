@@ -83,6 +83,14 @@ function VerLancamentosPage() {
 
   async function salvarEdicao() {
     if (!editando) return
+
+    const usuarioId = usuario.id
+
+    if (!usuarioId) {
+      tratarErro(new Error('USUARIO_NAO_IDENTIFICADO'))
+      return
+    }
+
     try {
       await window.api.refugos.editarCompleto(
         editando.id,
@@ -91,7 +99,7 @@ function VerLancamentosPage() {
         editQuantidadeProduzida,
         editObservacao.trim() || undefined,
         editItens.map(({ id, defeitoId, quantidade }) => ({ id, defeitoId, quantidade })),
-        usuario.id ?? null
+        usuarioId
       )
       setEditando(null)
       setMensagem('Lançamento atualizado com sucesso.')
@@ -103,12 +111,16 @@ function VerLancamentosPage() {
 
   async function confirmarCancelamento() {
     if (!cancelando || !motivoCancelamento.trim()) return
+
+    const usuarioId = usuario.id
+
+    if (!usuarioId) {
+      tratarErro(new Error('USUARIO_NAO_IDENTIFICADO'))
+      return
+    }
+
     try {
-      await window.api.refugos.cancelar(
-        cancelando.id,
-        motivoCancelamento.trim(),
-        usuario.id ?? null
-      )
+      await window.api.refugos.cancelar(cancelando.id, motivoCancelamento.trim(), usuarioId)
       setCancelando(null)
       setMotivoCancelamento('')
       setMensagem('Lançamento cancelado com sucesso.')

@@ -162,7 +162,7 @@ type RefugoItemInput = {
 
 type RefugoInput = {
   matriculaOperador: string
-  usuarioId?: number | null
+  usuarioId: number
   dataHora?: string
   setorId: number
   subsetorId: number
@@ -473,10 +473,7 @@ declare global {
           usuarioId: number
         ) => Promise<{ sucesso: boolean; mensagem: string }>
 
-        excluir: (
-          id: number,
-          usuarioId: number
-        ) => Promise<{ sucesso: boolean; mensagem: string }>
+        excluir: (id: number, usuarioId: number) => Promise<{ sucesso: boolean; mensagem: string }>
 
         restaurar: (
           id: number,
@@ -503,10 +500,7 @@ declare global {
           usuarioId: number
         ) => Promise<{ sucesso: boolean; mensagem: string }>
 
-        excluir: (
-          id: number,
-          usuarioId: number
-        ) => Promise<{ sucesso: boolean; mensagem: string }>
+        excluir: (id: number, usuarioId: number) => Promise<{ sucesso: boolean; mensagem: string }>
         restaurar: (
           id: number,
           usuarioId: number
@@ -532,11 +526,7 @@ declare global {
               mensagem: string
             }
         >
-        editarQuantidade: (
-          id: number,
-          quantidade: number,
-          usuarioId: number
-        ) => Promise<void>
+        editarQuantidade: (id: number, quantidade: number, usuarioId: number) => Promise<void>
         remover: (id: number, usuarioId: number) => Promise<void>
         restaurar: (id: number, usuarioId: number) => Promise<void>
       }
@@ -658,10 +648,10 @@ declare global {
           quantidadeProduzida: number,
           observacao: string | undefined,
           itens: { id: number; defeitoId: number; quantidade: number }[],
-          usuarioId?: number | null
+          usuarioId: number
         ) => Promise<void>
 
-        cancelar: (id: number, motivo: string, usuarioId?: number | null) => Promise<void>
+        cancelar: (id: number, motivo: string, usuarioId: number) => Promise<void>
 
         imprimir: (id: number) => Promise<void>
 
@@ -686,11 +676,7 @@ declare global {
           usuarioId: number
         ) => Promise<void>
 
-        editarQuantidade: (
-          id: number,
-          quantidade: number,
-          usuarioId: number
-        ) => Promise<void>
+        editarQuantidade: (id: number, quantidade: number, usuarioId: number) => Promise<void>
 
         remover: (id: number, usuarioId: number) => Promise<void>
       }

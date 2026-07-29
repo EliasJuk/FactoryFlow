@@ -221,6 +221,13 @@ function LancarRefugoPage() {
       setSalvando(true)
       setMensagem('')
 
+      const usuarioId = usuario.id
+
+      if (!usuarioId) {
+        mostrarMensagem('Não foi possível identificar o usuário logado.', 'erro')
+        return
+      }
+
       const itensValidos = itens
         .filter((item) => item.defeitoId !== '')
         .map((item) => ({
@@ -246,7 +253,7 @@ function LancarRefugoPage() {
 
       const numeroRefugo = await window.api.refugos.criar({
         matriculaOperador,
-        usuarioId: usuario.id ?? null,
+        usuarioId,
         dataHora: dataHoraDesbloqueada ? dataHora : undefined,
         setorId: Number(setorId),
         subsetorId: Number(subsetorId),

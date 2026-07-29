@@ -370,21 +370,29 @@ export class RefugoRepository {
     itens: { id: number; defeitoId: number; quantidade: number }[],
     usuarioId?: number | null
   ) {
+    const responsavelId = usuarioId ?? 1
+
     const transaction = db.transaction(() => {
-      db.prepare(
+      const resultadoRefugo = db
+        .prepare(
+          `
+          UPDATE refugos
+          SET
+            matricula_operador = ?,
+            turno = ?,
+            quantidade_produzida = ?,
+            observacao = ?,
+            updated_at = datetime('now','localtime'),
+            updated_by = ?
+          WHERE id = ?
+            AND status = 'ATIVO'
         `
-        UPDATE refugos
-        SET
-          matricula_operador = ?,
-          turno = ?,
-          quantidade_produzida = ?,
-          observacao = ?,
-          updated_at = datetime('now','localtime'),
-          updated_by = ?
-        WHERE id = ?
-          AND status = 'ATIVO'
-      `
-      ).run(matriculaOperador, turno, quantidadeProduzida, observacao ?? null, usuarioId ?? 1, id)
+        )
+        .run(matriculaOperador, turno, quantidadeProduzida, observacao ?? null, responsavelId, id)
+
+      if (resultadoRefugo.changes === 0) {
+        throw new Error('Refugo não encontrado ou não está ativo.')
+      }
 
       const updateItem = db.prepare(`
         UPDATE refugo_itens
@@ -397,28 +405,44 @@ export class RefugoRepository {
           updated_at = datetime('now','localtime'),
           updated_by = ?
         WHERE id = ?
+          AND refugo_id = ?
+          AND deleted_at IS NULL
       `)
 
       for (const item of itens) {
+        if (!Number.isInteger(item.quantidade) || item.quantidade <= 0) {
+          throw new Error('QUANTIDADE_INVALIDA')
+        }
+
         const defeito = db
           .prepare(
             `
             SELECT codigo, descricao
             FROM defeitos
             WHERE id = ?
+              AND ativo = 1
           `
           )
-          .get(item.defeitoId) as { codigo: string; descricao: string }
+          .get(item.defeitoId) as { codigo: string; descricao: string } | undefined
 
-        updateItem.run(
+        if (!defeito) {
+          throw new Error('Defeito não encontrado ou inativo.')
+        }
+
+        const resultadoItem = updateItem.run(
           item.defeitoId,
           item.quantidade,
           defeito.codigo,
           defeito.descricao,
           item.quantidade,
-          usuarioId ?? 1,
-          item.id
+          responsavelId,
+          item.id,
+          id
         )
+
+        if (resultadoItem.changes === 0) {
+          throw new Error('Item não encontrado neste refugo ou já está removido.')
+        }
       }
 
       this.syncQueue.enqueueRefugo(id, 'UPDATE')

@@ -1,12 +1,6 @@
-import { createContext, ReactNode, useContext, useState } from 'react'
+import { createContext, type ReactNode, useContext, useEffect, useState } from 'react'
 
-export type PerfilUsuario =
-  | 'OPERADOR'
-  | 'TECNICO'
-  | 'LIDER'
-  | 'SUPERVISOR'
-  | 'QUALIDADE'
-  | 'ADMIN'
+export type PerfilUsuario = 'OPERADOR' | 'TECNICO' | 'LIDER' | 'SUPERVISOR' | 'QUALIDADE' | 'ADMIN'
 
 export type Usuario = {
   id?: number
@@ -18,6 +12,7 @@ export type Usuario = {
 
 type AppContextData = {
   usuario: Usuario
+  sessaoCarregada: boolean
   definirUsuario: (usuario: Usuario) => void
   limparUsuario: () => void
   atualizarTrocaSenha: (deveTrocarSenha: boolean) => void
@@ -40,41 +35,68 @@ type AppProviderProps = {
   children: ReactNode
 }
 
-function carregarUsuarioSalvo(): Usuario {
-  try {
-    const salvo = localStorage.getItem('factoryflow.usuario')
-    if (!salvo) return usuarioPadrao
-    return JSON.parse(salvo) as Usuario
-  } catch {
-    return usuarioPadrao
-  }
-}
-
 export function AppProvider({ children }: AppProviderProps) {
-  const [usuario, setUsuario] = useState<Usuario>(carregarUsuarioSalvo)
+  const [usuario, setUsuario] = useState<Usuario>(usuarioPadrao)
+  const [sessaoCarregada, setSessaoCarregada] = useState(false)
   const [setorSelecionado, setSetorSelecionado] = useState('SETOR-1')
   const [subsetorSelecionado, setSubsetorSelecionado] = useState('SUB-SETOR A')
 
+  useEffect(() => {
+    let ativo = true
+
+    void window.api.auth
+      .sessaoAtual()
+      .then((sessao) => {
+        if (!ativo) return
+
+        if (!sessao) {
+          setUsuario(usuarioPadrao)
+          return
+        }
+
+        setUsuario({
+          ...sessao,
+          perfil: sessao.perfil as PerfilUsuario
+        })
+      })
+      .catch(() => {
+        if (ativo) {
+          setUsuario(usuarioPadrao)
+        }
+      })
+      .finally(() => {
+        if (ativo) {
+          setSessaoCarregada(true)
+        }
+      })
+
+    return () => {
+      ativo = false
+    }
+  }, [])
+
   function definirUsuario(novoUsuario: Usuario) {
-    localStorage.setItem('factoryflow.usuario', JSON.stringify(novoUsuario))
     setUsuario(novoUsuario)
+    setSessaoCarregada(true)
   }
 
   function limparUsuario() {
-    localStorage.removeItem('factoryflow.usuario')
     setUsuario(usuarioPadrao)
+    setSessaoCarregada(true)
   }
 
   function atualizarTrocaSenha(deveTrocarSenha: boolean) {
-    const atualizado = { ...usuario, deveTrocarSenha }
-    localStorage.setItem('factoryflow.usuario', JSON.stringify(atualizado))
-    setUsuario(atualizado)
+    setUsuario((atual) => ({
+      ...atual,
+      deveTrocarSenha
+    }))
   }
 
   return (
     <AppContext.Provider
       value={{
         usuario,
+        sessaoCarregada,
         definirUsuario,
         limparUsuario,
         atualizarTrocaSenha,

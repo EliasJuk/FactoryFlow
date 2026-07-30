@@ -81,10 +81,12 @@ contextBridge.exposeInMainWorld('api', {
 
   auth: {
     login: (matricula: string, senha: string) => ipcRenderer.invoke('auth:login', matricula, senha),
+    sessaoAtual: () => ipcRenderer.invoke('auth:sessao-atual'),
+    logout: () => ipcRenderer.invoke('auth:logout'),
     solicitarRedefinicao: (matricula: string) =>
       ipcRenderer.invoke('auth:solicitar-redefinicao', matricula),
-    alterarSenhaObrigatoria: (usuarioId: number, senhaAtual: string, novaSenha: string) =>
-      ipcRenderer.invoke('auth:alterar-senha-obrigatoria', usuarioId, senhaAtual, novaSenha)
+    alterarSenhaObrigatoria: (senhaAtual: string, novaSenha: string) =>
+      ipcRenderer.invoke('auth:alterar-senha-obrigatoria', senhaAtual, novaSenha)
   },
 
   setores: {
@@ -279,17 +281,14 @@ contextBridge.exposeInMainWorld('api', {
     criar: (input: Record<string, unknown>) => ipcRenderer.invoke('usuarios:criar', input),
     editar: (id: number, input: Record<string, unknown>) =>
       ipcRenderer.invoke('usuarios:editar', id, input),
-    excluir: (id: number, usuarioId?: number | null) =>
-      ipcRenderer.invoke('usuarios:excluir', id, usuarioId),
-    ativar: (id: number, usuarioId?: number | null) =>
-      ipcRenderer.invoke('usuarios:ativar', id, usuarioId),
-    remover: (id: number, usuarioId: number) =>
-      ipcRenderer.invoke('usuarios:remover', id, usuarioId),
+    excluir: (id: number) => ipcRenderer.invoke('usuarios:excluir', id),
+    ativar: (id: number) => ipcRenderer.invoke('usuarios:ativar', id),
+    remover: (id: number) => ipcRenderer.invoke('usuarios:remover', id),
     listarSolicitacoesSenha: () => ipcRenderer.invoke('usuarios:listar-solicitacoes-senha'),
-    atenderSolicitacaoSenha: (solicitacaoId: number, atendenteId: number) =>
-      ipcRenderer.invoke('usuarios:atender-solicitacao-senha', solicitacaoId, atendenteId),
-    cancelarSolicitacaoSenha: (solicitacaoId: number, responsavelId: number) =>
-      ipcRenderer.invoke('usuarios:cancelar-solicitacao-senha', solicitacaoId, responsavelId)
+    atenderSolicitacaoSenha: (solicitacaoId: number) =>
+      ipcRenderer.invoke('usuarios:atender-solicitacao-senha', solicitacaoId),
+    cancelarSolicitacaoSenha: (solicitacaoId: number) =>
+      ipcRenderer.invoke('usuarios:cancelar-solicitacao-senha', solicitacaoId)
   },
 
   importacao: {

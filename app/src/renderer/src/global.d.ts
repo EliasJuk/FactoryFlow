@@ -361,13 +361,25 @@ declare global {
           }
         }>
 
+        sessaoAtual: () => Promise<{
+          id: number
+          nome: string
+          matricula: string
+          perfil: PerfilUsuario
+          deveTrocarSenha: boolean
+        } | null>
+
+        logout: () => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
+
         solicitarRedefinicao: (matricula: string) => Promise<{
           sucesso: boolean
           mensagem: string
         }>
 
         alterarSenhaObrigatoria: (
-          usuarioId: number,
           senhaAtual: string,
           novaSenha: string
         ) => Promise<{
@@ -691,7 +703,6 @@ declare global {
           matricula: string
           perfil: string
           senha?: string
-          usuarioId?: number
         }) => Promise<{
           sucesso: boolean
           mensagem: string
@@ -704,33 +715,23 @@ declare global {
             matricula: string
             perfil: string
             senha?: string
-            usuarioId?: number
           }
         ) => Promise<{
           sucesso: boolean
           mensagem: string
         }>
 
-        excluir: (
-          id: number,
-          usuarioId?: number
-        ) => Promise<{
+        excluir: (id: number) => Promise<{
           sucesso: boolean
           mensagem: string
         }>
 
-        ativar: (
-          id: number,
-          usuarioId?: number
-        ) => Promise<{
+        ativar: (id: number) => Promise<{
           sucesso: boolean
           mensagem: string
         }>
 
-        remover: (
-          id: number,
-          usuarioId?: number
-        ) => Promise<{
+        remover: (id: number) => Promise<{
           sucesso: boolean
           mensagem: string
         }>
@@ -753,19 +754,13 @@ declare global {
           }[]
         >
 
-        atenderSolicitacaoSenha: (
-          solicitacaoId: number,
-          atendenteId: number
-        ) => Promise<{
+        atenderSolicitacaoSenha: (solicitacaoId: number) => Promise<{
           sucesso: boolean
           mensagem: string
           senhaTemporaria?: string
         }>
 
-        cancelarSolicitacaoSenha: (
-          solicitacaoId: number,
-          responsavelId: number
-        ) => Promise<{
+        cancelarSolicitacaoSenha: (solicitacaoId: number) => Promise<{
           sucesso: boolean
           mensagem: string
         }>

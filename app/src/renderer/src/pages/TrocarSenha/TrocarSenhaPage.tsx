@@ -1,10 +1,11 @@
-import { FormEvent, useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+
 import { useApp } from '../../contexts/AppContext'
 
 function TrocarSenhaPage() {
   const navigate = useNavigate()
-  const { usuario, atualizarTrocaSenha, limparUsuario } = useApp()
+  const { usuario, sessaoCarregada, atualizarTrocaSenha, limparUsuario } = useApp()
 
   const [senhaAtual, setSenhaAtual] = useState('')
   const [novaSenha, setNovaSenha] = useState('')
@@ -12,8 +13,20 @@ function TrocarSenhaPage() {
   const [mensagem, setMensagem] = useState('')
   const [processando, setProcessando] = useState(false)
 
+  if (!sessaoCarregada) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-300">
+        Validando sessão...
+      </main>
+    )
+  }
+
   if (!usuario.id) {
     return <Navigate to="/" replace />
+  }
+
+  if (!usuario.deveTrocarSenha) {
+    return <Navigate to="/dashboard" replace />
   }
 
   async function salvar(event: FormEvent) {
@@ -28,11 +41,7 @@ function TrocarSenhaPage() {
     setProcessando(true)
 
     try {
-      const resultado = await window.api.auth.alterarSenhaObrigatoria(
-        usuario.id!,
-        senhaAtual,
-        novaSenha
-      )
+      const resultado = await window.api.auth.alterarSenhaObrigatoria(senhaAtual, novaSenha)
 
       if (!resultado.sucesso) {
         setMensagem(resultado.mensagem)
@@ -43,6 +52,15 @@ function TrocarSenhaPage() {
       navigate('/dashboard', { replace: true })
     } finally {
       setProcessando(false)
+    }
+  }
+
+  async function voltarAoLogin() {
+    try {
+      await window.api.auth.logout()
+    } finally {
+      limparUsuario()
+      navigate('/', { replace: true })
     }
   }
 
@@ -94,11 +112,9 @@ function TrocarSenhaPage() {
 
           <button
             type="button"
-            onClick={() => {
-              limparUsuario()
-              navigate('/', { replace: true })
-            }}
-            className="w-full text-sm font-semibold text-slate-400 hover:text-white"
+            disabled={processando}
+            onClick={() => void voltarAoLogin()}
+            className="w-full text-sm font-semibold text-slate-400 hover:text-white disabled:opacity-50"
           >
             Voltar ao login
           </button>

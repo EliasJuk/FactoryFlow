@@ -20,7 +20,7 @@ function LoginPage() {
   const [carregandoLogin, setCarregandoLogin] = useState(false)
   const [mostrarEsqueciSenha, setMostrarEsqueciSenha] = useState(false)
 
-  const { definirUsuario } = useApp()
+  const { usuario, sessaoCarregada, definirUsuario } = useApp()
 
   useEffect(() => {
     window.api.app.onStartupProgress((data) => {
@@ -49,6 +49,16 @@ function LoginPage() {
       }
     })
   }, [])
+
+  useEffect(() => {
+    if (!sessaoCarregada || !usuario.id) {
+      return
+    }
+
+    navigate(usuario.deveTrocarSenha ? '/trocar-senha' : '/dashboard', {
+      replace: true
+    })
+  }, [navigate, sessaoCarregada, usuario.deveTrocarSenha, usuario.id])
 
   async function fazerLogin(event: React.FormEvent) {
     event.preventDefault()

@@ -49,10 +49,15 @@ function DashboardPage() {
   const { usuario, limparUsuario } = useApp()
   const perfil = usuario.perfil?.toUpperCase()
   const podeVerAdministracao = perfil !== 'OPERADOR'
+  const podeGerenciarUsuarios = perfil === 'ADMIN' || perfil === 'QUALIDADE'
 
-  function fazerLogout() {
-    limparUsuario()
-    navigate('/', { replace: true })
+  async function fazerLogout() {
+    try {
+      await window.api.auth.logout()
+    } finally {
+      limparUsuario()
+      navigate('/', { replace: true })
+    }
   }
 
   return (
@@ -70,7 +75,7 @@ function DashboardPage() {
 
         <button
           type="button"
-          onClick={fazerLogout}
+          onClick={() => void fazerLogout()}
           className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-black"
           title="Sair"
         >
@@ -179,12 +184,14 @@ function DashboardPage() {
             <div className="mt-6 space-y-3">
               <h2 className={ui.dashboardGroupTitle}>Demais cadastros</h2>
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <DashboardCard
-                  title="Usuários"
-                  description="Perfis e acessos"
-                  icon={<Users size={24} />}
-                  onClick={() => navigate('/usuarios')}
-                />
+                {podeGerenciarUsuarios && (
+                  <DashboardCard
+                    title="Usuários"
+                    description="Perfis e acessos"
+                    icon={<Users size={24} />}
+                    onClick={() => navigate('/usuarios')}
+                  />
+                )}
                 <DashboardCard
                   title="Configurações"
                   description="Sistema e impressão"

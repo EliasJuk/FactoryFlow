@@ -1,16 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Database, Settings } from 'lucide-react'
-
 import { APP } from '../../config/app'
 import Button from '../../components/Button/Button'
 import Input from '../../components/Input/Input'
 import { useApp, type Usuario } from '../../contexts/AppContext'
 import { ForgotPasswordModal } from './components/ForgotPasswordModal'
-
-type StorageMode = 'sqliteSync' | 'api' | 'postgres'
-
-type ConfigBanco = Awaited<ReturnType<typeof window.api.configuracao.carregarBanco>>
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -26,20 +20,9 @@ function LoginPage() {
   const [carregandoLogin, setCarregandoLogin] = useState(false)
   const [mostrarEsqueciSenha, setMostrarEsqueciSenha] = useState(false)
 
-  const [configBanco, setConfigBanco] = useState<ConfigBanco | null>(null)
-  const [mostrarBanco, setMostrarBanco] = useState(false)
-  const [salvandoBanco, setSalvandoBanco] = useState(false)
-  const [mensagemBanco, setMensagemBanco] = useState('')
   const { definirUsuario } = useApp()
 
-  async function carregarConfigBanco() {
-    const config = await window.api.configuracao.carregarBanco()
-    setConfigBanco(config)
-  }
-
   useEffect(() => {
-    carregarConfigBanco()
-
     window.api.app.onStartupProgress((data) => {
       setMessage(data.message)
       setProgress(data.progress)
@@ -66,32 +49,6 @@ function LoginPage() {
       }
     })
   }, [])
-
-  async function salvarModo(mode: StorageMode) {
-    if (!configBanco || mode === 'api') return
-
-    setSalvandoBanco(true)
-    setMensagemBanco('')
-
-    try {
-      const novaConfig: ConfigBanco = {
-        ...configBanco,
-        mode
-      }
-
-      const resultado = await window.api.configuracao.salvarBanco(novaConfig)
-      const configAtualizada = await window.api.configuracao.carregarBanco()
-
-      setConfigBanco(configAtualizada)
-      setMensagemBanco(resultado.mensagem)
-    } catch (error) {
-      setMensagemBanco(
-        error instanceof Error ? error.message : 'Não foi possível salvar o modo de armazenamento.'
-      )
-    } finally {
-      setSalvandoBanco(false)
-    }
-  }
 
   async function fazerLogin(event: React.FormEvent) {
     event.preventDefault()
@@ -130,58 +87,6 @@ function LoginPage() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-slate-950 p-6">
-      <div className="absolute right-6 top-6">
-        <button
-          type="button"
-          onClick={() => setMostrarBanco((valor) => !valor)}
-          className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800"
-        >
-          <Database size={14} />
-          Banco: {configBanco?.mode === 'postgres' ? 'PostgreSQL' : 'SQLite + Sync'}
-          <Settings size={14} />
-        </button>
-
-        {mostrarBanco && configBanco && (
-          <div className="mt-2 w-72 rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl">
-            <p className="text-xs font-bold text-slate-300">Modo de armazenamento</p>
-
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                disabled={salvandoBanco}
-                onClick={() => salvarModo('sqliteSync')}
-                className={`rounded-lg px-3 py-2 text-xs font-bold ${
-                  configBanco.mode === 'sqliteSync'
-                    ? 'bg-orange-600 text-white'
-                    : 'bg-slate-800 text-slate-300'
-                }`}
-              >
-                SQLite + Sync
-              </button>
-
-              <button
-                type="button"
-                disabled={salvandoBanco}
-                onClick={() => salvarModo('postgres')}
-                className={`rounded-lg px-3 py-2 text-xs font-bold ${
-                  configBanco.mode === 'postgres'
-                    ? 'bg-orange-600 text-white'
-                    : 'bg-slate-800 text-slate-300'
-                }`}
-              >
-                PostgreSQL
-              </button>
-            </div>
-
-            {mensagemBanco && (
-              <p className="mt-3 rounded-lg bg-orange-950/30 px-3 py-2 text-xs text-orange-300">
-                {mensagemBanco}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
       {startupError && (
         <div className="absolute top-6 max-w-xl rounded-2xl border border-red-900/40 bg-red-950/40 px-5 py-3 text-center text-sm font-semibold text-red-300">
           {startupError}

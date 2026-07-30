@@ -116,8 +116,13 @@ async function executarImportacao(
       return importarSetores(registros, usuarioId)
     }
 
-    case 'subsetores':
-      return importarSubsetores(registros)
+    case 'subsetores': {
+      if (usuarioId == null) {
+        throw new Error('Usuário autenticado é obrigatório para importar subsetores.')
+      }
+
+      return importarSubsetores(registros, usuarioId)
+    }
 
     case 'postos':
       return importarPostos(registros, usuarioId)

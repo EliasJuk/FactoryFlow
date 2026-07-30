@@ -585,13 +585,13 @@ declare global {
         adicionar: (
           postoId: number,
           defeitoId: number,
-          usuarioId?: number | null
+          usuarioId: number
         ) => Promise<
           | { sucesso: true; mensagem: string }
           | { sucesso: false; codigo: 'DEFEITO_JA_VINCULADO'; mensagem: string }
         >
-        remover: (id: number, usuarioId?: number | null) => Promise<void>
-        restaurar: (id: number, usuarioId?: number | null) => Promise<void>
+        remover: (id: number, usuarioId: number) => Promise<void>
+        restaurar: (id: number, usuarioId: number) => Promise<void>
       }
 
       defeitos: {

@@ -16,16 +16,16 @@ export function registerPostoDefeitoIpc() {
 
   ipcMain.handle(
     'posto-defeitos:adicionar',
-    async (_, postoId: number, defeitoId: number, usuarioId?: number | null) => {
+    async (_, postoId: number, defeitoId: number, usuarioId: number) => {
       return await service.adicionar(postoId, defeitoId, usuarioId)
     }
   )
 
-  ipcMain.handle('posto-defeitos:remover', async (_, id: number, usuarioId?: number | null) =>
+  ipcMain.handle('posto-defeitos:remover', async (_, id: number, usuarioId: number) =>
     service.remover(id, usuarioId)
   )
 
-  ipcMain.handle('posto-defeitos:restaurar', async (_, id: number, usuarioId?: number | null) =>
+  ipcMain.handle('posto-defeitos:restaurar', async (_, id: number, usuarioId: number) =>
     service.restaurar(id, usuarioId)
   )
 }

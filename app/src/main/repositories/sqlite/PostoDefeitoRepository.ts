@@ -3,8 +3,6 @@ import { IdGenerator } from '../../shared/ids/IdGenerator'
 import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const db = getDatabase()
-const USUARIO_SISTEMA_ID = 1
-
 export type AdicionarPostoDefeitoResultado =
   | { sucesso: true; mensagem: string }
   | { sucesso: false; codigo: 'DEFEITO_JA_VINCULADO'; mensagem: string }
@@ -73,11 +71,7 @@ export class PostoDefeitoRepository {
     return this.listarPorPosto(postoId, false)
   }
 
-  adicionar(
-    postoId: number,
-    defeitoId: number,
-    usuarioId: number = USUARIO_SISTEMA_ID
-  ): AdicionarPostoDefeitoResultado {
+  adicionar(postoId: number, defeitoId: number, usuarioId: number): AdicionarPostoDefeitoResultado {
     const existente = db
       .prepare(`SELECT id, ativo FROM posto_defeitos WHERE posto_id = ? AND defeito_id = ? LIMIT 1`)
       .get(postoId, defeitoId) as { id: number; ativo: number } | undefined
@@ -131,7 +125,7 @@ export class PostoDefeitoRepository {
     return { sucesso: true, mensagem: 'Defeito vinculado ao posto com sucesso.' }
   }
 
-  remover(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  remover(id: number, usuarioId: number): void {
     db.transaction(() => {
       const resultado = db
         .prepare(
@@ -157,7 +151,7 @@ export class PostoDefeitoRepository {
     })()
   }
 
-  restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  restaurar(id: number, usuarioId: number): void {
     db.transaction(() => {
       const resultado = db
         .prepare(

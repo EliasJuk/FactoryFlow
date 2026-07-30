@@ -1,8 +1,6 @@
 import { pool } from '../../database/postgres/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
 
-const USUARIO_SISTEMA_ID = 1
-
 export type AdicionarPostoDefeitoResultado =
   | { sucesso: true; mensagem: string }
   | { sucesso: false; codigo: 'DEFEITO_JA_VINCULADO'; mensagem: string }
@@ -69,7 +67,7 @@ export class PostoDefeitoRepository {
   async adicionar(
     postoId: number,
     defeitoId: number,
-    usuarioId: number = USUARIO_SISTEMA_ID
+    usuarioId: number
   ): Promise<AdicionarPostoDefeitoResultado> {
     const existente = await pool.query<{ id: number; ativo: boolean }>(
       `SELECT id, ativo FROM posto_defeitos WHERE posto_id = $1 AND defeito_id = $2 LIMIT 1`,
@@ -102,14 +100,14 @@ export class PostoDefeitoRepository {
     return { sucesso: true, mensagem: 'Defeito vinculado ao posto com sucesso.' }
   }
 
-  async remover(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async remover(id: number, usuarioId: number): Promise<void> {
     await pool.query(
       `UPDATE posto_defeitos SET ativo = false, deleted_at = NOW(), deleted_by = $1, updated_at = NOW(), updated_by = $1 WHERE id = $2`,
       [usuarioId, id]
     )
   }
 
-  async restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async restaurar(id: number, usuarioId: number): Promise<void> {
     await pool.query(
       `UPDATE posto_defeitos SET ativo = true, deleted_at = NULL, deleted_by = NULL, updated_at = NOW(), updated_by = $1 WHERE id = $2`,
       [usuarioId, id]

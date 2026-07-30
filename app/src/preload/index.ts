@@ -193,13 +193,13 @@ contextBridge.exposeInMainWorld('api', {
     listarPermitidosPorPosto: (postoId: number) =>
       ipcRenderer.invoke('posto-defeitos:listar-permitidos-por-posto', postoId),
 
-    adicionar: (postoId: number, defeitoId: number, usuarioId?: number | null) =>
+    adicionar: (postoId: number, defeitoId: number, usuarioId: number) =>
       ipcRenderer.invoke('posto-defeitos:adicionar', postoId, defeitoId, usuarioId),
 
-    remover: (id: number, usuarioId?: number | null) =>
+    remover: (id: number, usuarioId: number) =>
       ipcRenderer.invoke('posto-defeitos:remover', id, usuarioId),
 
-    restaurar: (id: number, usuarioId?: number | null) =>
+    restaurar: (id: number, usuarioId: number) =>
       ipcRenderer.invoke('posto-defeitos:restaurar', id, usuarioId)
   },
 
@@ -283,7 +283,7 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('usuarios:excluir', id, usuarioId),
     ativar: (id: number, usuarioId?: number | null) =>
       ipcRenderer.invoke('usuarios:ativar', id, usuarioId),
-    remover: (id: number, usuarioId?: number | null) =>
+    remover: (id: number, usuarioId: number) =>
       ipcRenderer.invoke('usuarios:remover', id, usuarioId),
     listarSolicitacoesSenha: () => ipcRenderer.invoke('usuarios:listar-solicitacoes-senha'),
     atenderSolicitacaoSenha: (solicitacaoId: number, atendenteId: number) =>

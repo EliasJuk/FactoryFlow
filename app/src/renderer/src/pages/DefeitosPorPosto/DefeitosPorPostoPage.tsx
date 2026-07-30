@@ -117,13 +117,27 @@ function DefeitosPorPostoPage() {
     )
   }, [busca, defeitos, idsJaVinculados])
 
+  function obterUsuarioId(): number | null {
+    const usuarioId = usuario.id
+
+    if (!usuarioId) {
+      setMensagem('Não foi possível identificar o usuário logado.')
+      return null
+    }
+
+    return usuarioId
+  }
+
   async function adicionar() {
     if (postoId === '' || defeitoId === '') return
+
+    const usuarioId = obterUsuarioId()
+    if (!usuarioId) return
 
     const resultado = await window.api.postoDefeitos.adicionar(
       Number(postoId),
       Number(defeitoId),
-      usuario.id ?? null
+      usuarioId
     )
 
     setMensagem(resultado.mensagem)
@@ -131,12 +145,18 @@ function DefeitosPorPostoPage() {
   }
 
   async function remover(id: number) {
-    await window.api.postoDefeitos.remover(id, usuario.id ?? null)
+    const usuarioId = obterUsuarioId()
+    if (!usuarioId) return
+
+    await window.api.postoDefeitos.remover(id, usuarioId)
     await carregarVinculos(postoId)
   }
 
   async function restaurar(id: number) {
-    await window.api.postoDefeitos.restaurar(id, usuario.id ?? null)
+    const usuarioId = obterUsuarioId()
+    if (!usuarioId) return
+
+    await window.api.postoDefeitos.restaurar(id, usuarioId)
     await carregarVinculos(postoId)
   }
 

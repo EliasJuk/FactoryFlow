@@ -19,8 +19,28 @@ type ModalModo = 'novo' | 'editar'
 
 const ITENS_POR_PAGINA = 10
 
+function mensagemDeErro(error: unknown, mensagemPadrao: string): string {
+  const mensagem = error instanceof Error ? error.message : ''
+
+  if (mensagem.includes('SESSAO_NAO_AUTENTICADA')) {
+    return 'Sua sessão não está autenticada. Entre novamente no sistema.'
+  }
+
+  if (mensagem.includes('TROCA_SENHA_OBRIGATORIA')) {
+    return 'Altere sua senha antes de continuar.'
+  }
+
+  if (mensagem.includes('SEM_PERMISSAO')) {
+    return 'Você não possui permissão para realizar esta operação.'
+  }
+
+  return mensagem || mensagemPadrao
+}
+
 function SubsetoresPage() {
   const { usuario } = useApp()
+  const podeGerenciar = usuario.perfil === 'QUALIDADE' || usuario.perfil === 'ADMIN'
+  const podeExcluirPermanente = usuario.perfil === 'ADMIN'
   const [setores, setSetores] = useState<Setor[]>([])
   const [subsetores, setSubsetores] = useState<Subsetor[]>([])
   const [subsetoresInativos, setSubsetoresInativos] = useState<Subsetor[]>([])
@@ -54,15 +74,19 @@ function SubsetoresPage() {
   } | null>(null)
 
   async function carregarDados() {
-    const [setoresLista, subsetoresLista, inativosLista] = await Promise.all([
-      window.api.setores.listar(),
-      window.api.subsetores.listar(),
-      window.api.subsetores.listarInativos()
-    ])
+    try {
+      const [setoresLista, subsetoresLista, inativosLista] = await Promise.all([
+        window.api.setores.listar(),
+        window.api.subsetores.listar(),
+        window.api.subsetores.listarInativos()
+      ])
 
-    setSetores(setoresLista)
-    setSubsetores(subsetoresLista)
-    setSubsetoresInativos(inativosLista)
+      setSetores(setoresLista)
+      setSubsetores(subsetoresLista)
+      setSubsetoresInativos(inativosLista)
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao carregar os subsetores.'))
+    }
   }
 
   useEffect(() => {
@@ -101,14 +125,6 @@ function SubsetoresPage() {
     }
   }, [paginaAtual, totalPaginas])
 
-  function obterUsuarioId(): number | null {
-    if (!usuario.id) {
-      setMensagemErro('Usuário logado não identificado.')
-      return null
-    }
-
-    return usuario.id
-  }
 
   function limparMensagens() {
     setMensagemErro('')
@@ -119,6 +135,12 @@ function SubsetoresPage() {
     if (processando) return
 
     limparMensagens()
+
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para cadastrar subsetores.')
+      return
+    }
+
     setModalModo('novo')
     setSubsetorEditando(null)
     setNome('')
@@ -130,6 +152,12 @@ function SubsetoresPage() {
     if (processando) return
 
     limparMensagens()
+
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para editar subsetores.')
+      return
+    }
+
     setModalModo('editar')
     setSubsetorEditando(subsetor)
     setNome(subsetor.nome)
@@ -152,14 +180,15 @@ function SubsetoresPage() {
 
     setMensagemErro('')
 
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para salvar subsetores.')
+      return
+    }
+
     if (!nome.trim() || setorId === '') {
       setMensagemErro('Informe o setor e o nome do subsetor.')
       return
     }
-
-    const usuarioId = obterUsuarioId()
-
-    if (!usuarioId) return
 
     setProcessando(true)
 
@@ -168,8 +197,7 @@ function SubsetoresPage() {
         const resultado = await window.api.subsetores.editar(
           subsetorEditando.id,
           nome.trim(),
-          Number(setorId),
-          usuarioId
+          Number(setorId)
         )
 
         if (!resultado.sucesso) {
@@ -179,7 +207,7 @@ function SubsetoresPage() {
 
         setMensagemSucesso('Subsetor atualizado com sucesso.')
       } else {
-        const resultado = await window.api.subsetores.criar(nome.trim(), Number(setorId), usuarioId)
+        const resultado = await window.api.subsetores.criar(nome.trim(), Number(setorId))
 
         if (!resultado.sucesso) {
           setMensagemErro(resultado.mensagem)
@@ -191,6 +219,8 @@ function SubsetoresPage() {
 
       fecharModal()
       await carregarDados()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao salvar o subsetor.'))
     } finally {
       setProcessando(false)
     }
@@ -201,17 +231,26 @@ function SubsetoresPage() {
 
     limparMensagens()
 
-    const totalPostos = await window.api.subsetores.contarPostosAtivos(subsetor.id)
-
-    if (totalPostos > 0) {
-      setSubsetorBloqueado({
-        subsetor,
-        totalPostos
-      })
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para inativar subsetores.')
       return
     }
 
-    setSubsetorParaInativar(subsetor)
+    try {
+      const totalPostos = await window.api.subsetores.contarPostosAtivos(subsetor.id)
+
+      if (totalPostos > 0) {
+        setSubsetorBloqueado({
+          subsetor,
+          totalPostos
+        })
+        return
+      }
+
+      setSubsetorParaInativar(subsetor)
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao verificar os vínculos do subsetor.'))
+    }
   }
 
   async function confirmarInativacao() {
@@ -219,14 +258,15 @@ function SubsetoresPage() {
 
     limparMensagens()
 
-    const usuarioId = obterUsuarioId()
-
-    if (!usuarioId) return
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para inativar subsetores.')
+      return
+    }
 
     setProcessando(true)
 
     try {
-      const resultado = await window.api.subsetores.excluir(subsetorParaInativar.id, usuarioId)
+      const resultado = await window.api.subsetores.excluir(subsetorParaInativar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -236,6 +276,8 @@ function SubsetoresPage() {
       setSubsetorParaInativar(null)
       setMensagemSucesso('Subsetor inativado com sucesso.')
       await carregarDados()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao inativar o subsetor.'))
     } finally {
       setProcessando(false)
     }
@@ -246,14 +288,15 @@ function SubsetoresPage() {
 
     limparMensagens()
 
-    const usuarioId = obterUsuarioId()
-
-    if (!usuarioId) return
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para restaurar subsetores.')
+      return
+    }
 
     setProcessando(true)
 
     try {
-      const resultado = await window.api.subsetores.restaurar(subsetorParaRestaurar.id, usuarioId)
+      const resultado = await window.api.subsetores.restaurar(subsetorParaRestaurar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -263,6 +306,8 @@ function SubsetoresPage() {
       setSubsetorParaRestaurar(null)
       setMensagemSucesso('Subsetor restaurado com sucesso.')
       await carregarDados()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao restaurar o subsetor.'))
     } finally {
       setProcessando(false)
     }
@@ -271,8 +316,14 @@ function SubsetoresPage() {
   async function confirmarExclusaoPermanente() {
     if (!subsetorParaExcluirPermanente || processando) return
 
-    setProcessando(true)
     limparMensagens()
+
+    if (!podeExcluirPermanente) {
+      setMensagemErro('Somente administradores podem excluir subsetores permanentemente.')
+      return
+    }
+
+    setProcessando(true)
 
     try {
       const resultado = await window.api.subsetores.excluirPermanente(
@@ -287,6 +338,8 @@ function SubsetoresPage() {
       setSubsetorParaExcluirPermanente(null)
       setMensagemSucesso('Subsetor excluído permanentemente.')
       await carregarDados()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao excluir permanentemente o subsetor.'))
     } finally {
       setProcessando(false)
     }
@@ -297,7 +350,7 @@ function SubsetoresPage() {
     setFiltroSetorId('')
   }
 
-  const podeSalvar = nome.trim().length > 0 && setorId !== ''
+  const podeSalvar = podeGerenciar && nome.trim().length > 0 && setorId !== ''
 
   return (
     <main className={ui.page}>
@@ -323,7 +376,7 @@ function SubsetoresPage() {
           titulo="Subsetores ativos"
           descricao={`Exibindo ${subsetoresFiltrados.length} subsetor(es) ativo(s). Limite de ${ITENS_POR_PAGINA} por página.`}
           textoBotao="Novo Subsetor"
-          disabled={processando}
+          disabled={processando || !podeGerenciar}
           onNovo={abrirNovoSubsetor}
         >
           <div className="space-y-3">
@@ -399,7 +452,7 @@ function SubsetoresPage() {
                       <button
                         type="button"
                         onClick={() => abrirEditarSubsetor(subsetor)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonSecondary}
                         title="Editar"
                       >
@@ -408,7 +461,7 @@ function SubsetoresPage() {
 
                       <button
                         onClick={() => solicitarInativacao(subsetor)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonDanger}
                         title="Inativar"
                       >
@@ -474,7 +527,7 @@ function SubsetoresPage() {
                       <button
                         type="button"
                         onClick={() => setSubsetorParaRestaurar(subsetor)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonSecondary}
                         title="Restaurar"
                       >
@@ -484,7 +537,7 @@ function SubsetoresPage() {
 
                       <button
                         onClick={() => setSubsetorParaExcluirPermanente(subsetor)}
-                        disabled={processando}
+                        disabled={processando || !podeExcluirPermanente}
                         className={ui.buttonDanger}
                         title="Excluir permanentemente"
                       >

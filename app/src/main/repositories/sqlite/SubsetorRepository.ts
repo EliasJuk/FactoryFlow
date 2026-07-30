@@ -3,7 +3,6 @@ import { IdGenerator } from '../../shared/ids/IdGenerator'
 import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const db = getDatabase()
-const USUARIO_SISTEMA_ID = 1
 
 export interface Subsetor {
   id: number
@@ -105,7 +104,7 @@ export class SubsetorRepository {
     return subsetores.map((subsetor) => this.mapear(subsetor))
   }
 
-  criar(nome: string, setorId: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  criar(nome: string, setorId: number, usuarioId: number): void {
     const nomeFormatado = nome.trim()
     const uuid = IdGenerator.generate()
 
@@ -166,7 +165,7 @@ export class SubsetorRepository {
     transaction()
   }
 
-  editar(id: number, nome: string, setorId: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  editar(id: number, nome: string, setorId: number, usuarioId: number): void {
     const nomeFormatado = nome.trim()
 
     const existente = db
@@ -232,7 +231,7 @@ export class SubsetorRepository {
     return resultado.total
   }
 
-  excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  excluir(id: number, usuarioId: number): void {
     const total = this.contarPostosAtivos(id)
 
     if (total > 0) {
@@ -268,7 +267,7 @@ export class SubsetorRepository {
     transaction()
   }
 
-  restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  restaurar(id: number, usuarioId: number): void {
     const transaction = db.transaction(() => {
       const resultado = db
         .prepare(

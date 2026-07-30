@@ -92,22 +92,19 @@ contextBridge.exposeInMainWorld('api', {
   setores: {
     listar: () => ipcRenderer.invoke('setores:listar'),
 
-    criar: (nome: string, sigla: string, usuarioId: number) =>
-      ipcRenderer.invoke('setores:criar', nome, sigla, usuarioId),
+    criar: (nome: string, sigla: string) => ipcRenderer.invoke('setores:criar', nome, sigla),
 
-    editar: (id: number, nome: string, sigla: string, usuarioId: number) =>
-      ipcRenderer.invoke('setores:editar', id, nome, sigla, usuarioId),
+    editar: (id: number, nome: string, sigla: string) =>
+      ipcRenderer.invoke('setores:editar', id, nome, sigla),
 
-    excluir: (id: number, usuarioId: number) =>
-      ipcRenderer.invoke('setores:excluir', id, usuarioId),
+    excluir: (id: number) => ipcRenderer.invoke('setores:excluir', id),
 
     contarSubsetoresAtivos: (id: number) =>
       ipcRenderer.invoke('setores:contar-subsetores-ativos', id),
 
     listarInativos: () => ipcRenderer.invoke('setores:listar-inativos'),
 
-    restaurar: (id: number, usuarioId: number) =>
-      ipcRenderer.invoke('setores:restaurar', id, usuarioId),
+    restaurar: (id: number) => ipcRenderer.invoke('setores:restaurar', id),
 
     excluirPermanente: (id: number) => ipcRenderer.invoke('setores:excluir-permanente', id)
   },

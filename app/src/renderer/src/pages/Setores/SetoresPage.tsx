@@ -20,6 +20,8 @@ const ITENS_POR_PAGINA = 10
 
 function SetoresPage() {
   const { usuario } = useApp()
+  const podeGerenciar = usuario.perfil === 'QUALIDADE' || usuario.perfil === 'ADMIN'
+  const podeExcluirPermanente = usuario.perfil === 'ADMIN'
   const [setores, setSetores] = useState<Setor[]>([])
   const [setoresInativos, setSetoresInativos] = useState<Setor[]>([])
 
@@ -88,15 +90,6 @@ function SetoresPage() {
     }
   }, [paginaAtual, totalPaginas])
 
-  function obterUsuarioId(): number | null {
-    if (!usuario.id) {
-      setMensagemErro('Usuário logado não identificado.')
-      return null
-    }
-
-    return usuario.id
-  }
-
   function limparMensagens() {
     setMensagemErro('')
     setMensagemSucesso('')
@@ -106,6 +99,11 @@ function SetoresPage() {
     if (processando) return
 
     limparMensagens()
+
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para cadastrar setores.')
+      return
+    }
     setModalModo('novo')
     setSetorEditando(null)
     setNome('')
@@ -117,6 +115,11 @@ function SetoresPage() {
     if (processando) return
 
     limparMensagens()
+
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para editar setores.')
+      return
+    }
     setModalModo('editar')
     setSetorEditando(setor)
     setNome(setor.nome)
@@ -139,14 +142,15 @@ function SetoresPage() {
 
     limparMensagens()
 
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para salvar setores.')
+      return
+    }
+
     if (!nome.trim() || !sigla.trim()) {
       setMensagemErro('Informe o nome e a sigla do setor.')
       return
     }
-
-    const usuarioId = obterUsuarioId()
-
-    if (!usuarioId) return
 
     setProcessando(true)
 
@@ -155,8 +159,7 @@ function SetoresPage() {
         const resultado = await window.api.setores.editar(
           setorEditando.id,
           nome.trim(),
-          sigla.trim().toUpperCase(),
-          usuarioId
+          sigla.trim().toUpperCase()
         )
 
         if (!resultado.sucesso) {
@@ -166,11 +169,7 @@ function SetoresPage() {
 
         setMensagemSucesso('Setor atualizado com sucesso.')
       } else {
-        const resultado = await window.api.setores.criar(
-          nome.trim(),
-          sigla.trim().toUpperCase(),
-          usuarioId
-        )
+        const resultado = await window.api.setores.criar(nome.trim(), sigla.trim().toUpperCase())
 
         if (!resultado.sucesso) {
           setMensagemErro(resultado.mensagem)
@@ -192,6 +191,11 @@ function SetoresPage() {
 
     limparMensagens()
 
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para inativar setores.')
+      return
+    }
+
     const totalSubsetores = await window.api.setores.contarSubsetoresAtivos(setor.id)
 
     if (totalSubsetores > 0) {
@@ -210,14 +214,15 @@ function SetoresPage() {
 
     limparMensagens()
 
-    const usuarioId = obterUsuarioId()
-
-    if (!usuarioId) return
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para inativar setores.')
+      return
+    }
 
     setProcessando(true)
 
     try {
-      const resultado = await window.api.setores.excluir(setorParaInativar.id, usuarioId)
+      const resultado = await window.api.setores.excluir(setorParaInativar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -237,14 +242,15 @@ function SetoresPage() {
 
     limparMensagens()
 
-    const usuarioId = obterUsuarioId()
-
-    if (!usuarioId) return
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para restaurar setores.')
+      return
+    }
 
     setProcessando(true)
 
     try {
-      const resultado = await window.api.setores.restaurar(setorParaRestaurar.id, usuarioId)
+      const resultado = await window.api.setores.restaurar(setorParaRestaurar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -262,8 +268,14 @@ function SetoresPage() {
   async function confirmarExclusaoPermanente() {
     if (!setorParaExcluirPermanente || processando) return
 
-    setProcessando(true)
     limparMensagens()
+
+    if (!podeExcluirPermanente) {
+      setMensagemErro('Somente administradores podem excluir setores permanentemente.')
+      return
+    }
+
+    setProcessando(true)
 
     try {
       const resultado = await window.api.setores.excluirPermanente(setorParaExcluirPermanente.id)
@@ -281,7 +293,7 @@ function SetoresPage() {
     }
   }
 
-  const podeSalvar = nome.trim().length > 0 && sigla.trim().length > 0
+  const podeSalvar = podeGerenciar && nome.trim().length > 0 && sigla.trim().length > 0
 
   return (
     <main className={ui.page}>
@@ -307,7 +319,7 @@ function SetoresPage() {
           titulo="Setores ativos"
           descricao={`Exibindo ${setoresFiltrados.length} setor(es) ativo(s). Limite de ${ITENS_POR_PAGINA} por página.`}
           textoBotao="Novo Setor"
-          disabled={processando}
+          disabled={processando || !podeGerenciar}
           onNovo={abrirNovoSetor}
         >
           <SearchBar
@@ -349,7 +361,7 @@ function SetoresPage() {
                       <button
                         type="button"
                         onClick={() => abrirEditarSetor(setor)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonSecondary}
                         title="Editar"
                       >
@@ -359,7 +371,7 @@ function SetoresPage() {
                       <button
                         type="button"
                         onClick={() => solicitarInativacao(setor)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonDanger}
                         title="Inativar"
                       >
@@ -425,7 +437,7 @@ function SetoresPage() {
                       <button
                         type="button"
                         onClick={() => setSetorParaRestaurar(setor)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonSecondary}
                         title="Restaurar"
                       >
@@ -436,7 +448,7 @@ function SetoresPage() {
                       <button
                         type="button"
                         onClick={() => setSetorParaExcluirPermanente(setor)}
-                        disabled={processando}
+                        disabled={processando || !podeExcluirPermanente}
                         className={ui.buttonDanger}
                         title="Excluir permanentemente"
                       >

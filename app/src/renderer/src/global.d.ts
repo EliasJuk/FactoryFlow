@@ -393,8 +393,7 @@ declare global {
 
         criar: (
           nome: string,
-          sigla: string,
-          usuarioId: number
+          sigla: string
         ) => Promise<{
           sucesso: boolean
           mensagem: string
@@ -403,17 +402,13 @@ declare global {
         editar: (
           id: number,
           nome: string,
-          sigla: string,
-          usuarioId: number
+          sigla: string
         ) => Promise<{
           sucesso: boolean
           mensagem: string
         }>
 
-        excluir: (
-          id: number,
-          usuarioId: number
-        ) => Promise<{
+        excluir: (id: number) => Promise<{
           sucesso: boolean
           mensagem: string
         }>
@@ -422,10 +417,7 @@ declare global {
 
         listarInativos: () => Promise<SetorApi[]>
 
-        restaurar: (
-          id: number,
-          usuarioId: number
-        ) => Promise<{
+        restaurar: (id: number) => Promise<{
           sucesso: boolean
           mensagem: string
         }>

@@ -1,8 +1,6 @@
 import { pool } from '../../database/postgres/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
 
-const USUARIO_SISTEMA_ID = 1
-
 export interface Setor {
   id: number
   uuid: string
@@ -106,7 +104,7 @@ export class SetorRepository {
     return result.rows.map((setor) => this.mapear(setor))
   }
 
-  async criar(nome: string, sigla: string, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async criar(nome: string, sigla: string, usuarioId: number): Promise<void> {
     const nomeFormatado = nome.trim()
     const siglaFormatada = sigla.trim().toUpperCase()
     const uuid = IdGenerator.generate()
@@ -149,12 +147,7 @@ export class SetorRepository {
     )
   }
 
-  async editar(
-    id: number,
-    nome: string,
-    sigla: string,
-    usuarioId: number = USUARIO_SISTEMA_ID
-  ): Promise<void> {
+  async editar(id: number, nome: string, sigla: string, usuarioId: number): Promise<void> {
     const nomeFormatado = nome.trim()
     const siglaFormatada = sigla.trim().toUpperCase()
 
@@ -193,7 +186,7 @@ export class SetorRepository {
     )
   }
 
-  async excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async excluir(id: number, usuarioId: number): Promise<void> {
     const vinculos = await this.contarSubsetoresAtivos(id)
 
     if (vinculos > 0) {
@@ -217,7 +210,7 @@ export class SetorRepository {
     )
   }
 
-  async restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async restaurar(id: number, usuarioId: number): Promise<void> {
     await pool.query(
       `
         UPDATE setores

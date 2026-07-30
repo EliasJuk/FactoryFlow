@@ -32,6 +32,7 @@ import { registerPasswordResetIpc } from './ipc/passwordReset.ipc'
 import { SyncBackfillService } from './sync/SyncBackfillService'
 import { SecretStorageService } from './services/SecretStorageService'
 import { loadConfig } from './config/appConfig'
+import { mainSessionService } from './auth/MainSessionService'
 
 let mainWindow: BrowserWindow | null = null
 let appReady = false
@@ -44,15 +45,9 @@ const syncBackfillService = new SyncBackfillService()
 type SyncTestInstance = 'PC-A' | 'PC-B'
 
 function isPathInside(basePath: string, candidatePath: string): boolean {
-  const relativePath = relative(
-    resolve(basePath),
-    resolve(candidatePath)
-  )
+  const relativePath = relative(resolve(basePath), resolve(candidatePath))
 
-  return (
-    relativePath === '' ||
-    (!relativePath.startsWith('..') && !isAbsolute(relativePath))
-  )
+  return relativePath === '' || (!relativePath.startsWith('..') && !isAbsolute(relativePath))
 }
 
 /**
@@ -68,39 +63,25 @@ function getSyncTestInstance(): SyncTestInstance | null {
     return null
   }
 
-  const instance =
-    process.env.FACTORYFLOW_TEST_INSTANCE?.trim()
+  const instance = process.env.FACTORYFLOW_TEST_INSTANCE?.trim()
 
   if (instance !== 'PC-A' && instance !== 'PC-B') {
     return null
   }
 
-  const configDirectory =
-    process.env.FACTORYFLOW_CONFIG_DIR?.trim()
-  const userDataDirectory =
-    process.env.FACTORYFLOW_USER_DATA_DIR?.trim()
-  const sqlitePath =
-    process.env.FACTORYFLOW_SQLITE_PATH?.trim()
+  const configDirectory = process.env.FACTORYFLOW_CONFIG_DIR?.trim()
+  const userDataDirectory = process.env.FACTORYFLOW_USER_DATA_DIR?.trim()
+  const sqlitePath = process.env.FACTORYFLOW_SQLITE_PATH?.trim()
 
-  if (
-    !configDirectory ||
-    !userDataDirectory ||
-    !sqlitePath
-  ) {
+  if (!configDirectory || !userDataDirectory || !sqlitePath) {
     return null
   }
 
-  const syncTestRoot = resolve(
-    process.cwd(),
-    'tests',
-    'sync'
-  )
+  const syncTestRoot = resolve(process.cwd(), 'tests', 'sync')
 
-  const pathsAreIsolated = [
-    configDirectory,
-    userDataDirectory,
-    sqlitePath
-  ].every((path) => isPathInside(syncTestRoot, path))
+  const pathsAreIsolated = [configDirectory, userDataDirectory, sqlitePath].every((path) =>
+    isPathInside(syncTestRoot, path)
+  )
 
   return pathsAreIsolated ? instance : null
 }
@@ -123,13 +104,10 @@ function prepareSyncTestPostgresCredential(): void {
     return
   }
 
-  const password =
-    process.env.FACTORYFLOW_TEST_POSTGRES_PASSWORD
+  const password = process.env.FACTORYFLOW_TEST_POSTGRES_PASSWORD
 
   if (!password?.trim()) {
-    throw new Error(
-      `A senha protegida de teste nao foi recebida pelo ${instance}.`
-    )
+    throw new Error(`A senha protegida de teste nao foi recebida pelo ${instance}.`)
   }
 
   const secrets = new SecretStorageService()
@@ -137,9 +115,7 @@ function prepareSyncTestPostgresCredential(): void {
 
   delete process.env.FACTORYFLOW_TEST_POSTGRES_PASSWORD
 
-  console.log(
-    `[SYNC TEST] Credencial PostgreSQL protegida preparada para ${instance}.`
-  )
+  console.log(`[SYNC TEST] Credencial PostgreSQL protegida preparada para ${instance}.`)
 }
 
 function createWindow(): void {
@@ -160,6 +136,12 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
+  })
+
+  const webContentsId = mainWindow.webContents.id
+
+  mainWindow.webContents.once('destroyed', () => {
+    mainSessionService.remover(webContentsId)
   })
 
   mainWindow.on('closed', () => {
@@ -231,8 +213,6 @@ async function initializeApplication(): Promise<void> {
     await DatabaseManager.initialize()
     console.timeEnd('DatabaseManager.initialize')
 
-
-
     const config = loadConfig()
 
     const shouldStartSyncWorkers =
@@ -246,8 +226,7 @@ async function initializeApplication(): Promise<void> {
       syncPullWorker.start()
     }
 
-
-        sendStartupProgress('Registrando módulos...', 75)
+    sendStartupProgress('Registrando módulos...', 75)
     registerDatabaseIpcHandlers()
 
     sendStartupProgress('Finalizando...', 100)

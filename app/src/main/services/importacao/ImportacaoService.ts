@@ -108,8 +108,13 @@ async function executarImportacao(
   usuarioId?: number | null
 ): Promise<ResumoImportacao> {
   switch (tipo) {
-    case 'setores':
-      return importarSetores(registros)
+    case 'setores': {
+      if (usuarioId == null) {
+        throw new Error('Usuário autenticado é obrigatório para importar setores.')
+      }
+
+      return importarSetores(registros, usuarioId)
+    }
 
     case 'subsetores':
       return importarSubsetores(registros)

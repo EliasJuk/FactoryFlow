@@ -2,7 +2,7 @@ import { RepositoryFactory } from '../../../repositories/factory/RepositoryFacto
 import { normalizar, normalizarCodigo } from '../importacao.csv'
 import type { RegistroCsv } from '../importacao.types'
 
-export async function importarSetores(registros: RegistroCsv[]) {
+export async function importarSetores(registros: RegistroCsv[], usuarioId: number) {
   const repository = RepositoryFactory.setores()
 
   let inseridos = 0
@@ -25,19 +25,19 @@ export async function importarSetores(registros: RegistroCsv[]) {
     const inativo = inativos.find((setor) => setor.sigla === sigla)
 
     if (ativo) {
-      await repository.editar(ativo.id, nome, sigla)
+      await repository.editar(ativo.id, nome, sigla, usuarioId)
       atualizados++
       continue
     }
 
     if (inativo) {
-      await repository.restaurar(inativo.id)
-      await repository.editar(inativo.id, nome, sigla)
+      await repository.restaurar(inativo.id, usuarioId)
+      await repository.editar(inativo.id, nome, sigla, usuarioId)
       atualizados++
       continue
     }
 
-    await repository.criar(nome, sigla)
+    await repository.criar(nome, sigla, usuarioId)
     inseridos++
   }
 

@@ -6,7 +6,7 @@ function normalizarComparacao(valor: unknown) {
   return normalizar(valor).toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ')
 }
 
-export async function importarDefeitos(registros: RegistroCsv[], usuarioId?: number | null) {
+export async function importarDefeitos(registros: RegistroCsv[], usuarioId: number) {
   const repository = RepositoryFactory.defeitos()
 
   const [ativos, inativos] = await Promise.all([repository.listar(), repository.listarInativos()])
@@ -35,10 +35,10 @@ export async function importarDefeitos(registros: RegistroCsv[], usuarioId?: num
         normalizarComparacao(existente.descricao) !== normalizarComparacao(descricao)
 
       if (!existente.ativo) {
-        await repository.restaurar(existente.id, usuarioId ?? undefined)
+        await repository.restaurar(existente.id, usuarioId)
 
         if (descricaoAlterada) {
-          await repository.editar(existente.id, codigo, descricao, usuarioId ?? undefined)
+          await repository.editar(existente.id, codigo, descricao, usuarioId)
         }
 
         existente.ativo = true
@@ -48,7 +48,7 @@ export async function importarDefeitos(registros: RegistroCsv[], usuarioId?: num
       }
 
       if (descricaoAlterada) {
-        await repository.editar(existente.id, codigo, descricao, usuarioId ?? undefined)
+        await repository.editar(existente.id, codigo, descricao, usuarioId)
 
         existente.descricao = descricao
         atualizados++
@@ -59,7 +59,7 @@ export async function importarDefeitos(registros: RegistroCsv[], usuarioId?: num
       continue
     }
 
-    await repository.criar(codigo, descricao, usuarioId ?? undefined)
+    await repository.criar(codigo, descricao, usuarioId)
 
     defeitosPorCodigo.set(codigo, {
       id: -1,
@@ -70,8 +70,8 @@ export async function importarDefeitos(registros: RegistroCsv[], usuarioId?: num
       createdAt: null,
       updatedAt: null,
       deletedAt: null,
-      createdBy: usuarioId ?? 1,
-      updatedBy: usuarioId ?? 1,
+      createdBy: usuarioId,
+      updatedBy: usuarioId,
       deletedBy: null,
       createdByNome: null,
       updatedByNome: null,

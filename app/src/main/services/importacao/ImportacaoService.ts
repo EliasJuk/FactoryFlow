@@ -148,8 +148,13 @@ async function executarImportacao(
       return importarCircuitos(registros, usuarioId)
     }
 
-    case 'defeitos':
+    case 'defeitos': {
+      if (usuarioId == null) {
+        throw new Error('Usuário autenticado é obrigatório para importar defeitos.')
+      }
+
       return importarDefeitos(registros, usuarioId)
+    }
 
     case 'usuarios':
       return importarUsuarios(registros, usuarioId)

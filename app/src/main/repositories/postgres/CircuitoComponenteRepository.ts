@@ -1,8 +1,6 @@
 import { pool } from '../../database/postgres/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
 
-const USUARIO_SISTEMA_ID = 1
-
 export type AdicionarCircuitoComponenteResultado =
   | {
       sucesso: true
@@ -77,7 +75,7 @@ export class CircuitoComponenteRepository {
     circuitoId: number,
     componenteId: number,
     quantidade: number,
-    usuarioId: number = USUARIO_SISTEMA_ID
+    usuarioId: number
   ): Promise<AdicionarCircuitoComponenteResultado> {
     if (!Number.isInteger(quantidade) || quantidade <= 0) {
       return {
@@ -146,11 +144,7 @@ export class CircuitoComponenteRepository {
     }
   }
 
-  async editarQuantidade(
-    id: number,
-    quantidade: number,
-    usuarioId: number = USUARIO_SISTEMA_ID
-  ): Promise<void> {
+  async editarQuantidade(id: number, quantidade: number, usuarioId: number): Promise<void> {
     if (!Number.isInteger(quantidade) || quantidade <= 0) {
       throw new Error('QUANTIDADE_INVALIDA')
     }
@@ -165,7 +159,7 @@ export class CircuitoComponenteRepository {
     )
   }
 
-  async remover(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async remover(id: number, usuarioId: number): Promise<void> {
     await pool.query(
       `
       UPDATE circuito_componentes
@@ -181,7 +175,7 @@ export class CircuitoComponenteRepository {
     )
   }
 
-  async restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async restaurar(id: number, usuarioId: number): Promise<void> {
     await pool.query(
       `
       UPDATE circuito_componentes

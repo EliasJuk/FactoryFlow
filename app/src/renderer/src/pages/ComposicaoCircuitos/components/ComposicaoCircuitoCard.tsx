@@ -11,6 +11,7 @@ type Props = {
   aberto: boolean
   carregando: boolean
   processando: boolean
+  podeGerenciar: boolean
   onToggle: () => void
   onAdicionar: () => void
   onVisualizar: (item: CircuitoComponente) => void
@@ -24,6 +25,7 @@ export function ComposicaoCircuitoCard({
   aberto,
   carregando,
   processando,
+  podeGerenciar,
   onToggle,
   onAdicionar,
   onVisualizar,
@@ -80,7 +82,7 @@ export function ComposicaoCircuitoCard({
               <button
                 type="button"
                 onClick={onAdicionar}
-                disabled={processando}
+                disabled={processando || !podeGerenciar}
                 className={ui.buttonPrimary}
               >
                 <Plus size={16} />
@@ -166,7 +168,7 @@ export function ComposicaoCircuitoCard({
                                   setItemEditandoId(item.id)
                                   setQuantidade(item.quantidade)
                                 }}
-                                disabled={processando}
+                                disabled={processando || !podeGerenciar}
                                 className={ui.buttonSecondary}
                                 title="Editar quantidade"
                               >
@@ -176,7 +178,7 @@ export function ComposicaoCircuitoCard({
                               <button
                                 type="button"
                                 onClick={() => onRemover(item.id)}
-                                disabled={processando}
+                                disabled={processando || !podeGerenciar}
                                 className={ui.buttonDanger}
                                 title="Remover componente"
                               >

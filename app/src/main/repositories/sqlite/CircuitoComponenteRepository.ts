@@ -3,7 +3,6 @@ import { IdGenerator } from '../../shared/ids/IdGenerator'
 import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const db = getDatabase()
-const USUARIO_SISTEMA_ID = 1
 
 export type AdicionarCircuitoComponenteResultado =
   | {
@@ -82,7 +81,7 @@ export class CircuitoComponenteRepository {
     circuitoId: number,
     componenteId: number,
     quantidade: number,
-    usuarioId: number = USUARIO_SISTEMA_ID
+    usuarioId: number
   ): AdicionarCircuitoComponenteResultado {
     if (!Number.isInteger(quantidade) || quantidade <= 0) {
       return {
@@ -168,7 +167,7 @@ export class CircuitoComponenteRepository {
     }
   }
 
-  editarQuantidade(id: number, quantidade: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  editarQuantidade(id: number, quantidade: number, usuarioId: number): void {
     if (!Number.isInteger(quantidade) || quantidade <= 0) {
       throw new Error('QUANTIDADE_INVALIDA')
     }
@@ -196,7 +195,7 @@ export class CircuitoComponenteRepository {
     })()
   }
 
-  remover(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  remover(id: number, usuarioId: number): void {
     db.transaction(() => {
       const resultado = db
         .prepare(
@@ -222,7 +221,7 @@ export class CircuitoComponenteRepository {
     })()
   }
 
-  restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  restaurar(id: number, usuarioId: number): void {
     db.transaction(() => {
       const resultado = db
         .prepare(

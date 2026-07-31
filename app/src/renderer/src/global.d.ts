@@ -493,25 +493,21 @@ declare global {
 
       circuitoComponentes: {
         listarPorCircuito: (circuitoId: number) => Promise<CircuitoComponenteApi[]>
+
         adicionar: (
           circuitoId: number,
           componenteId: number,
-          quantidade: number,
-          usuarioId: number
-        ) => Promise<
-          | {
-              sucesso: true
-              mensagem: string
-            }
-          | {
-              sucesso: false
-              codigo: 'QUANTIDADE_INVALIDA' | 'COMPONENTE_JA_VINCULADO'
-              mensagem: string
-            }
-        >
-        editarQuantidade: (id: number, quantidade: number, usuarioId: number) => Promise<void>
-        remover: (id: number, usuarioId: number) => Promise<void>
-        restaurar: (id: number, usuarioId: number) => Promise<void>
+          quantidade: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
+
+        editarQuantidade: (
+          id: number,
+          quantidade: number
+        ) => Promise<{ sucesso: boolean; mensagem: string }>
+
+        remover: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+
+        restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
       }
 
       postos: {

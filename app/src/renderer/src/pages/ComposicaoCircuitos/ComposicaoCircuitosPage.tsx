@@ -24,6 +24,7 @@ const ITENS_POR_PAGINA = 10
 
 function ComposicaoCircuitosPage() {
   const { usuario } = useApp()
+  const podeGerenciar = usuario.perfil === 'QUALIDADE' || usuario.perfil === 'ADMIN'
 
   const [circuitos, setCircuitos] = useState<Circuito[]>([])
   const [componentes, setComponentes] = useState<
@@ -186,6 +187,11 @@ function ComposicaoCircuitosPage() {
   }
 
   function abrirNovoCircuito() {
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para cadastrar circuitos.')
+      return
+    }
+
     setCodigo('')
     setNome('')
     setMensagemErro('')
@@ -195,21 +201,17 @@ function ComposicaoCircuitosPage() {
   async function salvarNovoCircuito() {
     if (!codigo.trim() || !nome.trim() || processando) return
 
-    const usuarioId = usuario.id
-
-    if (!usuarioId) {
-      setMensagemErro('Não foi possível identificar o usuário conectado.')
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para cadastrar circuitos.')
       return
     }
 
     setProcessando(true)
     setMensagemErro('')
+    setMensagemSucesso('')
 
     try {
-      const resultado = await window.api.circuitos.criar(
-        codigo.trim().toUpperCase(),
-        nome.trim()
-      )
+      const resultado = await window.api.circuitos.criar(codigo.trim().toUpperCase(), nome.trim())
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -227,22 +229,22 @@ function ComposicaoCircuitosPage() {
   async function adicionarComponente(componenteId: number, quantidade: number) {
     if (!circuitoSelecionado || processando) return
 
-    const usuarioId = usuario.id
-
-    if (!usuarioId) {
-      setErroAdicionarComponente('Não foi possível identificar o usuário conectado.')
+    if (!podeGerenciar) {
+      setErroAdicionarComponente(
+        'Você não possui permissão para adicionar componentes ao circuito.'
+      )
       return
     }
 
     setProcessando(true)
     setErroAdicionarComponente('')
+    setMensagemSucesso('')
 
     try {
       const resultado = await window.api.circuitoComponentes.adicionar(
         circuitoSelecionado.id,
         componenteId,
-        quantidade,
-        usuarioId
+        quantidade
       )
 
       if (!resultado.sucesso) {
@@ -259,6 +261,7 @@ function ComposicaoCircuitosPage() {
 
       setModalAdicionarAberto(false)
       setErroAdicionarComponente('')
+      setMensagemSucesso(resultado.mensagem)
       await carregarDados()
     } catch {
       setErroAdicionarComponente(
@@ -270,17 +273,24 @@ function ComposicaoCircuitosPage() {
   }
 
   async function editarQuantidade(circuitoId: number, id: number, quantidade: number) {
-    const usuarioId = usuario.id
+    if (processando) return
 
-    if (!usuarioId) {
-      setMensagemErro('Não foi possível identificar o usuário conectado.')
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para alterar a composição do circuito.')
       return
     }
 
     setProcessando(true)
+    setMensagemErro('')
+    setMensagemSucesso('')
 
     try {
-      await window.api.circuitoComponentes.editarQuantidade(id, quantidade, usuarioId)
+      const resultado = await window.api.circuitoComponentes.editarQuantidade(id, quantidade)
+
+      if (!resultado.sucesso) {
+        setMensagemErro(resultado.mensagem)
+        return
+      }
 
       const itens = await window.api.circuitoComponentes.listarPorCircuito(circuitoId)
 
@@ -289,7 +299,7 @@ function ComposicaoCircuitosPage() {
         [circuitoId]: itens
       }))
 
-      setMensagemSucesso('Quantidade atualizada com sucesso.')
+      setMensagemSucesso(resultado.mensagem)
       await carregarDados()
     } finally {
       setProcessando(false)
@@ -297,17 +307,24 @@ function ComposicaoCircuitosPage() {
   }
 
   async function removerComponente(circuitoId: number, id: number) {
-    const usuarioId = usuario.id
+    if (processando) return
 
-    if (!usuarioId) {
-      setMensagemErro('Não foi possível identificar o usuário conectado.')
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para alterar a composição do circuito.')
       return
     }
 
     setProcessando(true)
+    setMensagemErro('')
+    setMensagemSucesso('')
 
     try {
-      await window.api.circuitoComponentes.remover(id, usuarioId)
+      const resultado = await window.api.circuitoComponentes.remover(id)
+
+      if (!resultado.sucesso) {
+        setMensagemErro(resultado.mensagem)
+        return
+      }
 
       const itens = await window.api.circuitoComponentes.listarPorCircuito(circuitoId)
 
@@ -316,6 +333,7 @@ function ComposicaoCircuitosPage() {
         [circuitoId]: itens
       }))
 
+      setMensagemSucesso(resultado.mensagem)
       await carregarDados()
     } finally {
       setProcessando(false)
@@ -337,22 +355,27 @@ function ComposicaoCircuitosPage() {
         subtitle="Visualize e gerencie os componentes utilizados em cada circuito."
       />
       <section className={ui.section}>
-      <div className="rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 text-amber-950 shadow-sm">
-        <div className="flex items-center gap-2">
-          <Lightbulb size={18} className="shrink-0 text-amber-500" />
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 text-amber-950 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Lightbulb size={18} className="shrink-0 text-amber-500" />
 
-          <p className="text-sm leading-5">
-            <span className="font-bold">Nota:</span>{' '}
-            Cadastre todos os componentes que podem ser encontrados ou que estejam relacionados ao
-            circuito. Esses componentes poderão ser utilizados posteriormente nos roteiros e nos
-            lançamentos de refugo.
-          </p>
+            <p className="text-sm leading-5">
+              <span className="font-bold">Nota:</span> Cadastre todos os componentes que podem ser
+              encontrados ou que estejam relacionados ao circuito. Esses componentes poderão ser
+              utilizados posteriormente nos roteiros e nos lançamentos de refugo.
+            </p>
+          </div>
         </div>
-      </div>
 
         {mensagemSucesso && (
           <div className="rounded-md bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
             {mensagemSucesso}
+          </div>
+        )}
+
+        {mensagemErro && !modalCircuitoAberto && (
+          <div className="rounded-md bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {mensagemErro}
           </div>
         )}
 
@@ -366,7 +389,12 @@ function ComposicaoCircuitosPage() {
               />
             </div>
 
-            <button type="button" onClick={abrirNovoCircuito} className={ui.buttonPrimary}>
+            <button
+              type="button"
+              onClick={abrirNovoCircuito}
+              disabled={processando || !podeGerenciar}
+              className={ui.buttonPrimary}
+            >
               <Plus size={16} />
               Novo Circuito
             </button>
@@ -480,6 +508,7 @@ function ComposicaoCircuitosPage() {
               aberto={circuitoAbertoId === circuito.id}
               carregando={carregandoCircuitoId === circuito.id}
               processando={processando}
+              podeGerenciar={podeGerenciar}
               onToggle={() => abrirCircuito(circuito)}
               onVisualizar={setItemVisualizando}
               onAdicionar={() => {

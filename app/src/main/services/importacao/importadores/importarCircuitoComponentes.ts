@@ -2,10 +2,7 @@ import { RepositoryFactory } from '../../../repositories/factory/RepositoryFacto
 import { normalizar, normalizarCodigo } from '../importacao.csv'
 import type { RegistroCsv } from '../importacao.types'
 
-export async function importarCircuitoComponentes(
-  registros: RegistroCsv[],
-  usuarioId?: number | null
-) {
+export async function importarCircuitoComponentes(registros: RegistroCsv[], usuarioId: number) {
   const circuitosRepository = RepositoryFactory.circuitos()
   const componentesRepository = RepositoryFactory.componentes()
   const vinculosRepository = RepositoryFactory.circuitoComponentes()
@@ -74,7 +71,7 @@ export async function importarCircuitoComponentes(
         circuito.id,
         componente.id,
         quantidade,
-        usuarioId ?? undefined
+        usuarioId
       )
 
       if (!resultado.sucesso) {
@@ -102,7 +99,7 @@ export async function importarCircuitoComponentes(
         circuito.id,
         componente.id,
         quantidade,
-        usuarioId ?? undefined
+        usuarioId
       )
 
       if (!resultado.sucesso) {
@@ -117,7 +114,7 @@ export async function importarCircuitoComponentes(
     }
 
     if (existente.quantidade !== quantidade) {
-      await vinculosRepository.editarQuantidade(existente.id, quantidade, usuarioId ?? undefined)
+      await vinculosRepository.editarQuantidade(existente.id, quantidade, usuarioId)
 
       existente.quantidade = quantidade
       atualizados++

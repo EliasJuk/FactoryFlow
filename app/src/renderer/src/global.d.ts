@@ -457,24 +457,19 @@ declare global {
         criar: (
           codigo: string,
           nome: string,
-          precoAtual: number,
-          usuarioId: number
+          precoAtual: number
         ) => Promise<{ sucesso: boolean; mensagem: string }>
 
         editar: (
           id: number,
           codigo: string,
           nome: string,
-          precoAtual: number,
-          usuarioId: number
+          precoAtual: number
         ) => Promise<{ sucesso: boolean; mensagem: string }>
 
-        excluir: (id: number, usuarioId: number) => Promise<{ sucesso: boolean; mensagem: string }>
+        excluir: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
 
-        restaurar: (
-          id: number,
-          usuarioId: number
-        ) => Promise<{ sucesso: boolean; mensagem: string }>
+        restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
 
         excluirPermanente: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
       }
@@ -745,17 +740,13 @@ declare global {
       importacao: {
         baixarModelo: (tipo: TipoImportacao) => Promise<ResultadoOperacaoImportacaoApi>
 
-        importar: (
-          tipo: TipoImportacao,
-          usuarioId?: number | null
-        ) => Promise<ResultadoImportacaoApi>
+        importar: (tipo: TipoImportacao) => Promise<ResultadoImportacaoApi>
 
         preVisualizar: (tipo: TipoImportacao) => Promise<ResultadoPreVisualizacaoApi>
 
         importarRegistros: (
           tipo: TipoImportacao,
-          registros: Record<string, string>[],
-          usuarioId?: number | null
+          registros: Record<string, string>[]
         ) => Promise<ResultadoImportacaoApi>
       }
 

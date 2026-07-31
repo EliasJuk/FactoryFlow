@@ -32,8 +32,28 @@ function converterValorMonetario(valor: string) {
   return Number.isNaN(numero) ? 0 : numero
 }
 
+function mensagemDeErro(error: unknown, mensagemPadrao: string): string {
+  const mensagem = error instanceof Error ? error.message : ''
+
+  if (mensagem.includes('SESSAO_NAO_AUTENTICADA')) {
+    return 'Sua sessão não está autenticada. Entre novamente no sistema.'
+  }
+
+  if (mensagem.includes('TROCA_SENHA_OBRIGATORIA')) {
+    return 'Altere sua senha antes de continuar.'
+  }
+
+  if (mensagem.includes('SEM_PERMISSAO')) {
+    return 'Você não possui permissão para realizar esta operação.'
+  }
+
+  return mensagem || mensagemPadrao
+}
+
 function ComponentesPage() {
   const { usuario } = useApp()
+  const podeGerenciar = usuario.perfil === 'QUALIDADE' || usuario.perfil === 'ADMIN'
+  const podeExcluirPermanente = usuario.perfil === 'ADMIN'
 
   const [componentes, setComponentes] = useState<Componente[]>([])
   const [componentesInativos, setComponentesInativos] = useState<Componente[]>([])
@@ -62,13 +82,17 @@ function ComponentesPage() {
     useState<Componente | null>(null)
 
   async function carregarComponentes() {
-    const [ativos, inativos] = await Promise.all([
-      window.api.componentes.listar(),
-      window.api.componentes.listarInativos()
-    ])
+    try {
+      const [ativos, inativos] = await Promise.all([
+        window.api.componentes.listar(),
+        window.api.componentes.listarInativos()
+      ])
 
-    setComponentes(ativos)
-    setComponentesInativos(inativos)
+      setComponentes(ativos)
+      setComponentesInativos(inativos)
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao carregar os componentes.'))
+    }
   }
 
   useEffect(() => {
@@ -114,6 +138,12 @@ function ComponentesPage() {
     if (processando) return
 
     limparMensagens()
+
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para cadastrar componentes.')
+      return
+    }
+
     setModalModo('novo')
     setComponenteEditando(null)
     setCodigo('')
@@ -126,6 +156,12 @@ function ComponentesPage() {
     if (processando) return
 
     limparMensagens()
+
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para editar componentes.')
+      return
+    }
+
     setModalModo('editar')
     setComponenteEditando(componente)
     setCodigo(componente.codigo)
@@ -150,15 +186,13 @@ function ComponentesPage() {
 
     setMensagemErro('')
 
-    if (!codigo.trim() || !nome.trim()) {
-      setMensagemErro('Informe o código CTF e o nome do componente.')
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para salvar componentes.')
       return
     }
 
-    const usuarioId = usuario.id
-
-    if (!usuarioId) {
-      setMensagemErro('Não foi possível identificar o usuário conectado.')
+    if (!codigo.trim() || !nome.trim()) {
+      setMensagemErro('Informe o código CTF e o nome do componente.')
       return
     }
 
@@ -172,8 +206,7 @@ function ComponentesPage() {
           componenteEditando.id,
           codigo.trim().toUpperCase(),
           nome.trim(),
-          valor,
-          usuarioId
+          valor
         )
 
         if (!resultado.sucesso) {
@@ -186,8 +219,7 @@ function ComponentesPage() {
         const resultado = await window.api.componentes.criar(
           codigo.trim().toUpperCase(),
           nome.trim(),
-          valor,
-          usuarioId
+          valor
         )
 
         if (!resultado.sucesso) {
@@ -200,6 +232,8 @@ function ComponentesPage() {
 
       fecharModal()
       await carregarComponentes()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao salvar o componente.'))
     } finally {
       setProcessando(false)
     }
@@ -208,21 +242,17 @@ function ComponentesPage() {
   async function confirmarInativacao() {
     if (!componenteParaInativar || processando) return
 
-    const usuarioId = usuario.id
+    limparMensagens()
 
-    if (!usuarioId) {
-      setMensagemErro('Não foi possível identificar o usuário conectado.')
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para inativar componentes.')
       return
     }
 
     setProcessando(true)
-    limparMensagens()
 
     try {
-      const resultado = await window.api.componentes.excluir(
-        componenteParaInativar.id,
-        usuarioId
-      )
+      const resultado = await window.api.componentes.excluir(componenteParaInativar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -232,6 +262,8 @@ function ComponentesPage() {
       setComponenteParaInativar(null)
       setMensagemSucesso('Componente inativado com sucesso.')
       await carregarComponentes()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao inativar o componente.'))
     } finally {
       setProcessando(false)
     }
@@ -240,21 +272,17 @@ function ComponentesPage() {
   async function confirmarRestauracao() {
     if (!componenteParaRestaurar || processando) return
 
-    const usuarioId = usuario.id
+    limparMensagens()
 
-    if (!usuarioId) {
-      setMensagemErro('Não foi possível identificar o usuário conectado.')
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para restaurar componentes.')
       return
     }
 
     setProcessando(true)
-    limparMensagens()
 
     try {
-      const resultado = await window.api.componentes.restaurar(
-        componenteParaRestaurar.id,
-        usuarioId
-      )
+      const resultado = await window.api.componentes.restaurar(componenteParaRestaurar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -264,6 +292,8 @@ function ComponentesPage() {
       setComponenteParaRestaurar(null)
       setMensagemSucesso('Componente restaurado com sucesso.')
       await carregarComponentes()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao restaurar o componente.'))
     } finally {
       setProcessando(false)
     }
@@ -272,8 +302,14 @@ function ComponentesPage() {
   async function confirmarExclusaoPermanente() {
     if (!componenteParaExcluirPermanente || processando) return
 
-    setProcessando(true)
     limparMensagens()
+
+    if (!podeExcluirPermanente) {
+      setMensagemErro('Somente administradores podem excluir componentes permanentemente.')
+      return
+    }
+
+    setProcessando(true)
 
     try {
       const resultado = await window.api.componentes.excluirPermanente(
@@ -288,12 +324,15 @@ function ComponentesPage() {
       setComponenteParaExcluirPermanente(null)
       setMensagemSucesso('Componente excluído permanentemente.')
       await carregarComponentes()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao excluir permanentemente o componente.'))
     } finally {
       setProcessando(false)
     }
   }
 
-  const podeSalvar = codigo.trim().length > 0 && nome.trim().length > 0 && !processando
+  const podeSalvar =
+    podeGerenciar && codigo.trim().length > 0 && nome.trim().length > 0 && !processando
 
   return (
     <main className={ui.page}>
@@ -319,7 +358,7 @@ function ComponentesPage() {
           titulo="Componentes ativos"
           descricao={`Exibindo ${componentesFiltrados.length} componente(s) ativo(s). Limite de ${ITENS_POR_PAGINA} por página.`}
           textoBotao="Novo Componente"
-          disabled={processando}
+          disabled={processando || !podeGerenciar}
           onNovo={abrirNovoComponente}
         >
           <SearchBar
@@ -363,7 +402,7 @@ function ComponentesPage() {
                       <button
                         type="button"
                         onClick={() => abrirEditarComponente(componente)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonSecondary}
                         title="Editar"
                       >
@@ -372,7 +411,7 @@ function ComponentesPage() {
 
                       <button
                         onClick={() => setComponenteParaInativar(componente)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonDanger}
                         title="Inativar"
                       >
@@ -440,7 +479,7 @@ function ComponentesPage() {
                       <button
                         type="button"
                         onClick={() => setComponenteParaRestaurar(componente)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonSecondary}
                         title="Restaurar"
                       >
@@ -450,7 +489,7 @@ function ComponentesPage() {
 
                       <button
                         onClick={() => setComponenteParaExcluirPermanente(componente)}
-                        disabled={processando}
+                        disabled={processando || !podeExcluirPermanente}
                         className={ui.buttonDanger}
                         title="Excluir permanentemente"
                       >

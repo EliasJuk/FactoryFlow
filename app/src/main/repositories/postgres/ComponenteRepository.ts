@@ -1,8 +1,6 @@
 import { pool } from '../../database/postgres/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
 
-const USUARIO_SISTEMA_ID = 1
-
 export interface Componente {
   id: number
   uuid: string
@@ -117,12 +115,7 @@ export class ComponenteRepository {
     return result.rows.map((componente) => this.mapear(componente))
   }
 
-  async criar(
-    codigo: string,
-    nome: string,
-    precoAtual = 0,
-    usuarioId: number = USUARIO_SISTEMA_ID
-  ): Promise<void> {
+  async criar(codigo: string, nome: string, precoAtual: number, usuarioId: number): Promise<void> {
     const codigoFormatado = codigo.trim().toUpperCase()
     const nomeFormatado = nome.trim()
 
@@ -186,8 +179,8 @@ export class ComponenteRepository {
     id: number,
     codigo: string,
     nome: string,
-    precoAtual = 0,
-    usuarioId: number = USUARIO_SISTEMA_ID
+    precoAtual: number,
+    usuarioId: number
   ): Promise<void> {
     const codigoFormatado = codigo.trim().toUpperCase()
     const nomeFormatado = nome.trim()
@@ -298,7 +291,7 @@ export class ComponenteRepository {
     }
   }
 
-  async excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async excluir(id: number, usuarioId: number): Promise<void> {
     await pool.query(
       `
         UPDATE componentes
@@ -314,7 +307,7 @@ export class ComponenteRepository {
     )
   }
 
-  async restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async restaurar(id: number, usuarioId: number): Promise<void> {
     await pool.query(
       `
         UPDATE componentes

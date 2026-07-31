@@ -2,8 +2,6 @@ import db from '../../database/database'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
 import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
-const USUARIO_SISTEMA_ID = 1
-
 export interface Componente {
   id: number
   uuid: string
@@ -110,12 +108,7 @@ export class ComponenteRepository {
     return componentes.map((componente) => this.mapear(componente))
   }
 
-  criar(
-    codigo: string,
-    nome: string,
-    precoAtual = 0,
-    usuarioId: number = USUARIO_SISTEMA_ID
-  ): void {
+  criar(codigo: string, nome: string, precoAtual: number, usuarioId: number): void {
     const codigoFormatado = codigo.trim().toUpperCase()
     const nomeFormatado = nome.trim()
 
@@ -171,13 +164,7 @@ export class ComponenteRepository {
     executar()
   }
 
-  editar(
-    id: number,
-    codigo: string,
-    nome: string,
-    precoAtual = 0,
-    usuarioId: number = USUARIO_SISTEMA_ID
-  ): void {
+  editar(id: number, codigo: string, nome: string, precoAtual: number, usuarioId: number): void {
     const codigoFormatado = codigo.trim().toUpperCase()
     const nomeFormatado = nome.trim()
 
@@ -280,7 +267,7 @@ export class ComponenteRepository {
     }
   }
 
-  excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  excluir(id: number, usuarioId: number): void {
     db.transaction(() => {
       const resultado = db
         .prepare(
@@ -306,7 +293,7 @@ export class ComponenteRepository {
     })()
   }
 
-  restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  restaurar(id: number, usuarioId: number): void {
     db.transaction(() => {
       const resultado = db
         .prepare(

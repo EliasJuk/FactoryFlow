@@ -131,14 +131,12 @@ contextBridge.exposeInMainWorld('api', {
   componentes: {
     listar: () => ipcRenderer.invoke('componentes:listar'),
     listarInativos: () => ipcRenderer.invoke('componentes:listar-inativos'),
-    criar: (codigo: string, nome: string, precoAtual: number, usuarioId: number) =>
-      ipcRenderer.invoke('componentes:criar', codigo, nome, precoAtual, usuarioId),
-    editar: (id: number, codigo: string, nome: string, precoAtual: number, usuarioId: number) =>
-      ipcRenderer.invoke('componentes:editar', id, codigo, nome, precoAtual, usuarioId),
-    excluir: (id: number, usuarioId: number) =>
-      ipcRenderer.invoke('componentes:excluir', id, usuarioId),
-    restaurar: (id: number, usuarioId: number) =>
-      ipcRenderer.invoke('componentes:restaurar', id, usuarioId),
+    criar: (codigo: string, nome: string, precoAtual: number) =>
+      ipcRenderer.invoke('componentes:criar', codigo, nome, precoAtual),
+    editar: (id: number, codigo: string, nome: string, precoAtual: number) =>
+      ipcRenderer.invoke('componentes:editar', id, codigo, nome, precoAtual),
+    excluir: (id: number) => ipcRenderer.invoke('componentes:excluir', id),
+    restaurar: (id: number) => ipcRenderer.invoke('componentes:restaurar', id),
     excluirPermanente: (id: number) => ipcRenderer.invoke('componentes:excluir-permanente', id)
   },
 
@@ -305,19 +303,14 @@ contextBridge.exposeInMainWorld('api', {
         mensagem: string
       }>,
     preVisualizar: (tipo: TipoImportacao) => ipcRenderer.invoke('importacao:pre-visualizar', tipo),
-    importarRegistros: (
-      tipo: TipoImportacao,
-      registros: Record<string, string>[],
-      usuarioId?: number | null
-    ) =>
+    importarRegistros: (tipo: TipoImportacao, registros: Record<string, string>[]) =>
       ipcRenderer.invoke(
         'importacao:importar-registros',
         tipo,
-        registros,
-        usuarioId
+        registros
       ) as Promise<ResultadoImportacao>,
-    importar: (tipo: TipoImportacao, usuarioId?: number | null) =>
-      ipcRenderer.invoke('importacao:importar', tipo, usuarioId) as Promise<ResultadoImportacao>
+    importar: (tipo: TipoImportacao) =>
+      ipcRenderer.invoke('importacao:importar', tipo) as Promise<ResultadoImportacao>
   },
 
   resultados: (filtros: Record<string, unknown>) =>

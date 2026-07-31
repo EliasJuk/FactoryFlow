@@ -22,8 +22,28 @@ type ModalModo = 'novo' | 'editar'
 
 const ITENS_POR_PAGINA = 10
 
+function mensagemDeErro(error: unknown, mensagemPadrao: string): string {
+  const mensagem = error instanceof Error ? error.message : ''
+
+  if (mensagem.includes('SESSAO_NAO_AUTENTICADA')) {
+    return 'Sua sessão não está autenticada. Entre novamente no sistema.'
+  }
+
+  if (mensagem.includes('TROCA_SENHA_OBRIGATORIA')) {
+    return 'Altere sua senha antes de continuar.'
+  }
+
+  if (mensagem.includes('SEM_PERMISSAO')) {
+    return 'Você não possui permissão para realizar esta operação.'
+  }
+
+  return mensagem || mensagemPadrao
+}
+
 function PostosPage() {
   const { usuario } = useApp()
+  const podeGerenciar = usuario.perfil === 'QUALIDADE' || usuario.perfil === 'ADMIN'
+  const podeExcluirPermanente = usuario.perfil === 'ADMIN'
   const [setores, setSetores] = useState<Setor[]>([])
   const [subsetores, setSubsetores] = useState<Subsetor[]>([])
   const [postos, setPostos] = useState<Posto[]>([])
@@ -57,17 +77,21 @@ function PostosPage() {
   } | null>(null)
 
   async function carregarDados() {
-    const [setoresLista, subsetoresLista, postosLista, inativosLista] = await Promise.all([
-      window.api.setores.listar(),
-      window.api.subsetores.listar(),
-      window.api.postos.listar(),
-      window.api.postos.listarInativos()
-    ])
+    try {
+      const [setoresLista, subsetoresLista, postosLista, inativosLista] = await Promise.all([
+        window.api.setores.listar(),
+        window.api.subsetores.listar(),
+        window.api.postos.listar(),
+        window.api.postos.listarInativos()
+      ])
 
-    setSetores(setoresLista)
-    setSubsetores(subsetoresLista)
-    setPostos(postosLista)
-    setPostosInativos(inativosLista)
+      setSetores(setoresLista)
+      setSubsetores(subsetoresLista)
+      setPostos(postosLista)
+      setPostosInativos(inativosLista)
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao carregar os postos de trabalho.'))
+    }
   }
 
   useEffect(() => {
@@ -125,15 +149,6 @@ function PostosPage() {
     }
   }, [paginaAtual, totalPaginas])
 
-  function obterUsuarioId(): number | null {
-    if (!usuario.id) {
-      setMensagemErro('Usuário logado não identificado.')
-      return null
-    }
-
-    return usuario.id
-  }
-
   function limparMensagens() {
     setMensagemErro('')
     setMensagemSucesso('')
@@ -143,6 +158,12 @@ function PostosPage() {
     if (processando) return
 
     limparMensagens()
+
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para cadastrar postos de trabalho.')
+      return
+    }
+
     setModalModo('novo')
     setPostoEditando(null)
     setNome('')
@@ -165,6 +186,12 @@ function PostosPage() {
     if (processando) return
 
     limparMensagens()
+
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para editar postos de trabalho.')
+      return
+    }
+
     setModalModo('editar')
     setPostoEditando(posto)
     setNome(posto.nome)
@@ -192,14 +219,15 @@ function PostosPage() {
 
     setMensagemErro('')
 
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para salvar postos de trabalho.')
+      return
+    }
+
     if (!nome.trim() || subsetorId === '') {
       setMensagemErro('Informe o subsetor e o nome do posto de trabalho.')
       return
     }
-
-    const usuarioId = obterUsuarioId()
-
-    if (!usuarioId) return
 
     setProcessando(true)
 
@@ -208,8 +236,7 @@ function PostosPage() {
         const resultado = await window.api.postos.editar(
           postoEditando.id,
           nome.trim(),
-          Number(subsetorId),
-          usuarioId
+          Number(subsetorId)
         )
 
         if (!resultado.sucesso) {
@@ -219,7 +246,7 @@ function PostosPage() {
 
         setMensagemSucesso('Posto atualizado com sucesso.')
       } else {
-        const resultado = await window.api.postos.criar(nome.trim(), Number(subsetorId), usuarioId)
+        const resultado = await window.api.postos.criar(nome.trim(), Number(subsetorId))
 
         if (!resultado.sucesso) {
           setMensagemErro(resultado.mensagem)
@@ -231,6 +258,8 @@ function PostosPage() {
 
       fecharModal()
       await carregarDados()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao salvar o posto de trabalho.'))
     } finally {
       setProcessando(false)
     }
@@ -241,17 +270,26 @@ function PostosPage() {
 
     limparMensagens()
 
-    const totalRoteiros = await window.api.postos.contarRoteirosAtivos(posto.id)
-
-    if (totalRoteiros > 0) {
-      setPostoBloqueado({
-        posto,
-        totalRoteiros
-      })
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para inativar postos de trabalho.')
       return
     }
 
-    setPostoParaInativar(posto)
+    try {
+      const totalRoteiros = await window.api.postos.contarRoteirosAtivos(posto.id)
+
+      if (totalRoteiros > 0) {
+        setPostoBloqueado({
+          posto,
+          totalRoteiros
+        })
+        return
+      }
+
+      setPostoParaInativar(posto)
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao verificar os vínculos do posto.'))
+    }
   }
 
   async function confirmarInativacao() {
@@ -259,14 +297,15 @@ function PostosPage() {
 
     limparMensagens()
 
-    const usuarioId = obterUsuarioId()
-
-    if (!usuarioId) return
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para inativar postos de trabalho.')
+      return
+    }
 
     setProcessando(true)
 
     try {
-      const resultado = await window.api.postos.excluir(postoParaInativar.id, usuarioId)
+      const resultado = await window.api.postos.excluir(postoParaInativar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -276,6 +315,8 @@ function PostosPage() {
       setPostoParaInativar(null)
       setMensagemSucesso('Posto inativado com sucesso.')
       await carregarDados()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao inativar o posto de trabalho.'))
     } finally {
       setProcessando(false)
     }
@@ -286,14 +327,15 @@ function PostosPage() {
 
     limparMensagens()
 
-    const usuarioId = obterUsuarioId()
-
-    if (!usuarioId) return
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para restaurar postos de trabalho.')
+      return
+    }
 
     setProcessando(true)
 
     try {
-      const resultado = await window.api.postos.restaurar(postoParaRestaurar.id, usuarioId)
+      const resultado = await window.api.postos.restaurar(postoParaRestaurar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -303,6 +345,8 @@ function PostosPage() {
       setPostoParaRestaurar(null)
       setMensagemSucesso('Posto restaurado com sucesso.')
       await carregarDados()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao restaurar o posto de trabalho.'))
     } finally {
       setProcessando(false)
     }
@@ -311,8 +355,14 @@ function PostosPage() {
   async function confirmarExclusaoPermanente() {
     if (!postoParaExcluirPermanente || processando) return
 
-    setProcessando(true)
     limparMensagens()
+
+    if (!podeExcluirPermanente) {
+      setMensagemErro('Somente administradores podem excluir postos permanentemente.')
+      return
+    }
+
+    setProcessando(true)
 
     try {
       const resultado = await window.api.postos.excluirPermanente(postoParaExcluirPermanente.id)
@@ -325,6 +375,8 @@ function PostosPage() {
       setPostoParaExcluirPermanente(null)
       setMensagemSucesso('Posto excluído permanentemente.')
       await carregarDados()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao excluir permanentemente o posto.'))
     } finally {
       setProcessando(false)
     }
@@ -336,7 +388,7 @@ function PostosPage() {
     setFiltroSubsetorId('')
   }
 
-  const podeSalvar = nome.trim().length > 0 && subsetorId !== ''
+  const podeSalvar = podeGerenciar && nome.trim().length > 0 && subsetorId !== ''
 
   return (
     <main className={ui.page}>
@@ -362,7 +414,7 @@ function PostosPage() {
           titulo="Postos ativos"
           descricao={`Exibindo ${postosFiltrados.length} posto(s) ativo(s). Limite de ${ITENS_POR_PAGINA} por página.`}
           textoBotao="Novo Posto"
-          disabled={processando}
+          disabled={processando || !podeGerenciar}
           onNovo={abrirNovoPosto}
         >
           <div className="space-y-3">
@@ -461,7 +513,7 @@ function PostosPage() {
                       <button
                         type="button"
                         onClick={() => abrirEditarPosto(posto)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonSecondary}
                         title="Editar"
                       >
@@ -470,7 +522,7 @@ function PostosPage() {
 
                       <button
                         onClick={() => solicitarInativacao(posto)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonDanger}
                         title="Inativar"
                       >
@@ -538,7 +590,7 @@ function PostosPage() {
                       <button
                         type="button"
                         onClick={() => setPostoParaRestaurar(posto)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonSecondary}
                         title="Restaurar"
                       >
@@ -548,7 +600,7 @@ function PostosPage() {
 
                       <button
                         onClick={() => setPostoParaExcluirPermanente(posto)}
-                        disabled={processando}
+                        disabled={processando || !podeExcluirPermanente}
                         className={ui.buttonDanger}
                         title="Excluir permanentemente"
                       >

@@ -3,7 +3,6 @@ import { IdGenerator } from '../../shared/ids/IdGenerator'
 import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const db = getDatabase()
-const USUARIO_SISTEMA_ID = 1
 
 export interface Posto {
   id: number
@@ -109,7 +108,7 @@ export class PostoRepository {
     return postos.map((posto) => this.mapear(posto))
   }
 
-  criar(nome: string, subsetorId: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  criar(nome: string, subsetorId: number, usuarioId: number): void {
     const nomeFormatado = nome.trim()
     const uuid = IdGenerator.generate()
 
@@ -171,12 +170,7 @@ export class PostoRepository {
     transaction()
   }
 
-  editar(
-    id: number,
-    nome: string,
-    subsetorId: number,
-    usuarioId: number = USUARIO_SISTEMA_ID
-  ): void {
+  editar(id: number, nome: string, subsetorId: number, usuarioId: number): void {
     const nomeFormatado = nome.trim()
 
     const duplicado = db
@@ -242,7 +236,7 @@ export class PostoRepository {
     return resultado.total
   }
 
-  excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  excluir(id: number, usuarioId: number): void {
     const total = this.contarRoteirosAtivos(id)
 
     if (total > 0) {
@@ -276,7 +270,7 @@ export class PostoRepository {
     transaction()
   }
 
-  restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  restaurar(id: number, usuarioId: number): void {
     const transaction = db.transaction(() => {
       const resultado = db
         .prepare(

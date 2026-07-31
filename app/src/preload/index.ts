@@ -112,14 +112,12 @@ contextBridge.exposeInMainWorld('api', {
   subsetores: {
     listar: () => ipcRenderer.invoke('subsetores:listar'),
 
-    criar: (nome: string, setorId: number) =>
-      ipcRenderer.invoke('subsetores:criar', nome, setorId),
+    criar: (nome: string, setorId: number) => ipcRenderer.invoke('subsetores:criar', nome, setorId),
 
     editar: (id: number, nome: string, setorId: number) =>
       ipcRenderer.invoke('subsetores:editar', id, nome, setorId),
 
-    contarPostosAtivos: (id: number) =>
-      ipcRenderer.invoke('subsetores:contar-postos-ativos', id),
+    contarPostosAtivos: (id: number) => ipcRenderer.invoke('subsetores:contar-postos-ativos', id),
 
     excluir: (id: number) => ipcRenderer.invoke('subsetores:excluir', id),
 
@@ -179,15 +177,21 @@ contextBridge.exposeInMainWorld('api', {
 
   postos: {
     listar: () => ipcRenderer.invoke('postos:listar'),
-    criar: (nome: string, subsetorId: number, usuarioId: number) =>
-      ipcRenderer.invoke('postos:criar', nome, subsetorId, usuarioId),
-    editar: (id: number, nome: string, subsetorId: number, usuarioId: number) =>
-      ipcRenderer.invoke('postos:editar', id, nome, subsetorId, usuarioId),
+
+    criar: (nome: string, subsetorId: number) =>
+      ipcRenderer.invoke('postos:criar', nome, subsetorId),
+
+    editar: (id: number, nome: string, subsetorId: number) =>
+      ipcRenderer.invoke('postos:editar', id, nome, subsetorId),
+
     contarRoteirosAtivos: (id: number) => ipcRenderer.invoke('postos:contar-roteiros-ativos', id),
-    excluir: (id: number, usuarioId: number) => ipcRenderer.invoke('postos:excluir', id, usuarioId),
+
+    excluir: (id: number) => ipcRenderer.invoke('postos:excluir', id),
+
     listarInativos: () => ipcRenderer.invoke('postos:listar-inativos'),
-    restaurar: (id: number, usuarioId: number) =>
-      ipcRenderer.invoke('postos:restaurar', id, usuarioId),
+
+    restaurar: (id: number) => ipcRenderer.invoke('postos:restaurar', id),
+
     excluirPermanente: (id: number) => ipcRenderer.invoke('postos:excluir-permanente', id)
   },
 

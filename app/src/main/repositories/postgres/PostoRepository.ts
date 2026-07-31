@@ -1,8 +1,6 @@
 import { pool } from '../../database/postgres/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
 
-const USUARIO_SISTEMA_ID = 1
-
 export interface Posto {
   id: number
   uuid: string
@@ -116,11 +114,7 @@ export class PostoRepository {
     return result.rows.map((posto) => this.mapear(posto))
   }
 
-  async criar(
-    nome: string,
-    subsetorId: number,
-    usuarioId: number = USUARIO_SISTEMA_ID
-  ): Promise<void> {
+  async criar(nome: string, subsetorId: number, usuarioId: number): Promise<void> {
     const nomeFormatado = nome.trim()
     const uuid = IdGenerator.generate()
 
@@ -163,12 +157,7 @@ export class PostoRepository {
     )
   }
 
-  async editar(
-    id: number,
-    nome: string,
-    subsetorId: number,
-    usuarioId: number = USUARIO_SISTEMA_ID
-  ): Promise<void> {
+  async editar(id: number, nome: string, subsetorId: number, usuarioId: number): Promise<void> {
     const nomeFormatado = nome.trim()
 
     const duplicado = await pool.query<{ id: number; ativo: boolean }>(
@@ -221,7 +210,7 @@ export class PostoRepository {
     return Number(result.rows[0]?.total ?? 0)
   }
 
-  async excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async excluir(id: number, usuarioId: number): Promise<void> {
     const total = await this.contarRoteirosAtivos(id)
 
     if (total > 0) {
@@ -243,7 +232,7 @@ export class PostoRepository {
     )
   }
 
-  async restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async restaurar(id: number, usuarioId: number): Promise<void> {
     await pool.query(
       `
         UPDATE postos

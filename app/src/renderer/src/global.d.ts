@@ -574,8 +574,7 @@ declare global {
 
         criar: (
           codigo: string,
-          descricao: string,
-          usuarioId: number
+          descricao: string
         ) => Promise<{
           sucesso: boolean
           mensagem: string
@@ -584,21 +583,17 @@ declare global {
         editar: (
           id: number,
           codigo: string,
-          descricao: string,
-          usuarioId: number
+          descricao: string
         ) => Promise<{
           sucesso: boolean
           mensagem: string
         }>
 
-        excluir: (id: number, usuarioId: number) => Promise<{ sucesso: boolean; mensagem: string }>
+        excluir: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
 
         listarInativos: () => Promise<DefeitoApi[]>
 
-        restaurar: (
-          id: number,
-          usuarioId: number
-        ) => Promise<{ sucesso: boolean; mensagem: string }>
+        restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
 
         excluirPermanente: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
       }

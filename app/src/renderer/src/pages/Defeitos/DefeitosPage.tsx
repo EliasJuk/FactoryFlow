@@ -18,8 +18,28 @@ type ModalModo = 'novo' | 'editar'
 
 const ITENS_POR_PAGINA = 10
 
+function mensagemDeErro(error: unknown, mensagemPadrao: string): string {
+  const mensagem = error instanceof Error ? error.message : ''
+
+  if (mensagem.includes('SESSAO_NAO_AUTENTICADA')) {
+    return 'Sua sessão não está autenticada. Entre novamente no sistema.'
+  }
+
+  if (mensagem.includes('TROCA_SENHA_OBRIGATORIA')) {
+    return 'Altere sua senha antes de continuar.'
+  }
+
+  if (mensagem.includes('SEM_PERMISSAO')) {
+    return 'Você não possui permissão para realizar esta operação.'
+  }
+
+  return mensagem || mensagemPadrao
+}
+
 function DefeitosPage() {
   const { usuario } = useApp()
+  const podeGerenciar = usuario.perfil === 'QUALIDADE' || usuario.perfil === 'ADMIN'
+  const podeExcluirPermanente = usuario.perfil === 'ADMIN'
   const [defeitos, setDefeitos] = useState<Defeito[]>([])
   const [defeitosInativos, setDefeitosInativos] = useState<Defeito[]>([])
 
@@ -47,13 +67,17 @@ function DefeitosPage() {
   )
 
   async function carregarDefeitos() {
-    const [ativos, inativos] = await Promise.all([
-      window.api.defeitos.listar(),
-      window.api.defeitos.listarInativos()
-    ])
+    try {
+      const [ativos, inativos] = await Promise.all([
+        window.api.defeitos.listar(),
+        window.api.defeitos.listarInativos()
+      ])
 
-    setDefeitos(ativos)
-    setDefeitosInativos(inativos)
+      setDefeitos(ativos)
+      setDefeitosInativos(inativos)
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao carregar os defeitos.'))
+    }
   }
 
   useEffect(() => {
@@ -90,15 +114,6 @@ function DefeitosPage() {
     }
   }, [paginaAtual, totalPaginas])
 
-  function obterUsuarioId(): number | null {
-    if (!usuario.id) {
-      setMensagemErro('Usuário logado não identificado.')
-      return null
-    }
-
-    return usuario.id
-  }
-
   function limparMensagens() {
     setMensagemErro('')
     setMensagemSucesso('')
@@ -108,6 +123,12 @@ function DefeitosPage() {
     if (processando) return
 
     limparMensagens()
+
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para cadastrar defeitos.')
+      return
+    }
+
     setModalModo('novo')
     setDefeitoEditando(null)
     setCodigo('')
@@ -119,6 +140,12 @@ function DefeitosPage() {
     if (processando) return
 
     limparMensagens()
+
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para editar defeitos.')
+      return
+    }
+
     setModalModo('editar')
     setDefeitoEditando(defeito)
     setCodigo(defeito.codigo)
@@ -141,14 +168,15 @@ function DefeitosPage() {
 
     setMensagemErro('')
 
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para salvar defeitos.')
+      return
+    }
+
     if (!codigo.trim() || !descricao.trim()) {
       setMensagemErro('Informe o código e a descrição do defeito.')
       return
     }
-
-    const usuarioId = obterUsuarioId()
-
-    if (!usuarioId) return
 
     setProcessando(true)
 
@@ -157,8 +185,7 @@ function DefeitosPage() {
         const resultado = await window.api.defeitos.editar(
           defeitoEditando.id,
           codigo.trim().toUpperCase(),
-          descricao.trim(),
-          usuarioId
+          descricao.trim()
         )
 
         if (!resultado.sucesso) {
@@ -170,8 +197,7 @@ function DefeitosPage() {
       } else {
         const resultado = await window.api.defeitos.criar(
           codigo.trim().toUpperCase(),
-          descricao.trim(),
-          usuarioId
+          descricao.trim()
         )
 
         if (!resultado.sucesso) {
@@ -184,6 +210,8 @@ function DefeitosPage() {
 
       fecharModal()
       await carregarDefeitos()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao salvar o defeito.'))
     } finally {
       setProcessando(false)
     }
@@ -194,14 +222,15 @@ function DefeitosPage() {
 
     limparMensagens()
 
-    const usuarioId = obterUsuarioId()
-
-    if (!usuarioId) return
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para inativar defeitos.')
+      return
+    }
 
     setProcessando(true)
 
     try {
-      const resultado = await window.api.defeitos.excluir(defeitoParaInativar.id, usuarioId)
+      const resultado = await window.api.defeitos.excluir(defeitoParaInativar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -211,6 +240,8 @@ function DefeitosPage() {
       setDefeitoParaInativar(null)
       setMensagemSucesso('Defeito inativado com sucesso.')
       await carregarDefeitos()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao inativar o defeito.'))
     } finally {
       setProcessando(false)
     }
@@ -221,14 +252,15 @@ function DefeitosPage() {
 
     limparMensagens()
 
-    const usuarioId = obterUsuarioId()
-
-    if (!usuarioId) return
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para restaurar defeitos.')
+      return
+    }
 
     setProcessando(true)
 
     try {
-      const resultado = await window.api.defeitos.restaurar(defeitoParaRestaurar.id, usuarioId)
+      const resultado = await window.api.defeitos.restaurar(defeitoParaRestaurar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -238,6 +270,8 @@ function DefeitosPage() {
       setDefeitoParaRestaurar(null)
       setMensagemSucesso('Defeito restaurado com sucesso.')
       await carregarDefeitos()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao restaurar o defeito.'))
     } finally {
       setProcessando(false)
     }
@@ -246,8 +280,14 @@ function DefeitosPage() {
   async function confirmarExclusaoPermanente() {
     if (!defeitoParaExcluirPermanente || processando) return
 
-    setProcessando(true)
     limparMensagens()
+
+    if (!podeExcluirPermanente) {
+      setMensagemErro('Somente administradores podem excluir defeitos permanentemente.')
+      return
+    }
+
+    setProcessando(true)
 
     try {
       const resultado = await window.api.defeitos.excluirPermanente(defeitoParaExcluirPermanente.id)
@@ -260,6 +300,8 @@ function DefeitosPage() {
       setDefeitoParaExcluirPermanente(null)
       setMensagemSucesso('Defeito excluído permanentemente.')
       await carregarDefeitos()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao excluir permanentemente o defeito.'))
     } finally {
       setProcessando(false)
     }
@@ -291,7 +333,7 @@ function DefeitosPage() {
           titulo="Defeitos ativos"
           descricao={`Exibindo ${defeitosFiltrados.length} defeito(s) ativo(s). Limite de ${ITENS_POR_PAGINA} por página.`}
           textoBotao="Novo Defeito"
-          disabled={processando}
+          disabled={processando || !podeGerenciar}
           onNovo={abrirNovoDefeito}
         >
           <SearchBar
@@ -333,7 +375,7 @@ function DefeitosPage() {
                       <button
                         type="button"
                         onClick={() => abrirEditarDefeito(defeito)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonSecondary}
                         title="Editar"
                       >
@@ -342,7 +384,7 @@ function DefeitosPage() {
 
                       <button
                         onClick={() => setDefeitoParaInativar(defeito)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonDanger}
                         title="Inativar"
                       >
@@ -408,7 +450,7 @@ function DefeitosPage() {
                       <button
                         type="button"
                         onClick={() => setDefeitoParaRestaurar(defeito)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonSecondary}
                         title="Restaurar"
                       >
@@ -418,7 +460,7 @@ function DefeitosPage() {
 
                       <button
                         onClick={() => setDefeitoParaExcluirPermanente(defeito)}
-                        disabled={processando}
+                        disabled={processando || !podeExcluirPermanente}
                         className={ui.buttonDanger}
                         title="Excluir permanentemente"
                       >

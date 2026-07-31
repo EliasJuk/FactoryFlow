@@ -1,8 +1,6 @@
 import { pool } from '../../database/postgres/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
 
-const USUARIO_SISTEMA_ID = 1
-
 export interface Defeito {
   id: number
   uuid: string
@@ -106,11 +104,7 @@ export class DefeitoRepository {
     return result.rows.map((defeito) => this.mapear(defeito))
   }
 
-  async criar(
-    codigo: string,
-    descricao: string,
-    usuarioId: number = USUARIO_SISTEMA_ID
-  ): Promise<void> {
+  async criar(codigo: string, descricao: string, usuarioId: number): Promise<void> {
     const codigoFormatado = codigo.trim().toUpperCase()
     const descricaoFormatada = descricao.trim()
 
@@ -152,12 +146,7 @@ export class DefeitoRepository {
     )
   }
 
-  async editar(
-    id: number,
-    codigo: string,
-    descricao: string,
-    usuarioId: number = USUARIO_SISTEMA_ID
-  ): Promise<void> {
+  async editar(id: number, codigo: string, descricao: string, usuarioId: number): Promise<void> {
     const codigoFormatado = codigo.trim().toUpperCase()
     const descricaoFormatada = descricao.trim()
 
@@ -196,7 +185,7 @@ export class DefeitoRepository {
     )
   }
 
-  async excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async excluir(id: number, usuarioId: number): Promise<void> {
     await pool.query(
       `
         UPDATE defeitos
@@ -212,7 +201,7 @@ export class DefeitoRepository {
     )
   }
 
-  async restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async restaurar(id: number, usuarioId: number): Promise<void> {
     await pool.query(
       `
         UPDATE defeitos

@@ -1,8 +1,6 @@
 import { pool } from '../../database/postgres/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
 
-const USUARIO_SISTEMA_ID = 1
-
 export interface Circuito {
   id: number
   uuid: string
@@ -143,7 +141,7 @@ export class CircuitoRepository {
     return result.rows.map((circuito) => this.mapear(circuito))
   }
 
-  async criar(codigo: string, nome: string, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async criar(codigo: string, nome: string, usuarioId: number): Promise<void> {
     const codigoFormatado = codigo.trim().toUpperCase()
     const nomeFormatado = nome.trim()
 
@@ -185,12 +183,7 @@ export class CircuitoRepository {
     )
   }
 
-  async editar(
-    id: number,
-    codigo: string,
-    nome: string,
-    usuarioId: number = USUARIO_SISTEMA_ID
-  ): Promise<void> {
+  async editar(id: number, codigo: string, nome: string, usuarioId: number): Promise<void> {
     const codigoFormatado = codigo.trim().toUpperCase()
     const nomeFormatado = nome.trim()
 
@@ -229,7 +222,7 @@ export class CircuitoRepository {
     )
   }
 
-  async excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async excluir(id: number, usuarioId: number): Promise<void> {
     await pool.query(
       `
         UPDATE circuitos
@@ -245,7 +238,7 @@ export class CircuitoRepository {
     )
   }
 
-  async restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async restaurar(id: number, usuarioId: number): Promise<void> {
     await pool.query(
       `
         UPDATE circuitos

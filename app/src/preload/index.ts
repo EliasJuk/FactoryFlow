@@ -143,14 +143,11 @@ contextBridge.exposeInMainWorld('api', {
   circuitos: {
     listar: () => ipcRenderer.invoke('circuitos:listar'),
     listarInativos: () => ipcRenderer.invoke('circuitos:listar-inativos'),
-    criar: (codigo: string, nome: string, usuarioId: number) =>
-      ipcRenderer.invoke('circuitos:criar', codigo, nome, usuarioId),
-    editar: (id: number, codigo: string, nome: string, usuarioId: number) =>
-      ipcRenderer.invoke('circuitos:editar', id, codigo, nome, usuarioId),
-    excluir: (id: number, usuarioId: number) =>
-      ipcRenderer.invoke('circuitos:excluir', id, usuarioId),
-    restaurar: (id: number, usuarioId: number) =>
-      ipcRenderer.invoke('circuitos:restaurar', id, usuarioId),
+    criar: (codigo: string, nome: string) => ipcRenderer.invoke('circuitos:criar', codigo, nome),
+    editar: (id: number, codigo: string, nome: string) =>
+      ipcRenderer.invoke('circuitos:editar', id, codigo, nome),
+    excluir: (id: number) => ipcRenderer.invoke('circuitos:excluir', id),
+    restaurar: (id: number) => ipcRenderer.invoke('circuitos:restaurar', id),
     excluirPermanente: (id: number) => ipcRenderer.invoke('circuitos:excluir-permanente', id)
   },
 

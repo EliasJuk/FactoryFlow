@@ -16,8 +16,28 @@ import { CircuitoInfoModal } from './components/CircuitoInfoModal'
 
 const ITENS_POR_PAGINA = 10
 
+function mensagemDeErro(error: unknown, mensagemPadrao: string): string {
+  const mensagem = error instanceof Error ? error.message : ''
+
+  if (mensagem.includes('SESSAO_NAO_AUTENTICADA')) {
+    return 'Sua sessão não está autenticada. Entre novamente no sistema.'
+  }
+
+  if (mensagem.includes('TROCA_SENHA_OBRIGATORIA')) {
+    return 'Altere sua senha antes de continuar.'
+  }
+
+  if (mensagem.includes('SEM_PERMISSAO')) {
+    return 'Você não possui permissão para realizar esta operação.'
+  }
+
+  return mensagem || mensagemPadrao
+}
+
 function CircuitosPage() {
   const { usuario } = useApp()
+  const podeGerenciar = usuario.perfil === 'QUALIDADE' || usuario.perfil === 'ADMIN'
+  const podeExcluirPermanente = usuario.perfil === 'ADMIN'
 
   const [circuitos, setCircuitos] = useState<Circuito[]>([])
   const [circuitosInativos, setCircuitosInativos] = useState<Circuito[]>([])
@@ -43,13 +63,17 @@ function CircuitosPage() {
     useState<Circuito | null>(null)
 
   async function carregarCircuitos() {
-    const [ativos, inativos] = await Promise.all([
-      window.api.circuitos.listar(),
-      window.api.circuitos.listarInativos()
-    ])
+    try {
+      const [ativos, inativos] = await Promise.all([
+        window.api.circuitos.listar(),
+        window.api.circuitos.listarInativos()
+      ])
 
-    setCircuitos(ativos)
-    setCircuitosInativos(inativos)
+      setCircuitos(ativos)
+      setCircuitosInativos(inativos)
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao carregar os circuitos.'))
+    }
   }
 
   useEffect(() => {
@@ -94,6 +118,12 @@ function CircuitosPage() {
     if (processando) return
 
     limparMensagens()
+
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para cadastrar circuitos.')
+      return
+    }
+
     setModalModo('novo')
     setCircuitoEditando(null)
     setCodigo('')
@@ -105,6 +135,12 @@ function CircuitosPage() {
     if (processando) return
 
     limparMensagens()
+
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para editar circuitos.')
+      return
+    }
+
     setModalModo('editar')
     setCircuitoEditando(circuito)
     setCodigo(circuito.codigo)
@@ -127,15 +163,13 @@ function CircuitosPage() {
 
     setMensagemErro('')
 
-    if (!codigo.trim() || !nome.trim()) {
-      setMensagemErro('Informe o código e o nome do circuito.')
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para salvar circuitos.')
       return
     }
 
-    const usuarioId = usuario.id
-
-    if (!usuarioId) {
-      setMensagemErro('Não foi possível identificar o usuário conectado.')
+    if (!codigo.trim() || !nome.trim()) {
+      setMensagemErro('Informe o código e o nome do circuito.')
       return
     }
 
@@ -146,8 +180,7 @@ function CircuitosPage() {
         const resultado = await window.api.circuitos.editar(
           circuitoEditando.id,
           codigo.trim().toUpperCase(),
-          nome.trim(),
-          usuarioId
+          nome.trim()
         )
 
         if (!resultado.sucesso) {
@@ -157,11 +190,7 @@ function CircuitosPage() {
 
         setMensagemSucesso('Circuito atualizado com sucesso.')
       } else {
-        const resultado = await window.api.circuitos.criar(
-          codigo.trim().toUpperCase(),
-          nome.trim(),
-          usuarioId
-        )
+        const resultado = await window.api.circuitos.criar(codigo.trim().toUpperCase(), nome.trim())
 
         if (!resultado.sucesso) {
           setMensagemErro(resultado.mensagem)
@@ -173,6 +202,8 @@ function CircuitosPage() {
 
       fecharModal()
       await carregarCircuitos()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao salvar o circuito.'))
     } finally {
       setProcessando(false)
     }
@@ -181,21 +212,17 @@ function CircuitosPage() {
   async function confirmarInativacao() {
     if (!circuitoParaInativar || processando) return
 
-    const usuarioId = usuario.id
+    limparMensagens()
 
-    if (!usuarioId) {
-      setMensagemErro('Não foi possível identificar o usuário conectado.')
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para inativar circuitos.')
       return
     }
 
     setProcessando(true)
-    limparMensagens()
 
     try {
-      const resultado = await window.api.circuitos.excluir(
-        circuitoParaInativar.id,
-        usuarioId
-      )
+      const resultado = await window.api.circuitos.excluir(circuitoParaInativar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -205,6 +232,8 @@ function CircuitosPage() {
       setCircuitoParaInativar(null)
       setMensagemSucesso('Circuito inativado com sucesso.')
       await carregarCircuitos()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao inativar o circuito.'))
     } finally {
       setProcessando(false)
     }
@@ -213,21 +242,17 @@ function CircuitosPage() {
   async function confirmarRestauracao() {
     if (!circuitoParaRestaurar || processando) return
 
-    const usuarioId = usuario.id
+    limparMensagens()
 
-    if (!usuarioId) {
-      setMensagemErro('Não foi possível identificar o usuário conectado.')
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para restaurar circuitos.')
       return
     }
 
     setProcessando(true)
-    limparMensagens()
 
     try {
-      const resultado = await window.api.circuitos.restaurar(
-        circuitoParaRestaurar.id,
-        usuarioId
-      )
+      const resultado = await window.api.circuitos.restaurar(circuitoParaRestaurar.id)
 
       if (!resultado.sucesso) {
         setMensagemErro(resultado.mensagem)
@@ -237,6 +262,8 @@ function CircuitosPage() {
       setCircuitoParaRestaurar(null)
       setMensagemSucesso('Circuito restaurado com sucesso.')
       await carregarCircuitos()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao restaurar o circuito.'))
     } finally {
       setProcessando(false)
     }
@@ -245,8 +272,14 @@ function CircuitosPage() {
   async function confirmarExclusaoPermanente() {
     if (!circuitoParaExcluirPermanente || processando) return
 
-    setProcessando(true)
     limparMensagens()
+
+    if (!podeExcluirPermanente) {
+      setMensagemErro('Somente administradores podem excluir circuitos permanentemente.')
+      return
+    }
+
+    setProcessando(true)
 
     try {
       const resultado = await window.api.circuitos.excluirPermanente(
@@ -261,6 +294,8 @@ function CircuitosPage() {
       setCircuitoParaExcluirPermanente(null)
       setMensagemSucesso('Circuito excluído permanentemente.')
       await carregarCircuitos()
+    } catch (error) {
+      setMensagemErro(mensagemDeErro(error, 'Erro ao excluir permanentemente o circuito.'))
     } finally {
       setProcessando(false)
     }
@@ -290,7 +325,7 @@ function CircuitosPage() {
           titulo="Circuitos ativos"
           descricao={`Exibindo ${circuitosFiltrados.length} circuito(s) ativo(s). Limite de ${ITENS_POR_PAGINA} por página.`}
           textoBotao="Novo Circuito"
-          disabled={processando}
+          disabled={processando || !podeGerenciar}
           onNovo={abrirNovoCircuito}
         >
           <SearchBar
@@ -333,7 +368,7 @@ function CircuitosPage() {
 
                       <button
                         onClick={() => abrirEditarCircuito(circuito)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonSecondary}
                         title="Editar"
                       >
@@ -342,7 +377,7 @@ function CircuitosPage() {
 
                       <button
                         onClick={() => setCircuitoParaInativar(circuito)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonDanger}
                         title="Inativar"
                       >
@@ -410,7 +445,7 @@ function CircuitosPage() {
                       <button
                         type="button"
                         onClick={() => setCircuitoParaRestaurar(circuito)}
-                        disabled={processando}
+                        disabled={processando || !podeGerenciar}
                         className={ui.buttonSecondary}
                         title="Restaurar"
                       >
@@ -420,7 +455,7 @@ function CircuitosPage() {
 
                       <button
                         onClick={() => setCircuitoParaExcluirPermanente(circuito)}
-                        disabled={processando}
+                        disabled={processando || !podeExcluirPermanente}
                         className={ui.buttonDanger}
                         title="Excluir permanentemente"
                       >

@@ -3,7 +3,6 @@ import { IdGenerator } from '../../shared/ids/IdGenerator'
 import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const db = getDatabase()
-const USUARIO_SISTEMA_ID = 1
 
 export interface Circuito {
   id: number
@@ -138,7 +137,7 @@ export class CircuitoRepository {
     return circuitos.map((circuito) => this.mapear(circuito))
   }
 
-  criar(codigo: string, nome: string, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  criar(codigo: string, nome: string, usuarioId: number): void {
     const codigoFormatado = codigo.trim().toUpperCase()
     const nomeFormatado = nome.trim()
 
@@ -188,7 +187,7 @@ export class CircuitoRepository {
     })()
   }
 
-  editar(id: number, codigo: string, nome: string, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  editar(id: number, codigo: string, nome: string, usuarioId: number): void {
     const codigoFormatado = codigo.trim().toUpperCase()
     const nomeFormatado = nome.trim()
 
@@ -237,7 +236,7 @@ export class CircuitoRepository {
     })()
   }
 
-  excluir(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  excluir(id: number, usuarioId: number): void {
     db.transaction(() => {
       const resultado = db
         .prepare(
@@ -263,7 +262,7 @@ export class CircuitoRepository {
     })()
   }
 
-  restaurar(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  restaurar(id: number, usuarioId: number): void {
     db.transaction(() => {
       const resultado = db
         .prepare(

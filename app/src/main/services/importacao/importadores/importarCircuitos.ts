@@ -6,7 +6,7 @@ function normalizarComparacao(valor: unknown) {
   return normalizar(valor).toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ')
 }
 
-export async function importarCircuitos(registros: RegistroCsv[], usuarioId?: number | null) {
+export async function importarCircuitos(registros: RegistroCsv[], usuarioId: number) {
   const repository = RepositoryFactory.circuitos()
   const [ativos, inativos] = await Promise.all([repository.listar(), repository.listarInativos()])
 
@@ -33,10 +33,10 @@ export async function importarCircuitos(registros: RegistroCsv[], usuarioId?: nu
       const nomeAlterado = normalizarComparacao(existente.nome) !== normalizarComparacao(nome)
 
       if (!existente.ativo) {
-        await repository.restaurar(existente.id, usuarioId ?? undefined)
+        await repository.restaurar(existente.id, usuarioId)
 
         if (nomeAlterado) {
-          await repository.editar(existente.id, codigo, nome, usuarioId ?? undefined)
+          await repository.editar(existente.id, codigo, nome, usuarioId)
         }
 
         existente.ativo = true
@@ -46,7 +46,7 @@ export async function importarCircuitos(registros: RegistroCsv[], usuarioId?: nu
       }
 
       if (nomeAlterado) {
-        await repository.editar(existente.id, codigo, nome, usuarioId ?? undefined)
+        await repository.editar(existente.id, codigo, nome, usuarioId)
 
         existente.nome = nome
         atualizados++
@@ -57,7 +57,7 @@ export async function importarCircuitos(registros: RegistroCsv[], usuarioId?: nu
       continue
     }
 
-    await repository.criar(codigo, nome, usuarioId ?? undefined)
+    await repository.criar(codigo, nome, usuarioId)
 
     porCodigo.set(codigo, {
       id: -1,
@@ -69,8 +69,8 @@ export async function importarCircuitos(registros: RegistroCsv[], usuarioId?: nu
       createdAt: null,
       updatedAt: null,
       deletedAt: null,
-      createdBy: usuarioId ?? 1,
-      updatedBy: usuarioId ?? 1,
+      createdBy: usuarioId,
+      updatedBy: usuarioId,
       deletedBy: null,
       createdByNome: null,
       updatedByNome: null,

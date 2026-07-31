@@ -140,8 +140,13 @@ async function executarImportacao(
       return importarComponentes(registros, usuarioId)
     }
 
-    case 'circuitos':
+    case 'circuitos': {
+      if (usuarioId == null) {
+        throw new Error('Usuário autenticado é obrigatório para importar circuitos.')
+      }
+
       return importarCircuitos(registros, usuarioId)
+    }
 
     case 'defeitos':
       return importarDefeitos(registros, usuarioId)

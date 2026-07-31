@@ -1,9 +1,12 @@
 import { ipcMain } from 'electron'
 
+import { requireSession } from '../auth/requireSession'
 import { ImportacaoService } from '../services/ImportacaoService'
 import type { TipoImportacao } from '../services/importacao/importacao.types'
 
 const service = new ImportacaoService()
+
+const PERFIS_IMPORTACAO = ['QUALIDADE', 'ADMIN'] as const
 
 const TIPOS_IMPORTACAO: ReadonlySet<TipoImportacao> = new Set([
   'setores',
@@ -28,22 +31,38 @@ function validarTipoImportacao(tipo: unknown): TipoImportacao {
 }
 
 export function registerImportacaoIpc() {
-  ipcMain.handle('importacao:baixar-modelo', (_, tipo: unknown) => {
+  ipcMain.handle('importacao:baixar-modelo', (event, tipo: unknown) => {
+    requireSession(event, {
+      perfis: PERFIS_IMPORTACAO
+    })
+
     return service.baixarModelo(validarTipoImportacao(tipo))
   })
 
-  ipcMain.handle('importacao:pre-visualizar', (_, tipo: unknown) => {
+  ipcMain.handle('importacao:pre-visualizar', (event, tipo: unknown) => {
+    requireSession(event, {
+      perfis: PERFIS_IMPORTACAO
+    })
+
     return service.preVisualizar(validarTipoImportacao(tipo))
   })
 
   ipcMain.handle(
     'importacao:importar-registros',
-    (_, tipo: unknown, registros: Record<string, string>[], usuarioId?: number | null) => {
-      return service.importarRegistros(validarTipoImportacao(tipo), registros, usuarioId)
+    (event, tipo: unknown, registros: Record<string, string>[]) => {
+      const sessao = requireSession(event, {
+        perfis: PERFIS_IMPORTACAO
+      })
+
+      return service.importarRegistros(validarTipoImportacao(tipo), registros, sessao.usuarioId)
     }
   )
 
-  ipcMain.handle('importacao:importar', (_, tipo: unknown, usuarioId?: number | null) => {
-    return service.importar(validarTipoImportacao(tipo), usuarioId)
+  ipcMain.handle('importacao:importar', (event, tipo: unknown) => {
+    const sessao = requireSession(event, {
+      perfis: PERFIS_IMPORTACAO
+    })
+
+    return service.importar(validarTipoImportacao(tipo), sessao.usuarioId)
   })
 }

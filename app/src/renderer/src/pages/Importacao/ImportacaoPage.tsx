@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Download, FileSpreadsheet, Upload } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
-import { useApp } from '../../contexts/AppContext'
 import { ui } from '../../theme/ui'
 import { ConfirmarImportacaoModal } from './components/ConfirmarImportacaoModal'
 import { ImportacaoPreviewModal } from './components/ImportacaoPreviewModal'
@@ -104,7 +103,6 @@ const abas: AbaImportacao[] = [
 ]
 
 function ImportacaoPage() {
-  const { usuario } = useApp()
   const [abaAtiva, setAbaAtiva] = useState<TipoImportacao>('setores')
   const [mensagem, setMensagem] = useState<MensagemTela | null>(null)
   const [carregando, setCarregando] = useState(false)
@@ -116,7 +114,21 @@ function ImportacaoPage() {
   const aba = abas.find((item) => item.id === abaAtiva) ?? abas[0]
 
   function mensagemErro(error: unknown, padrao: string) {
-    return error instanceof Error && error.message ? error.message : padrao
+    const mensagem = error instanceof Error ? error.message : ''
+
+    if (mensagem.includes('SESSAO_NAO_AUTENTICADA')) {
+      return 'Sua sessão não está autenticada. Entre novamente no sistema.'
+    }
+
+    if (mensagem.includes('TROCA_SENHA_OBRIGATORIA')) {
+      return 'Altere sua senha antes de continuar.'
+    }
+
+    if (mensagem.includes('SEM_PERMISSAO')) {
+      return 'Você não possui permissão para acessar a importação de dados.'
+    }
+
+    return mensagem || padrao
   }
 
   async function baixarModelo() {
@@ -205,8 +217,7 @@ function ImportacaoPage() {
     try {
       const resultado = await window.api.importacao.importarRegistros(
         aba.id,
-        registrosSelecionados.map((registro) => registro.dados),
-        usuario.id ?? null
+        registrosSelecionados.map((registro) => registro.dados)
       )
 
       setMensagem({

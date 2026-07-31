@@ -32,7 +32,7 @@ function analisarPrecoImportacao(valor: unknown): { valido: boolean; valor: numb
     : { valido: false, valor: 0 }
 }
 
-export async function importarComponentes(registros: RegistroCsv[], usuarioId?: number | null) {
+export async function importarComponentes(registros: RegistroCsv[], usuarioId: number) {
   const repository = RepositoryFactory.componentes()
   const [ativos, inativos] = await Promise.all([repository.listar(), repository.listarInativos()])
 
@@ -62,10 +62,10 @@ export async function importarComponentes(registros: RegistroCsv[], usuarioId?: 
       const precoAlterado = Math.abs(Number(existente.precoAtual) - precoAtual) > 0.0001
 
       if (!existente.ativo) {
-        await repository.restaurar(existente.id, usuarioId ?? undefined)
+        await repository.restaurar(existente.id, usuarioId)
 
         if (nomeAlterado || precoAlterado) {
-          await repository.editar(existente.id, codigo, nome, precoAtual, usuarioId ?? undefined)
+          await repository.editar(existente.id, codigo, nome, precoAtual, usuarioId)
         }
 
         existente.ativo = true
@@ -76,7 +76,7 @@ export async function importarComponentes(registros: RegistroCsv[], usuarioId?: 
       }
 
       if (nomeAlterado || precoAlterado) {
-        await repository.editar(existente.id, codigo, nome, precoAtual, usuarioId ?? undefined)
+        await repository.editar(existente.id, codigo, nome, precoAtual, usuarioId)
 
         existente.nome = nome
         existente.precoAtual = precoAtual
@@ -88,7 +88,7 @@ export async function importarComponentes(registros: RegistroCsv[], usuarioId?: 
       continue
     }
 
-    await repository.criar(codigo, nome, precoAtual, usuarioId ?? undefined)
+    await repository.criar(codigo, nome, precoAtual, usuarioId)
 
     porCodigo.set(codigo, {
       id: -1,
@@ -100,8 +100,8 @@ export async function importarComponentes(registros: RegistroCsv[], usuarioId?: 
       createdAt: null,
       updatedAt: null,
       deletedAt: null,
-      createdBy: usuarioId ?? 1,
-      updatedBy: usuarioId ?? 1,
+      createdBy: usuarioId,
+      updatedBy: usuarioId,
       deletedBy: null,
       createdByNome: null,
       updatedByNome: null,

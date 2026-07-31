@@ -6,7 +6,7 @@ function normalizarComparacao(valor: unknown) {
   return normalizar(valor).toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ')
 }
 
-export async function importarPostos(registros: RegistroCsv[], usuarioId?: number | null) {
+export async function importarPostos(registros: RegistroCsv[], usuarioId: number) {
   const setoresRepository = RepositoryFactory.setores()
   const subsetoresRepository = RepositoryFactory.subsetores()
   const postosRepository = RepositoryFactory.postos()
@@ -78,7 +78,7 @@ export async function importarPostos(registros: RegistroCsv[], usuarioId?: numbe
 
     if (existente) {
       if (!existente.ativo) {
-        await postosRepository.restaurar(existente.id, usuarioId ?? undefined)
+        await postosRepository.restaurar(existente.id, usuarioId)
         existente.ativo = true
         atualizados++
       } else {
@@ -88,7 +88,7 @@ export async function importarPostos(registros: RegistroCsv[], usuarioId?: numbe
       continue
     }
 
-    await postosRepository.criar(nome, subsetor.id, usuarioId ?? undefined)
+    await postosRepository.criar(nome, subsetor.id, usuarioId)
 
     postosPorChave.set(chavePosto, {
       id: -1,
@@ -101,8 +101,8 @@ export async function importarPostos(registros: RegistroCsv[], usuarioId?: numbe
       createdAt: null,
       updatedAt: null,
       deletedAt: null,
-      createdBy: usuarioId ?? 1,
-      updatedBy: usuarioId ?? 1,
+      createdBy: usuarioId,
+      updatedBy: usuarioId,
       deletedBy: null,
       createdByNome: null,
       updatedByNome: null,

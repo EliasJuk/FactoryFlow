@@ -208,8 +208,7 @@ function ComposicaoCircuitosPage() {
     try {
       const resultado = await window.api.circuitos.criar(
         codigo.trim().toUpperCase(),
-        nome.trim(),
-        usuarioId
+        nome.trim()
       )
 
       if (!resultado.sucesso) {

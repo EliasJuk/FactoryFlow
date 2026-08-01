@@ -555,14 +555,14 @@ declare global {
         listarPermitidosPorPosto: (postoId: number) => Promise<PostoDefeitoApi[]>
         adicionar: (
           postoId: number,
-          defeitoId: number,
-          usuarioId: number
-        ) => Promise<
-          | { sucesso: true; mensagem: string }
-          | { sucesso: false; codigo: 'DEFEITO_JA_VINCULADO'; mensagem: string }
-        >
-        remover: (id: number, usuarioId: number) => Promise<void>
-        restaurar: (id: number, usuarioId: number) => Promise<void>
+          defeitoId: number
+        ) => Promise<{
+          sucesso: boolean
+          mensagem: string
+          codigo?: 'DEFEITO_JA_VINCULADO'
+        }>
+        remover: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
+        restaurar: (id: number) => Promise<{ sucesso: boolean; mensagem: string }>
       }
 
       defeitos: {

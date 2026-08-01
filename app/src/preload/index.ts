@@ -189,14 +189,12 @@ contextBridge.exposeInMainWorld('api', {
     listarPermitidosPorPosto: (postoId: number) =>
       ipcRenderer.invoke('posto-defeitos:listar-permitidos-por-posto', postoId),
 
-    adicionar: (postoId: number, defeitoId: number, usuarioId: number) =>
-      ipcRenderer.invoke('posto-defeitos:adicionar', postoId, defeitoId, usuarioId),
+    adicionar: (postoId: number, defeitoId: number) =>
+      ipcRenderer.invoke('posto-defeitos:adicionar', postoId, defeitoId),
 
-    remover: (id: number, usuarioId: number) =>
-      ipcRenderer.invoke('posto-defeitos:remover', id, usuarioId),
+    remover: (id: number) => ipcRenderer.invoke('posto-defeitos:remover', id),
 
-    restaurar: (id: number, usuarioId: number) =>
-      ipcRenderer.invoke('posto-defeitos:restaurar', id, usuarioId)
+    restaurar: (id: number) => ipcRenderer.invoke('posto-defeitos:restaurar', id)
   },
 
   defeitos: {

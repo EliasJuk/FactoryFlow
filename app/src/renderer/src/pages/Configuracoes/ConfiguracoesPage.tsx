@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Cloud, Database, HardDrive, Save, Server, TestTube, X } from 'lucide-react'
 
 import PageHeader from '../../components/PageHeader/PageHeader'
+import { useApp } from '../../contexts/AppContext'
 import { ui } from '../../theme/ui'
 
 type StorageMode = 'sqliteSync' | 'api' | 'postgres'
@@ -45,28 +46,102 @@ type ConfiguracaoBanco = {
   }
 }
 
+function obterMensagemErro(error: unknown, mensagemPadrao: string) {
+  const textoErro = error instanceof Error ? error.message : String(error)
+
+  if (textoErro.includes('SESSAO_NAO_AUTENTICADA')) {
+    return 'Sua sessão não está autenticada. Entre novamente no sistema.'
+  }
+
+  if (textoErro.includes('TROCA_SENHA_OBRIGATORIA')) {
+    return 'Altere sua senha antes de continuar.'
+  }
+
+  if (textoErro.includes('SEM_PERMISSAO')) {
+    return 'Somente administradores podem acessar as configurações do sistema.'
+  }
+
+  const ultimaMensagem = textoErro.lastIndexOf('Error: ')
+
+  if (ultimaMensagem >= 0) {
+    return textoErro.slice(ultimaMensagem + 'Error: '.length)
+  }
+
+  return textoErro || mensagemPadrao
+}
+
 function ConfiguracoesPage() {
+  const { usuario } = useApp()
+  const podeGerenciar = usuario.perfil === 'ADMIN'
+
   const [abaAtiva, setAbaAtiva] = useState<Aba>('banco')
   const [config, setConfig] = useState<ConfiguracaoBanco | null>(null)
   const [configOriginal, setConfigOriginal] = useState<ConfiguracaoBanco | null>(null)
   const [mensagem, setMensagem] = useState('')
   const [tipoMensagem, setTipoMensagem] = useState<'sucesso' | 'erro' | 'info'>('info')
   const [carregando, setCarregando] = useState(false)
+  const [carregandoInicial, setCarregandoInicial] = useState(true)
+  const [erroCarregamento, setErroCarregamento] = useState('')
 
   async function carregarConfiguracao() {
-    const dados = await window.api.configuracao.carregarBanco()
-    setConfig(dados)
-    setConfigOriginal(dados)
+    setErroCarregamento('')
+
+    try {
+      const dados = await window.api.configuracao.carregarBanco()
+      setConfig(dados)
+      setConfigOriginal(dados)
+    } catch (error) {
+      setErroCarregamento(
+        obterMensagemErro(error, 'Não foi possível carregar as configurações do sistema.')
+      )
+    }
   }
 
   useEffect(() => {
-    void carregarConfiguracao()
-  }, [])
+    if (!podeGerenciar) {
+      setCarregandoInicial(false)
+      return
+    }
+
+    void carregarConfiguracao().finally(() => setCarregandoInicial(false))
+  }, [podeGerenciar])
+
+  if (!podeGerenciar) {
+    return (
+      <main className={ui.page}>
+        <PageHeader
+          title="Configurações"
+          subtitle="Gerenciamento técnico e administrativo do FactoryFlow."
+        />
+
+        <section className={ui.section}>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+            Somente administradores podem acessar as configurações do sistema.
+          </div>
+        </section>
+      </main>
+    )
+  }
 
   if (!config) {
     return (
       <main className={ui.page}>
-        <PageHeader title="Configurações" subtitle="Carregando configurações..." />
+        <PageHeader
+          title="Configurações"
+          subtitle={
+            carregandoInicial
+              ? 'Carregando configurações...'
+              : 'Não foi possível carregar as configurações.'
+          }
+        />
+
+        {erroCarregamento && (
+          <section className={ui.section}>
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+              {erroCarregamento}
+            </div>
+          </section>
+        )}
       </main>
     )
   }
@@ -113,7 +188,7 @@ function ConfiguracoesPage() {
       setMensagem(resultado.mensagem)
     } catch (error) {
       setTipoMensagem('erro')
-      setMensagem(error instanceof Error ? error.message : 'Não foi possível testar a conexão.')
+      setMensagem(obterMensagemErro(error, 'Não foi possível testar a conexão.'))
     } finally {
       setCarregando(false)
     }
@@ -137,7 +212,7 @@ function ConfiguracoesPage() {
       setConfigOriginal(recarregada)
     } catch (error) {
       setTipoMensagem('erro')
-      setMensagem(error instanceof Error ? error.message : 'Erro ao salvar configuração.')
+      setMensagem(obterMensagemErro(error, 'Erro ao salvar configuração.'))
     } finally {
       setCarregando(false)
     }

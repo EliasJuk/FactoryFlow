@@ -6,7 +6,7 @@ function normalizarComparacao(valor: unknown) {
   return normalizar(valor).toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ')
 }
 
-export async function importarRoteiros(registros: RegistroCsv[], usuarioId?: number | null) {
+export async function importarRoteiros(registros: RegistroCsv[], usuarioId: number) {
   const circuitosRepository = RepositoryFactory.circuitos()
   const postosRepository = RepositoryFactory.postos()
   const componentesRepository = RepositoryFactory.componentes()
@@ -133,7 +133,7 @@ export async function importarRoteiros(registros: RegistroCsv[], usuarioId?: num
         posto.id,
         componente.id,
         quantidade,
-        usuarioId ?? undefined
+        usuarioId
       )
 
       itensRoteiro.push({
@@ -149,8 +149,8 @@ export async function importarRoteiros(registros: RegistroCsv[], usuarioId?: num
         createdAt: null,
         updatedAt: null,
         deletedAt: null,
-        createdBy: usuarioId ?? 1,
-        updatedBy: usuarioId ?? 1,
+        createdBy: usuarioId,
+        updatedBy: usuarioId,
         deletedBy: null,
         createdByNome: null,
         updatedByNome: null,
@@ -167,7 +167,7 @@ export async function importarRoteiros(registros: RegistroCsv[], usuarioId?: num
         posto.id,
         componente.id,
         quantidade,
-        usuarioId ?? undefined
+        usuarioId
       )
 
       existente.ativo = true
@@ -177,7 +177,7 @@ export async function importarRoteiros(registros: RegistroCsv[], usuarioId?: num
     }
 
     if (existente.quantidade !== quantidade) {
-      await roteirosRepository.editarQuantidade(existente.id, quantidade, usuarioId ?? undefined)
+      await roteirosRepository.editarQuantidade(existente.id, quantidade, usuarioId)
 
       existente.quantidade = quantidade
       atualizados++

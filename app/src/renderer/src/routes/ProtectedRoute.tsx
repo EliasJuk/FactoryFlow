@@ -2,7 +2,11 @@ import { Navigate, Outlet } from 'react-router-dom'
 
 import { useApp } from '../contexts/AppContext'
 
-export function ProtectedRoute() {
+type ProtectedRouteProps = {
+  perfisPermitidos?: readonly string[]
+}
+
+export function ProtectedRoute({ perfisPermitidos }: ProtectedRouteProps) {
   const { usuario, sessaoCarregada } = useApp()
 
   if (!sessaoCarregada) {
@@ -19,6 +23,12 @@ export function ProtectedRoute() {
 
   if (usuario.deveTrocarSenha) {
     return <Navigate to="/trocar-senha" replace />
+  }
+
+  const perfil = usuario.perfil?.toUpperCase()
+
+  if (perfisPermitidos && (!perfil || !perfisPermitidos.includes(perfil))) {
+    return <Navigate to="/dashboard" replace />
   }
 
   return <Outlet />

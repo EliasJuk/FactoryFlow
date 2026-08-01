@@ -50,6 +50,7 @@ function DashboardPage() {
   const perfil = usuario.perfil?.toUpperCase()
   const podeVerAdministracao = perfil !== 'OPERADOR'
   const podeGerenciarUsuarios = perfil === 'ADMIN' || perfil === 'QUALIDADE'
+  const podeAcessarConfiguracoes = perfil === 'ADMIN'
 
   async function fazerLogout() {
     try {
@@ -192,12 +193,14 @@ function DashboardPage() {
                     onClick={() => navigate('/usuarios')}
                   />
                 )}
-                <DashboardCard
-                  title="Configurações"
-                  description="Sistema e impressão"
-                  icon={<Settings size={24} />}
-                  onClick={() => navigate('/configuracoes')}
-                />
+                {podeAcessarConfiguracoes && (
+                  <DashboardCard
+                    title="Configurações"
+                    description="Sistema e impressão"
+                    icon={<Settings size={24} />}
+                    onClick={() => navigate('/configuracoes')}
+                  />
+                )}
                 <DashboardCard
                   title="Importação de Dados"
                   description="Importar cadastros por modelos CSV."

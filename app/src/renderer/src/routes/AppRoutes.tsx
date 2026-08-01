@@ -47,7 +47,9 @@ function AppRoutes() {
           <Route path="/importacao" element={<ImportacaoPage />} />
           <Route path="/resultados" element={<ResultadosPage />} />
           <Route path="/exportacao" element={<ExportacaoPage />} />
-          <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+          <Route element={<ProtectedRoute perfisPermitidos={['ADMIN']} />}>
+            <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+          </Route>
         </Route>
       </Routes>
     </HashRouter>

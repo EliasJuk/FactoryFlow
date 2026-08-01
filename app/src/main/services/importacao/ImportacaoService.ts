@@ -183,8 +183,13 @@ async function executarImportacao(
       return importarPostoDefeitos(registros, usuarioId)
     }
 
-    case 'refugosHistoricos':
+    case 'refugosHistoricos': {
+      if (usuarioId == null) {
+        throw new Error('Usuário autenticado é obrigatório para importar refugos históricos.')
+      }
+
       return importarRefugosHistoricos(registros, usuarioId)
+    }
 
     default: {
       const tipoInvalido: never = tipo

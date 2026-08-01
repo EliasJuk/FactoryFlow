@@ -10,7 +10,7 @@ export interface RefugoItemInput {
 
 export interface CriarRefugoInput {
   matriculaOperador: string
-  usuarioId?: number | null
+  usuarioId: number
   dataHora?: string
   setorId: number
   subsetorId: number
@@ -145,15 +145,15 @@ export class RefugoRepository {
           input.dataHora ? `${input.dataHora.replace('T', ' ')}:00` : null,
           input.turno,
           input.matriculaOperador,
-          input.usuarioId ?? 1,
+          input.usuarioId,
           input.setorId,
           input.subsetorId,
           input.postoId,
           input.circuitoId,
           input.quantidadeProduzida,
           input.observacao ?? null,
-          input.usuarioId ?? 1,
-          input.usuarioId ?? 1
+          input.usuarioId,
+          input.usuarioId
         )
 
       refugoId = Number(resultado.lastInsertRowid)
@@ -212,8 +212,8 @@ export class RefugoRepository {
           defeito.descricao,
           precoUnitario,
           custoTotal,
-          input.usuarioId ?? 1,
-          input.usuarioId ?? 1
+          input.usuarioId,
+          input.usuarioId
         )
       }
 
@@ -368,9 +368,9 @@ export class RefugoRepository {
     quantidadeProduzida: number,
     observacao: string | undefined,
     itens: { id: number; defeitoId: number; quantidade: number }[],
-    usuarioId?: number | null
+    usuarioId: number
   ) {
-    const responsavelId = usuarioId ?? 1
+    const responsavelId = usuarioId
 
     const transaction = db.transaction(() => {
       const resultadoRefugo = db
@@ -451,7 +451,7 @@ export class RefugoRepository {
     transaction()
   }
 
-  cancelar(id: number, motivo: string, usuarioId?: number | null) {
+  cancelar(id: number, motivo: string, usuarioId: number) {
     const transaction = db.transaction(() => {
       const resultado = db
         .prepare(
@@ -468,7 +468,7 @@ export class RefugoRepository {
             AND status = 'ATIVO'
         `
         )
-        .run(motivo, usuarioId ?? 1, usuarioId ?? 1, id)
+        .run(motivo, usuarioId, usuarioId, id)
 
       if (resultado.changes === 0) {
         throw new Error('Refugo não encontrado ou já cancelado.')
@@ -483,7 +483,7 @@ export class RefugoRepository {
             deleted_by = ?
         WHERE refugo_id = ?
       `
-      ).run(usuarioId ?? 1, usuarioId ?? 1, id)
+      ).run(usuarioId, usuarioId, id)
 
       this.syncQueue.enqueueRefugo(id, 'CANCEL')
     })
@@ -689,7 +689,7 @@ export class RefugoRepository {
           input.dataHora.replace('T', ' '),
           input.turno,
           input.matriculaOperador,
-          input.usuarioId ?? 1,
+          input.usuarioId,
           input.setorId,
           input.subsetorId,
           input.postoId,
@@ -697,11 +697,11 @@ export class RefugoRepository {
           input.quantidadeProduzida,
           input.observacao ?? null,
           idOrigem,
-          input.usuarioId ?? 1,
+          input.usuarioId,
           input.dataHora.replace('T', ' '),
           input.dataHora.replace('T', ' '),
-          input.usuarioId ?? 1,
-          input.usuarioId ?? 1
+          input.usuarioId,
+          input.usuarioId
         )
 
       refugoId = Number(resultado.lastInsertRowid)
@@ -757,8 +757,8 @@ export class RefugoRepository {
           precoUnitario * item.quantidade,
           input.dataHora.replace('T', ' '),
           input.dataHora.replace('T', ' '),
-          input.usuarioId ?? 1,
-          input.usuarioId ?? 1
+          input.usuarioId,
+          input.usuarioId
         )
       }
 

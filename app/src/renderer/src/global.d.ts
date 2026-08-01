@@ -162,7 +162,6 @@ type RefugoItemInput = {
 
 type RefugoInput = {
   matriculaOperador: string
-  usuarioId: number
   dataHora?: string
   setorId: number
   subsetorId: number
@@ -613,11 +612,10 @@ declare global {
           turno: string,
           quantidadeProduzida: number,
           observacao: string | undefined,
-          itens: { id: number; defeitoId: number; quantidade: number }[],
-          usuarioId: number
+          itens: { id: number; defeitoId: number; quantidade: number }[]
         ) => Promise<void>
 
-        cancelar: (id: number, motivo: string, usuarioId: number) => Promise<void>
+        cancelar: (id: number, motivo: string) => Promise<void>
 
         imprimir: (id: number) => Promise<void>
 

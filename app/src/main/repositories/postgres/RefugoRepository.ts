@@ -9,7 +9,7 @@ export interface RefugoItemInput {
 
 export interface CriarRefugoInput {
   matriculaOperador: string
-  usuarioId?: number | null
+  usuarioId: number
   dataHora?: string
   setorId: number
   subsetorId: number
@@ -153,14 +153,14 @@ export class RefugoRepository {
           input.dataHora ?? null,
           input.turno,
           input.matriculaOperador,
-          input.usuarioId ?? 1,
+          input.usuarioId,
           input.setorId,
           input.subsetorId,
           input.postoId,
           input.circuitoId,
           input.quantidadeProduzida,
           input.observacao ?? null,
-          input.usuarioId ?? 1
+          input.usuarioId
         ]
       )
 
@@ -235,7 +235,7 @@ export class RefugoRepository {
             defeito.descricao,
             precoUnitario,
             custoTotal,
-            input.usuarioId ?? 1
+            input.usuarioId
           ]
         )
       }
@@ -387,9 +387,9 @@ export class RefugoRepository {
     quantidadeProduzida: number,
     observacao: string | undefined,
     itens: { id: number; defeitoId: number; quantidade: number }[],
-    usuarioId?: number | null
+    usuarioId: number
   ): Promise<void> {
-    const responsavelId = usuarioId ?? 1
+    const responsavelId = usuarioId
     const client = await pool.connect()
 
     try {
@@ -480,8 +480,8 @@ export class RefugoRepository {
     }
   }
 
-  async cancelar(id: number, motivo: string, usuarioId?: number | null): Promise<void> {
-    const responsavelId = usuarioId ?? 1
+  async cancelar(id: number, motivo: string, usuarioId: number): Promise<void> {
+    const responsavelId = usuarioId
     const client = await pool.connect()
 
     try {
@@ -715,7 +715,7 @@ export class RefugoRepository {
           input.dataHora,
           input.turno,
           input.matriculaOperador,
-          input.usuarioId ?? 1,
+          input.usuarioId,
           input.setorId,
           input.subsetorId,
           input.postoId,
@@ -723,7 +723,7 @@ export class RefugoRepository {
           input.quantidadeProduzida,
           input.observacao ?? null,
           idOrigem,
-          input.usuarioId ?? 1
+          input.usuarioId
         ]
       )
 
@@ -785,7 +785,7 @@ export class RefugoRepository {
             precoUnitario,
             precoUnitario * item.quantidade,
             input.dataHora,
-            input.usuarioId ?? 1
+            input.usuarioId
           ]
         )
       }

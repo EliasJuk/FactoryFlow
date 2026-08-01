@@ -13,7 +13,6 @@ type RefugoItemInput = {
 
 type RefugoInput = {
   matriculaOperador: string
-  usuarioId: number
   dataHora?: string
   setorId: number
   subsetorId: number
@@ -219,8 +218,7 @@ contextBridge.exposeInMainWorld('api', {
       turno: string,
       quantidadeProduzida: number,
       observacao: string | undefined,
-      itens: { id: number; defeitoId: number; quantidade: number }[],
-      usuarioId: number
+      itens: { id: number; defeitoId: number; quantidade: number }[]
     ) =>
       ipcRenderer.invoke(
         'refugos:editar-completo',
@@ -229,11 +227,10 @@ contextBridge.exposeInMainWorld('api', {
         turno,
         quantidadeProduzida,
         observacao,
-        itens,
-        usuarioId
+        itens
       ),
-    cancelar: (id: number, motivo: string, usuarioId: number) =>
-      ipcRenderer.invoke('refugos:cancelar', id, motivo, usuarioId),
+    cancelar: (id: number, motivo: string) =>
+      ipcRenderer.invoke('refugos:cancelar', id, motivo),
     imprimir: (id: number) => ipcRenderer.invoke('refugos:imprimir', id),
     resultados: (filtros: Record<string, unknown>) =>
       ipcRenderer.invoke('refugos:resultados', filtros)

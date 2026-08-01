@@ -221,13 +221,6 @@ function LancarRefugoPage() {
       setSalvando(true)
       setMensagem('')
 
-      const usuarioId = usuario.id
-
-      if (!usuarioId) {
-        mostrarMensagem('Não foi possível identificar o usuário logado.', 'erro')
-        return
-      }
-
       const itensValidos = itens
         .filter((item) => item.defeitoId !== '')
         .map((item) => ({
@@ -253,7 +246,6 @@ function LancarRefugoPage() {
 
       const numeroRefugo = await window.api.refugos.criar({
         matriculaOperador,
-        usuarioId,
         dataHora: dataHoraDesbloqueada ? dataHora : undefined,
         setorId: Number(setorId),
         subsetorId: Number(subsetorId),
@@ -273,7 +265,20 @@ function LancarRefugoPage() {
       )
     } catch (erro) {
       console.error(erro)
-      mostrarMensagem('❌ Erro ao salvar o refugo.', 'erro')
+
+      const texto = erro instanceof Error ? erro.message : String(erro)
+
+      if (texto.includes('SESSAO_NAO_AUTENTICADA')) {
+        mostrarMensagem('Sua sessão não está autenticada. Entre novamente no sistema.', 'erro')
+      } else if (texto.includes('TROCA_SENHA_OBRIGATORIA')) {
+        mostrarMensagem('Altere sua senha antes de continuar.', 'erro')
+      } else if (texto.includes('SEM_PERMISSAO')) {
+        mostrarMensagem('Seu perfil não possui permissão para alterar a data e hora.', 'erro')
+      } else if (texto.includes('DEFEITO_NAO_PERMITIDO_NO_POSTO')) {
+        mostrarMensagem('Um dos defeitos selecionados não é permitido para este posto.', 'erro')
+      } else {
+        mostrarMensagem('❌ Erro ao salvar o refugo.', 'erro')
+      }
     } finally {
       setSalvando(false)
     }

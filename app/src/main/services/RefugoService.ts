@@ -1,4 +1,4 @@
-import { CriarRefugoInput } from '../repositories/postgres/RefugoRepository'
+import type { CriarRefugoInput } from '../repositories/postgres/RefugoRepository'
 
 import type { ResultadoFiltros } from '../repositories/postgres/ResultadoRepository'
 
@@ -13,7 +13,7 @@ export class RefugoService {
   private postoDefeitoRepository = RepositoryFactory.postoDefeitos()
 
   private async validarUsuarioAtivo(
-    usuarioId?: number | null,
+    usuarioId: number,
     perfisPermitidos?: ReadonlySet<string>
   ): Promise<number> {
     if (!usuarioId) {
@@ -33,7 +33,7 @@ export class RefugoService {
     return usuarioId
   }
 
-  private async validarPermissaoAlteracao(usuarioId?: number | null): Promise<number> {
+  private async validarPermissaoAlteracao(usuarioId: number): Promise<number> {
     const perfisPermitidos = new Set(['ADMIN', 'TECNICO', 'QUALIDADE', 'LIDER'])
     return await this.validarUsuarioAtivo(usuarioId, perfisPermitidos)
   }
@@ -73,7 +73,7 @@ export class RefugoService {
     quantidadeProduzida: number,
     observacao: string | undefined,
     itens: { id: number; defeitoId: number; quantidade: number }[],
-    usuarioId?: number | null
+    usuarioId: number
   ) {
     const responsavelId = await this.validarPermissaoAlteracao(usuarioId)
 
@@ -88,7 +88,7 @@ export class RefugoService {
     )
   }
 
-  async cancelar(id: number, motivo: string, usuarioId?: number | null) {
+  async cancelar(id: number, motivo: string, usuarioId: number) {
     const responsavelId = await this.validarPermissaoAlteracao(usuarioId)
     return await this.repository.cancelar(id, motivo, responsavelId)
   }

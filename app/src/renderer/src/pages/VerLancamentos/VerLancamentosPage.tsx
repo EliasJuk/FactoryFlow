@@ -41,6 +41,8 @@ function VerLancamentosPage() {
       setLancamentos(resultado.dados ?? [])
       setTotalPaginas(resultado.totalPaginas || 1)
       setPaginaAtual(pagina)
+    } catch (error) {
+      tratarErro(error)
     } finally {
       setCarregando(false)
     }
@@ -54,11 +56,15 @@ function VerLancamentosPage() {
   function tratarErro(error: unknown) {
     const texto = error instanceof Error ? error.message : String(error)
     setMensagem(
-      texto.includes('SEM_PERMISSAO_REFUGO')
-        ? 'Seu perfil não possui permissão para editar ou cancelar lançamentos.'
-        : texto.includes('USUARIO_NAO_IDENTIFICADO')
-          ? 'Não foi possível identificar o usuário logado.'
-          : 'Não foi possível concluir a operação.'
+      texto.includes('SESSAO_NAO_AUTENTICADA')
+        ? 'Sua sessão não está autenticada. Entre novamente no sistema.'
+        : texto.includes('TROCA_SENHA_OBRIGATORIA')
+          ? 'Altere sua senha antes de continuar.'
+          : texto.includes('SEM_PERMISSAO_REFUGO') || texto.includes('SEM_PERMISSAO')
+            ? 'Seu perfil não possui permissão para editar ou cancelar lançamentos.'
+            : texto.includes('USUARIO_NAO_IDENTIFICADO')
+              ? 'Não foi possível identificar o usuário logado.'
+              : 'Não foi possível concluir a operação.'
     )
   }
 
@@ -84,13 +90,6 @@ function VerLancamentosPage() {
   async function salvarEdicao() {
     if (!editando) return
 
-    const usuarioId = usuario.id
-
-    if (!usuarioId) {
-      tratarErro(new Error('USUARIO_NAO_IDENTIFICADO'))
-      return
-    }
-
     try {
       await window.api.refugos.editarCompleto(
         editando.id,
@@ -98,8 +97,7 @@ function VerLancamentosPage() {
         editTurno,
         editQuantidadeProduzida,
         editObservacao.trim() || undefined,
-        editItens.map(({ id, defeitoId, quantidade }) => ({ id, defeitoId, quantidade })),
-        usuarioId
+        editItens.map(({ id, defeitoId, quantidade }) => ({ id, defeitoId, quantidade }))
       )
       setEditando(null)
       setMensagem('Lançamento atualizado com sucesso.')
@@ -112,15 +110,8 @@ function VerLancamentosPage() {
   async function confirmarCancelamento() {
     if (!cancelando || !motivoCancelamento.trim()) return
 
-    const usuarioId = usuario.id
-
-    if (!usuarioId) {
-      tratarErro(new Error('USUARIO_NAO_IDENTIFICADO'))
-      return
-    }
-
     try {
-      await window.api.refugos.cancelar(cancelando.id, motivoCancelamento.trim(), usuarioId)
+      await window.api.refugos.cancelar(cancelando.id, motivoCancelamento.trim())
       setCancelando(null)
       setMotivoCancelamento('')
       setMensagem('Lançamento cancelado com sucesso.')

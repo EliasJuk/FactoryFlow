@@ -175,8 +175,13 @@ async function executarImportacao(
       return importarRoteiros(registros, usuarioId)
     }
 
-    case 'postoDefeitos':
+    case 'postoDefeitos': {
+      if (usuarioId == null) {
+        throw new Error('Usuário autenticado é obrigatório para importar defeitos por posto.')
+      }
+
       return importarPostoDefeitos(registros, usuarioId)
+    }
 
     case 'refugosHistoricos':
       return importarRefugosHistoricos(registros, usuarioId)

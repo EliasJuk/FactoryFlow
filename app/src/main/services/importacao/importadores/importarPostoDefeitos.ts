@@ -8,7 +8,7 @@ function normalizarComparacao(valor: unknown) {
 
 export async function importarPostoDefeitos(
   registros: RegistroCsv[],
-  usuarioId?: number | null
+  usuarioId: number
 ): Promise<ResumoImportacao> {
   if (!usuarioId) {
     throw new Error('USUARIO_NAO_IDENTIFICADO')

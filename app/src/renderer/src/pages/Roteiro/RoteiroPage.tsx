@@ -386,7 +386,6 @@ function RoteiroPage() {
 
     setProcessando(true)
     setMensagemErro('')
-    setMensagemSucesso('')
 
     try {
       const resultado = await window.api.roteiro.editarQuantidade(id, novaQuantidade)

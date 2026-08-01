@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Trash2, X } from 'lucide-react'
 
 import { ui } from '../../../theme/ui'
@@ -60,6 +61,42 @@ export function RoteiroModal({
   onSalvar
 }: Props) {
   const semComponentesNoCircuito = modalCircuitoId !== '' && componentesDoCircuito.length === 0
+  const [quantidadesLocais, setQuantidadesLocais] = useState<Record<number, number>>({})
+
+  useEffect(() => {
+    setQuantidadesLocais((atuais) => {
+      const proximas: Record<number, number> = {}
+
+      for (const item of modalItens) {
+        proximas[item.id] = atuais[item.id] ?? item.quantidade
+      }
+
+      return proximas
+    })
+  }, [modalItens])
+
+  function alterarQuantidadeLocal(id: number, novaQuantidade: number) {
+    setQuantidadesLocais((atuais) => ({
+      ...atuais,
+      [id]: novaQuantidade
+    }))
+  }
+
+  function confirmarQuantidadeItem(item: RoteiroComponente) {
+    const novaQuantidade = quantidadesLocais[item.id] ?? item.quantidade
+
+    if (!Number.isInteger(novaQuantidade) || novaQuantidade < 1) {
+      setQuantidadesLocais((atuais) => ({
+        ...atuais,
+        [item.id]: item.quantidade
+      }))
+      return
+    }
+
+    if (novaQuantidade === item.quantidade) return
+
+    onAlterarQuantidadeItem(item.id, novaQuantidade)
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -76,17 +113,17 @@ export function RoteiroModal({
           </button>
         </div>
 
-        {mensagemErro && (
-          <div className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
-            {mensagemErro}
-          </div>
-        )}
-
-        {mensagemSucesso && (
-          <div className="mb-4 rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {mensagemSucesso}
-          </div>
-        )}
+        <div className="mb-4 min-h-[44px]">
+          {mensagemErro ? (
+            <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+              {mensagemErro}
+            </div>
+          ) : mensagemSucesso ? (
+            <div className="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              {mensagemSucesso}
+            </div>
+          ) : null}
+        </div>
 
         <div className="grid gap-3 md:grid-cols-[1fr_1fr_120px_auto]">
           <div>
@@ -187,10 +224,17 @@ export function RoteiroModal({
                     <input
                       type="number"
                       min={1}
-                      value={item.quantidade}
+                      step={1}
+                      value={quantidadesLocais[item.id] ?? item.quantidade}
                       onChange={(event) =>
-                        onAlterarQuantidadeItem(item.id, Number(event.target.value))
+                        alterarQuantidadeLocal(item.id, Number(event.target.value))
                       }
+                      onBlur={() => confirmarQuantidadeItem(item)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.currentTarget.blur()
+                        }
+                      }}
                       disabled={processando}
                       className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
                     />

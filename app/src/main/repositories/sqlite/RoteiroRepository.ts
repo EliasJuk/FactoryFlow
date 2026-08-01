@@ -3,7 +3,6 @@ import { IdGenerator } from '../../shared/ids/IdGenerator'
 import { SyncQueueRepository } from '../../sync/SyncQueueRepository'
 
 const db = getDatabase()
-const USUARIO_SISTEMA_ID = 1
 
 export interface RoteiroComponente {
   id: number
@@ -133,7 +132,7 @@ export class RoteiroRepository {
     postoId: number,
     componenteId: number,
     quantidade: number,
-    usuarioId: number = USUARIO_SISTEMA_ID
+    usuarioId: number
   ): void {
     if (!Number.isInteger(quantidade) || quantidade <= 0) {
       throw new Error('QUANTIDADE_INVALIDA')
@@ -215,7 +214,7 @@ export class RoteiroRepository {
     })()
   }
 
-  editarQuantidade(id: number, quantidade: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  editarQuantidade(id: number, quantidade: number, usuarioId: number): void {
     if (!Number.isInteger(quantidade) || quantidade <= 0) {
       throw new Error('QUANTIDADE_INVALIDA')
     }
@@ -243,7 +242,7 @@ export class RoteiroRepository {
     })()
   }
 
-  remover(id: number, usuarioId: number = USUARIO_SISTEMA_ID): void {
+  remover(id: number, usuarioId: number): void {
     db.transaction(() => {
       const resultado = db
         .prepare(

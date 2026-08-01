@@ -35,6 +35,7 @@ type ModalModo = 'novo' | 'editar'
 
 function RoteiroPage() {
   const { usuario } = useApp()
+  const podeGerenciar = usuario.perfil === 'QUALIDADE' || usuario.perfil === 'ADMIN'
 
   const [setores, setSetores] = useState<Setor[]>([])
   const [subsetores, setSubsetores] = useState<Subsetor[]>([])
@@ -62,6 +63,9 @@ function RoteiroPage() {
   const [componentesDoCircuito, setComponentesDoCircuito] = useState<CircuitoComponente[]>([])
   const [componenteId, setComponenteId] = useState<number | ''>('')
   const [quantidade, setQuantidade] = useState(1)
+  const [mensagemErro, setMensagemErro] = useState('')
+  const [mensagemSucesso, setMensagemSucesso] = useState('')
+  const [processando, setProcessando] = useState(false)
 
   async function carregarDados() {
     const [setoresLista, subsetoresLista, postosLista, circuitosLista, roteirosLista] =
@@ -241,6 +245,13 @@ function RoteiroPage() {
   async function abrirNovoRoteiro() {
     if (postoId === '') return
 
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para cadastrar roteiros.')
+      return
+    }
+
+    setMensagemErro('')
+    setMensagemSucesso('')
     setModalModo('novo')
     setModalCircuitoId('')
     setModalItens([])
@@ -253,6 +264,13 @@ function RoteiroPage() {
   async function abrirEditarRoteiro() {
     if (!circuitoSelecionado) return
 
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para editar roteiros.')
+      return
+    }
+
+    setMensagemErro('')
+    setMensagemSucesso('')
     setModalModo('editar')
     setModalCircuitoId(circuitoSelecionado.circuitoId)
     setComponenteId('')
@@ -272,6 +290,8 @@ function RoteiroPage() {
     setComponentesDoCircuito([])
     setComponenteId('')
     setQuantidade(1)
+    setMensagemErro('')
+    setMensagemSucesso('')
   }
 
   async function alterarCircuitoModal(valor: string) {
@@ -302,59 +322,127 @@ function RoteiroPage() {
     const postoAtualId =
       modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId
 
-    if (postoAtualId === '' || postoAtualId === undefined || modalCircuitoId === '' || componenteId === '') {
+    if (
+      postoAtualId === '' ||
+      postoAtualId === undefined ||
+      modalCircuitoId === '' ||
+      componenteId === '' ||
+      processando
+    ) {
       return
     }
 
-    if (quantidade < 1) return
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para alterar roteiros.')
+      return
+    }
 
-    const usuarioId = usuario.id
+    if (!Number.isInteger(quantidade) || quantidade < 1) {
+      setMensagemErro('Informe uma quantidade inteira maior que zero.')
+      return
+    }
 
-    if (!usuarioId) return
+    setProcessando(true)
+    setMensagemErro('')
+    setMensagemSucesso('')
 
-    await window.api.roteiro.adicionar(
-      Number(modalCircuitoId),
-      Number(postoAtualId),
-      Number(componenteId),
-      quantidade,
-      usuarioId
-    )
+    try {
+      const resultado = await window.api.roteiro.adicionar(
+        Number(modalCircuitoId),
+        Number(postoAtualId),
+        Number(componenteId),
+        quantidade
+      )
 
-    setComponenteId('')
-    setQuantidade(1)
+      if (!resultado.sucesso) {
+        setMensagemErro(resultado.mensagem)
+        return
+      }
 
-    await carregarModalItens(Number(modalCircuitoId), Number(postoAtualId))
+      setComponenteId('')
+      setQuantidade(1)
+      setMensagemSucesso(resultado.mensagem)
+
+      await carregarModalItens(Number(modalCircuitoId), Number(postoAtualId))
+    } catch {
+      setMensagemErro('Não foi possível adicionar o componente ao roteiro.')
+    } finally {
+      setProcessando(false)
+    }
   }
 
   async function alterarQuantidadeModal(id: number, novaQuantidade: number) {
-    if (novaQuantidade < 1) return
+    if (processando) return
 
-    const usuarioId = usuario.id
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para alterar roteiros.')
+      return
+    }
 
-    if (!usuarioId) return
+    if (!Number.isInteger(novaQuantidade) || novaQuantidade < 1) {
+      setMensagemErro('Informe uma quantidade inteira maior que zero.')
+      return
+    }
 
-    await window.api.roteiro.editarQuantidade(id, novaQuantidade, usuarioId)
+    setProcessando(true)
+    setMensagemErro('')
+    setMensagemSucesso('')
 
-    const postoAtualId =
-      modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId
+    try {
+      const resultado = await window.api.roteiro.editarQuantidade(id, novaQuantidade)
 
-    if (postoAtualId !== '' && postoAtualId !== undefined && modalCircuitoId !== '') {
-      await carregarModalItens(Number(modalCircuitoId), Number(postoAtualId))
+      if (!resultado.sucesso) {
+        setMensagemErro(resultado.mensagem)
+        return
+      }
+
+      setMensagemSucesso(resultado.mensagem)
+
+      const postoAtualId =
+        modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId
+
+      if (postoAtualId !== '' && postoAtualId !== undefined && modalCircuitoId !== '') {
+        await carregarModalItens(Number(modalCircuitoId), Number(postoAtualId))
+      }
+    } catch {
+      setMensagemErro('Não foi possível atualizar a quantidade do componente.')
+    } finally {
+      setProcessando(false)
     }
   }
 
   async function removerComponenteModal(id: number) {
-    const usuarioId = usuario.id
+    if (processando) return
 
-    if (!usuarioId) return
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para alterar roteiros.')
+      return
+    }
 
-    await window.api.roteiro.remover(id, usuarioId)
+    setProcessando(true)
+    setMensagemErro('')
+    setMensagemSucesso('')
 
-    const postoAtualId =
-      modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId
+    try {
+      const resultado = await window.api.roteiro.remover(id)
 
-    if (postoAtualId !== '' && postoAtualId !== undefined && modalCircuitoId !== '') {
-      await carregarModalItens(Number(modalCircuitoId), Number(postoAtualId))
+      if (!resultado.sucesso) {
+        setMensagemErro(resultado.mensagem)
+        return
+      }
+
+      setMensagemSucesso(resultado.mensagem)
+
+      const postoAtualId =
+        modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId
+
+      if (postoAtualId !== '' && postoAtualId !== undefined && modalCircuitoId !== '') {
+        await carregarModalItens(Number(modalCircuitoId), Number(postoAtualId))
+      }
+    } catch {
+      setMensagemErro('Não foi possível remover o componente do roteiro.')
+    } finally {
+      setProcessando(false)
     }
   }
 
@@ -411,6 +499,17 @@ function RoteiroPage() {
       />
 
       <section className={ui.section}>
+        {mensagemErro && !modalAberto && (
+          <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+            {mensagemErro}
+          </div>
+        )}
+
+        {mensagemSucesso && !modalAberto && (
+          <div className="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {mensagemSucesso}
+          </div>
+        )}
         <div className={ui.card}>
           <div>
             <label className={ui.label}>Pesquisar roteiro</label>
@@ -553,8 +652,8 @@ function RoteiroPage() {
                 </p>
               </div>
 
-              {postoId !== '' && (
-                <button onClick={abrirNovoRoteiro} className={ui.buttonPrimary}>
+              {postoId !== '' && podeGerenciar && (
+                <button type="button" onClick={abrirNovoRoteiro} className={ui.buttonPrimary}>
                   <Plus size={16} />
                   Novo Roteiro
                 </button>
@@ -607,6 +706,7 @@ function RoteiroPage() {
           <VisualizarRoteiroModal
             roteiro={circuitoSelecionado}
             itens={itens}
+            podeGerenciar={podeGerenciar}
             onFechar={() => setModalVisualizacaoAberto(false)}
             onEditar={() => {
               setModalVisualizacaoAberto(false)
@@ -634,6 +734,9 @@ function RoteiroPage() {
             componenteId={componenteId}
             quantidade={quantidade}
             modalItens={modalItens}
+            mensagemErro={mensagemErro}
+            mensagemSucesso={mensagemSucesso}
+            processando={processando}
             onFechar={fecharModal}
             onAlterarCircuito={alterarCircuitoModal}
             onAlterarComponente={alterarComponenteModal}

@@ -1,7 +1,6 @@
 import { pool } from '../../database/postgres/connection'
 import { IdGenerator } from '../../shared/ids/IdGenerator'
 
-const USUARIO_SISTEMA_ID = 1
 
 export interface RoteiroComponente {
   id: number
@@ -170,7 +169,7 @@ export class RoteiroRepository {
     postoId: number,
     componenteId: number,
     quantidade: number,
-    usuarioId: number = USUARIO_SISTEMA_ID
+    usuarioId: number
   ): Promise<void> {
     if (!Number.isInteger(quantidade) || quantidade <= 0) {
       throw new Error('QUANTIDADE_INVALIDA')
@@ -236,7 +235,7 @@ export class RoteiroRepository {
   async editarQuantidade(
     id: number,
     quantidade: number,
-    usuarioId: number = USUARIO_SISTEMA_ID
+    usuarioId: number
   ): Promise<void> {
     if (!Number.isInteger(quantidade) || quantidade <= 0) {
       throw new Error('QUANTIDADE_INVALIDA')
@@ -256,7 +255,7 @@ export class RoteiroRepository {
     )
   }
 
-  async remover(id: number, usuarioId: number = USUARIO_SISTEMA_ID): Promise<void> {
+  async remover(id: number, usuarioId: number): Promise<void> {
     await pool.query(
       `
         UPDATE circuito_posto_componentes

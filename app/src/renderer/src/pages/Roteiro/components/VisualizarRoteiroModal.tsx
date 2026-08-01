@@ -6,6 +6,7 @@ import { ui } from '../../../theme/ui'
 type Props = {
   roteiro: CircuitoPorPosto
   itens: RoteiroComponente[]
+  podeGerenciar: boolean
   onFechar: () => void
   onEditar: () => void
   onVisualizarItem: (item: RoteiroComponente) => void
@@ -14,6 +15,7 @@ type Props = {
 export function VisualizarRoteiroModal({
   roteiro,
   itens,
+  podeGerenciar,
   onFechar,
   onEditar,
   onVisualizarItem
@@ -106,10 +108,12 @@ export function VisualizarRoteiroModal({
             Fechar
           </button>
 
-          <button type="button" onClick={onEditar} className={ui.buttonPrimary}>
-            <Pencil size={16} />
-            Editar roteiro
-          </button>
+          {podeGerenciar && (
+            <button type="button" onClick={onEditar} className={ui.buttonPrimary}>
+              <Pencil size={16} />
+              Editar roteiro
+            </button>
+          )}
         </div>
       </div>
     </div>

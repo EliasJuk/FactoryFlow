@@ -25,6 +25,9 @@ type Props = {
   componenteId: number | ''
   quantidade: number
   modalItens: RoteiroComponente[]
+  mensagemErro: string
+  mensagemSucesso: string
+  processando: boolean
   onFechar: () => void
   onAlterarCircuito: (valor: string) => void
   onAlterarComponente: (valor: string) => void
@@ -44,6 +47,9 @@ export function RoteiroModal({
   componenteId,
   quantidade,
   modalItens,
+  mensagemErro,
+  mensagemSucesso,
+  processando,
   onFechar,
   onAlterarCircuito,
   onAlterarComponente,
@@ -65,10 +71,22 @@ export function RoteiroModal({
             <p className={ui.subtitle}>Posto: {postoNome}</p>
           </div>
 
-          <button onClick={onFechar} className={ui.buttonSecondary}>
+          <button type="button" onClick={onFechar} disabled={processando} className={ui.buttonSecondary}>
             <X size={16} />
           </button>
         </div>
+
+        {mensagemErro && (
+          <div className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+            {mensagemErro}
+          </div>
+        )}
+
+        {mensagemSucesso && (
+          <div className="mb-4 rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {mensagemSucesso}
+          </div>
+        )}
 
         <div className="grid gap-3 md:grid-cols-[1fr_1fr_120px_auto]">
           <div>
@@ -76,7 +94,7 @@ export function RoteiroModal({
             <select
               value={modalCircuitoId}
               onChange={(event) => onAlterarCircuito(event.target.value)}
-              disabled={modalModo === 'editar'}
+              disabled={modalModo === 'editar' || processando}
               className={ui.select}
             >
               <option value="">Selecione...</option>
@@ -94,7 +112,7 @@ export function RoteiroModal({
             <select
               value={componenteId}
               onChange={(event) => onAlterarComponente(event.target.value)}
-              disabled={modalCircuitoId === '' || semComponentesNoCircuito}
+              disabled={modalCircuitoId === '' || semComponentesNoCircuito || processando}
               className={ui.select}
             >
               <option value="">
@@ -116,18 +134,21 @@ export function RoteiroModal({
               min={1}
               value={quantidade}
               onChange={(event) => onAlterarQuantidade(Number(event.target.value))}
+              disabled={processando}
               className={ui.input}
             />
           </div>
 
           <div className="flex items-end">
             <button
+              type="button"
               onClick={onAdicionar}
               disabled={
                 modalCircuitoId === '' ||
                 componenteId === '' ||
                 quantidade < 1 ||
-                semComponentesNoCircuito
+                semComponentesNoCircuito ||
+                processando
               }
               className={ui.buttonPrimary}
             >
@@ -170,13 +191,14 @@ export function RoteiroModal({
                       onChange={(event) =>
                         onAlterarQuantidadeItem(item.id, Number(event.target.value))
                       }
+                      disabled={processando}
                       className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
                     />
                   </td>
 
                   <td className={ui.tableCell}>
                     <div className="flex justify-end">
-                      <button onClick={() => onRemoverItem(item.id)} className={ui.buttonDanger}>
+                      <button type="button" onClick={() => onRemoverItem(item.id)} disabled={processando} className={ui.buttonDanger}>
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -196,11 +218,16 @@ export function RoteiroModal({
         </div>
 
         <div className="mt-5 flex justify-end gap-3">
-          <button onClick={onFechar} className={ui.buttonSecondary}>
+          <button type="button" onClick={onFechar} disabled={processando} className={ui.buttonSecondary}>
             Cancelar
           </button>
 
-          <button onClick={onSalvar} disabled={modalCircuitoId === ''} className={ui.buttonPrimary}>
+          <button
+            type="button"
+            onClick={onSalvar}
+            disabled={modalCircuitoId === '' || processando}
+            className={ui.buttonPrimary}
+          >
             Salvar alterações
           </button>
         </div>

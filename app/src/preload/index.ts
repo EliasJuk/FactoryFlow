@@ -251,20 +251,11 @@ contextBridge.exposeInMainWorld('api', {
       circuitoId: number,
       postoId: number,
       componenteId: number,
-      quantidade: number,
-      usuarioId: number
-    ) =>
-      ipcRenderer.invoke(
-        'roteiro:adicionar',
-        circuitoId,
-        postoId,
-        componenteId,
-        quantidade,
-        usuarioId
-      ),
-    editarQuantidade: (id: number, quantidade: number, usuarioId: number) =>
-      ipcRenderer.invoke('roteiro:editar-quantidade', id, quantidade, usuarioId),
-    remover: (id: number, usuarioId: number) => ipcRenderer.invoke('roteiro:remover', id, usuarioId)
+      quantidade: number
+    ) => ipcRenderer.invoke('roteiro:adicionar', circuitoId, postoId, componenteId, quantidade),
+    editarQuantidade: (id: number, quantidade: number) =>
+      ipcRenderer.invoke('roteiro:editar-quantidade', id, quantidade),
+    remover: (id: number) => ipcRenderer.invoke('roteiro:remover', id)
   },
 
   usuarios: {

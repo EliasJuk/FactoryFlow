@@ -638,13 +638,24 @@ declare global {
           circuitoId: number,
           postoId: number,
           componenteId: number,
-          quantidade: number,
-          usuarioId: number
-        ) => Promise<void>
+          quantidade: number
+        ) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
 
-        editarQuantidade: (id: number, quantidade: number, usuarioId: number) => Promise<void>
+        editarQuantidade: (
+          id: number,
+          quantidade: number
+        ) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
 
-        remover: (id: number, usuarioId: number) => Promise<void>
+        remover: (id: number) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
       }
 
       usuarios: {

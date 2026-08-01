@@ -371,45 +371,6 @@ function RoteiroPage() {
     }
   }
 
-  async function alterarQuantidadeModal(id: number, novaQuantidade: number) {
-    if (processando) return
-
-    if (!podeGerenciar) {
-      setMensagemErro('Você não possui permissão para alterar roteiros.')
-      return
-    }
-
-    if (!Number.isInteger(novaQuantidade) || novaQuantidade < 1) {
-      setMensagemErro('Informe uma quantidade inteira maior que zero.')
-      return
-    }
-
-    setProcessando(true)
-    setMensagemErro('')
-
-    try {
-      const resultado = await window.api.roteiro.editarQuantidade(id, novaQuantidade)
-
-      if (!resultado.sucesso) {
-        setMensagemErro(resultado.mensagem)
-        return
-      }
-
-      setMensagemSucesso(resultado.mensagem)
-
-      const postoAtualId =
-        modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId
-
-      if (postoAtualId !== '' && postoAtualId !== undefined && modalCircuitoId !== '') {
-        await carregarModalItens(Number(modalCircuitoId), Number(postoAtualId))
-      }
-    } catch {
-      setMensagemErro('Não foi possível atualizar a quantidade do componente.')
-    } finally {
-      setProcessando(false)
-    }
-  }
-
   async function removerComponenteModal(id: number) {
     if (processando) return
 
@@ -445,39 +406,84 @@ function RoteiroPage() {
     }
   }
 
-  async function salvarAlteracoesModal() {
-    const circuitoIdAtual = modalCircuitoId
-    const postoAtualId =
-      modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId
+  async function salvarAlteracoesModal(quantidadesLocais: Record<number, number>) {
+    if (processando) return
 
-    fecharModal()
-    await carregarDados()
+    if (!podeGerenciar) {
+      setMensagemErro('Você não possui permissão para alterar roteiros.')
+      return
+    }
 
-    if (postoAtualId !== '' && postoAtualId !== undefined && circuitoIdAtual !== '') {
-      const circuitoAtualizado = circuitos.find(
-        (circuito) => circuito.id === Number(circuitoIdAtual)
-      )
-      const postoAtualizado = postos.find((posto) => posto.id === Number(postoAtualId))
+    const alteracoes = modalItens
+      .map((item) => ({
+        item,
+        quantidade: quantidadesLocais[item.id] ?? item.quantidade
+      }))
+      .filter(({ item, quantidade }) => quantidade !== item.quantidade)
 
-      if (circuitoAtualizado && postoAtualizado) {
-        const itensAtualizados = await window.api.roteiro.listarPorCircuitoEPosto(
-          Number(circuitoIdAtual),
-          Number(postoAtualId)
+    const quantidadeInvalida = alteracoes.some(
+      ({ quantidade }) => !Number.isInteger(quantidade) || quantidade < 1
+    )
+
+    if (quantidadeInvalida) {
+      setMensagemErro('Informe apenas quantidades inteiras maiores que zero.')
+      return
+    }
+
+    setProcessando(true)
+    setMensagemErro('')
+    setMensagemSucesso('')
+
+    try {
+      for (const alteracao of alteracoes) {
+        const resultado = await window.api.roteiro.editarQuantidade(
+          alteracao.item.id,
+          alteracao.quantidade
         )
 
-        const resumo: CircuitoPorPosto = {
-          circuitoId: circuitoAtualizado.id,
-          codigoCircuito: circuitoAtualizado.codigo,
-          nomeCircuito: circuitoAtualizado.nome,
-          postoId: Number(postoAtualId),
-          postoNome: postoAtualizado.nome,
-          subsetorNome: postoAtualizado.subsetorNome,
-          totalComponentes: itensAtualizados.length
+        if (!resultado.sucesso) {
+          setMensagemErro(resultado.mensagem)
+          return
         }
-
-        setCircuitoSelecionado(resumo)
-        setItens(itensAtualizados)
       }
+
+      const circuitoIdAtual = modalCircuitoId
+      const postoAtualId =
+        modalModo === 'editar' ? circuitoSelecionado?.postoId : postoId
+
+      fecharModal()
+      await carregarDados()
+
+      if (postoAtualId !== '' && postoAtualId !== undefined && circuitoIdAtual !== '') {
+        const circuitoAtualizado = circuitos.find(
+          (circuito) => circuito.id === Number(circuitoIdAtual)
+        )
+        const postoAtualizado = postos.find((posto) => posto.id === Number(postoAtualId))
+
+        if (circuitoAtualizado && postoAtualizado) {
+          const itensAtualizados = await window.api.roteiro.listarPorCircuitoEPosto(
+            Number(circuitoIdAtual),
+            Number(postoAtualId)
+          )
+
+          const resumo: CircuitoPorPosto = {
+            circuitoId: circuitoAtualizado.id,
+            codigoCircuito: circuitoAtualizado.codigo,
+            nomeCircuito: circuitoAtualizado.nome,
+            postoId: Number(postoAtualId),
+            postoNome: postoAtualizado.nome,
+            subsetorNome: postoAtualizado.subsetorNome,
+            totalComponentes: itensAtualizados.length
+          }
+
+          setCircuitoSelecionado(resumo)
+          setItens(itensAtualizados)
+        }
+      }
+    } catch {
+      setMensagemErro('Não foi possível salvar as alterações do roteiro.')
+    } finally {
+      setProcessando(false)
     }
   }
 
@@ -741,7 +747,6 @@ function RoteiroPage() {
             onAlterarComponente={alterarComponenteModal}
             onAlterarQuantidade={setQuantidade}
             onAdicionar={adicionarComponenteNoModal}
-            onAlterarQuantidadeItem={alterarQuantidadeModal}
             onRemoverItem={removerComponenteModal}
             onSalvar={salvarAlteracoesModal}
           />

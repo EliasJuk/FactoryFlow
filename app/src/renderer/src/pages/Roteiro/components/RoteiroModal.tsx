@@ -34,9 +34,8 @@ type Props = {
   onAlterarComponente: (valor: string) => void
   onAlterarQuantidade: (quantidade: number) => void
   onAdicionar: () => void
-  onAlterarQuantidadeItem: (id: number, quantidade: number) => void
   onRemoverItem: (id: number) => void
-  onSalvar: () => void
+  onSalvar: (quantidades: Record<number, number>) => void
 }
 
 export function RoteiroModal({
@@ -56,7 +55,6 @@ export function RoteiroModal({
   onAlterarComponente,
   onAlterarQuantidade,
   onAdicionar,
-  onAlterarQuantidadeItem,
   onRemoverItem,
   onSalvar
 }: Props) {
@@ -82,21 +80,6 @@ export function RoteiroModal({
     }))
   }
 
-  function confirmarQuantidadeItem(item: RoteiroComponente) {
-    const novaQuantidade = quantidadesLocais[item.id] ?? item.quantidade
-
-    if (!Number.isInteger(novaQuantidade) || novaQuantidade < 1) {
-      setQuantidadesLocais((atuais) => ({
-        ...atuais,
-        [item.id]: item.quantidade
-      }))
-      return
-    }
-
-    if (novaQuantidade === item.quantidade) return
-
-    onAlterarQuantidadeItem(item.id, novaQuantidade)
-  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -229,12 +212,6 @@ export function RoteiroModal({
                       onChange={(event) =>
                         alterarQuantidadeLocal(item.id, Number(event.target.value))
                       }
-                      onBlur={() => confirmarQuantidadeItem(item)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.currentTarget.blur()
-                        }
-                      }}
                       disabled={processando}
                       className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
                     />
@@ -268,7 +245,7 @@ export function RoteiroModal({
 
           <button
             type="button"
-            onClick={onSalvar}
+            onClick={() => onSalvar(quantidadesLocais)}
             disabled={modalCircuitoId === '' || processando}
             className={ui.buttonPrimary}
           >

@@ -68,6 +68,34 @@ function UsuariosPage() {
   const podeGerenciarSenhas =
     usuarioLogado.perfil === 'ADMIN' || usuarioLogado.perfil === 'QUALIDADE'
 
+  const ehAdministrador = usuarioLogado.perfil === 'ADMIN'
+
+  const perfisDisponiveis = useMemo(
+    () => (ehAdministrador ? perfis : perfis.filter((item) => item !== 'ADMIN')),
+    [ehAdministrador]
+  )
+
+  const perfisDoFormulario = useMemo(() => {
+    if (usuarioEditando?.id === usuarioLogado.id) {
+      return [usuarioLogado.perfil]
+    }
+
+    return perfisDisponiveis
+  }, [perfisDisponiveis, usuarioEditando?.id, usuarioLogado.id, usuarioLogado.perfil])
+
+  const usuariosVisiveis = useMemo(
+    () => (ehAdministrador ? usuarios : usuarios.filter((item) => item.perfil !== 'ADMIN')),
+    [ehAdministrador, usuarios]
+  )
+
+  const usuariosInativosVisiveis = useMemo(
+    () =>
+      ehAdministrador
+        ? usuariosInativos
+        : usuariosInativos.filter((item) => item.perfil !== 'ADMIN'),
+    [ehAdministrador, usuariosInativos]
+  )
+
   async function carregarUsuarios() {
     const [ativos, inativos] = await Promise.all([
       window.api.usuarios.listar(),
@@ -88,16 +116,16 @@ function UsuariosPage() {
   const usuariosFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase()
 
-    if (!termo) return usuarios
+    if (!termo) return usuariosVisiveis
 
-    return usuarios.filter((usuario) => {
+    return usuariosVisiveis.filter((usuario) => {
       return (
         usuario.nome.toLowerCase().includes(termo) ||
         usuario.matricula.toLowerCase().includes(termo) ||
         usuario.perfil.toLowerCase().includes(termo)
       )
     })
-  }, [usuarios, busca])
+  }, [usuariosVisiveis, busca])
 
   const totalPaginas = Math.max(1, Math.ceil(usuariosFiltrados.length / ITENS_POR_PAGINA))
 
@@ -142,6 +170,11 @@ function UsuariosPage() {
 
   function abrirEditarUsuario(usuario: Usuario) {
     if (processando) return
+
+    if (!ehAdministrador && usuario.perfil === 'ADMIN') {
+      setMensagemErro('Somente um administrador pode alterar contas de administrador.')
+      return
+    }
 
     limparMensagens()
     setModalModo('editar')
@@ -366,9 +399,13 @@ function UsuariosPage() {
 
                       <button
                         onClick={() => setUsuarioParaInativar(usuario)}
-                        disabled={processando}
+                        disabled={processando || usuario.id === usuarioLogado.id}
                         className={ui.buttonDanger}
-                        title="Inativar"
+                        title={
+                          usuario.id === usuarioLogado.id
+                            ? 'Você não pode inativar a sua própria conta'
+                            : 'Inativar'
+                        }
                       >
                         <UserX size={15} />
                       </button>
@@ -397,7 +434,7 @@ function UsuariosPage() {
 
         <InativosCard
           titulo="Usuários inativos"
-          descricao={`${usuariosInativos.length} usuário(s) inativo(s). Use esta área para restaurar ou remover usuários.`}
+          descricao={`${usuariosInativosVisiveis.length} usuário(s) inativo(s). Use esta área para restaurar ou remover usuários.`}
           aberto={mostrarInativos}
           onToggle={() => setMostrarInativos(!mostrarInativos)}
         >
@@ -413,7 +450,7 @@ function UsuariosPage() {
             </thead>
 
             <tbody>
-              {usuariosInativos.map((usuario) => (
+              {usuariosInativosVisiveis.map((usuario) => (
                 <tr key={usuario.id} className="border-t border-[var(--border)] bg-slate-50">
                   <td className={ui.tableCellStrong}>{usuario.matricula}</td>
                   <td className={ui.tableCell}>{usuario.nome}</td>
@@ -455,7 +492,7 @@ function UsuariosPage() {
                 </tr>
               ))}
 
-              {usuariosInativos.length === 0 && (
+              {usuariosInativosVisiveis.length === 0 && (
                 <tr>
                   <td colSpan={5} className={ui.empty}>
                     Nenhum usuário inativo.
@@ -538,7 +575,7 @@ function UsuariosPage() {
             alterarSenha={alterarSenha}
             mensagemErro={mensagemErro}
             processando={processando}
-            perfis={perfis}
+            perfis={perfisDoFormulario}
             onNomeChange={setNome}
             onMatriculaChange={setMatricula}
             onPerfilChange={setPerfil}

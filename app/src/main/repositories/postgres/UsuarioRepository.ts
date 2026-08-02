@@ -190,7 +190,7 @@ export class UsuarioRepository {
     if (input.senha?.trim()) {
       const senhaHash = gerarHashSenha(input.senha)
 
-      await pool.query(
+      const resultado = await pool.query(
         `
           UPDATE usuarios
           SET
@@ -207,10 +207,14 @@ export class UsuarioRepository {
         [input.nome.trim(), matricula, input.perfil, senhaHash, usuarioId, id]
       )
 
+      if ((resultado.rowCount ?? 0) === 0) {
+        throw new Error('Usuário não encontrado.')
+      }
+
       return
     }
 
-    await pool.query(
+    const resultado = await pool.query(
       `
         UPDATE usuarios
         SET
@@ -224,10 +228,14 @@ export class UsuarioRepository {
       `,
       [input.nome.trim(), matricula, input.perfil, usuarioId, id]
     )
+
+    if ((resultado.rowCount ?? 0) === 0) {
+      throw new Error('Usuário não encontrado.')
+    }
   }
 
   async excluir(id: number, usuarioId: number | null = null): Promise<void> {
-    await pool.query(
+    const resultado = await pool.query(
       `
         UPDATE usuarios
         SET
@@ -236,13 +244,18 @@ export class UsuarioRepository {
           updated_by = $2
         WHERE id = $1
           AND deleted_at IS NULL
+          AND ativo = true
       `,
       [id, usuarioId]
     )
+
+    if ((resultado.rowCount ?? 0) === 0) {
+      throw new Error('Usuário não encontrado ou já está inativo.')
+    }
   }
 
   async ativar(id: number, usuarioId: number | null = null): Promise<void> {
-    await pool.query(
+    const resultado = await pool.query(
       `
         UPDATE usuarios
         SET
@@ -251,13 +264,18 @@ export class UsuarioRepository {
           updated_by = $2
         WHERE id = $1
           AND deleted_at IS NULL
+          AND ativo = false
       `,
       [id, usuarioId]
     )
+
+    if ((resultado.rowCount ?? 0) === 0) {
+      throw new Error('Usuário não encontrado ou já está ativo.')
+    }
   }
 
   async remover(id: number, usuarioId: number | null = null): Promise<void> {
-    await pool.query(
+    const resultado = await pool.query(
       `
         UPDATE usuarios
         SET
@@ -271,6 +289,10 @@ export class UsuarioRepository {
       `,
       [id, usuarioId]
     )
+
+    if ((resultado.rowCount ?? 0) === 0) {
+      throw new Error('Usuário não encontrado ou já foi removido.')
+    }
   }
 
   async buscarPerfilPorId(id: number): Promise<{ perfil: string; ativo: boolean } | null> {

@@ -17,6 +17,42 @@ function falha(error: unknown, mensagemPadrao: string) {
     mensagem = 'Já existe um usuário com esta matrícula.'
   }
 
+  if (mensagem.includes('DADOS_USUARIO_INVALIDOS')) {
+    mensagem = 'Informe um nome, uma matrícula e dados válidos para o usuário.'
+  }
+
+  if (mensagem.includes('PERFIL_USUARIO_INVALIDO')) {
+    mensagem = 'Selecione um perfil de usuário válido.'
+  }
+
+  if (mensagem.includes('USUARIO_NAO_ENCONTRADO')) {
+    mensagem = 'O usuário informado não foi encontrado.'
+  }
+
+  if (mensagem.includes('QUALIDADE_NAO_GERENCIA_ADMIN')) {
+    mensagem = 'Somente um administrador pode criar ou alterar contas de administrador.'
+  }
+
+  if (mensagem.includes('NAO_PODE_ALTERAR_PROPRIO_PERFIL')) {
+    mensagem = 'Você não pode alterar o perfil da sua própria conta.'
+  }
+
+  if (mensagem.includes('NAO_PODE_INATIVAR_PROPRIA_CONTA')) {
+    mensagem = 'Você não pode inativar a sua própria conta.'
+  }
+
+  if (mensagem.includes('NAO_PODE_REMOVER_PROPRIA_CONTA')) {
+    mensagem = 'Você não pode remover a sua própria conta.'
+  }
+
+  if (mensagem.includes('ULTIMO_ADMIN')) {
+    mensagem = 'O último administrador ativo não pode ser inativado, removido ou rebaixado.'
+  }
+
+  if (mensagem.includes('USUARIO_RESPONSAVEL_INVALIDO')) {
+    mensagem = 'Não foi possível identificar o usuário responsável pela operação.'
+  }
+
   if (mensagem.includes('SESSAO_NAO_AUTENTICADA')) {
     mensagem = 'Sua sessão não está autenticada.'
   }
@@ -34,13 +70,13 @@ function falha(error: unknown, mensagemPadrao: string) {
 
 export function registerUsuarioIpc(): void {
   ipcMain.handle('usuarios:listar', async (event) => {
-    requireSession(event, { perfis: PERFIS_GESTAO_USUARIOS })
-    return await service.listar()
+    const sessao = requireSession(event, { perfis: PERFIS_GESTAO_USUARIOS })
+    return await service.listar(sessao.usuarioId)
   })
 
   ipcMain.handle('usuarios:listar-inativos', async (event) => {
-    requireSession(event, { perfis: PERFIS_GESTAO_USUARIOS })
-    return await service.listarInativos()
+    const sessao = requireSession(event, { perfis: PERFIS_GESTAO_USUARIOS })
+    return await service.listarInativos(sessao.usuarioId)
   })
 
   ipcMain.handle('usuarios:criar', async (event, input: UsuarioInput) => {

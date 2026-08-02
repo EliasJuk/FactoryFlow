@@ -34,13 +34,24 @@ type Resultado = {
 const db = getDatabase()
 const syncQueue = new SyncQueueRepository()
 
-function podeAdministrarSenha(perfil: string): boolean {
-  return perfil === 'ADMIN' || perfil === 'QUALIDADE'
+type PerfilResponsavel = 'ADMIN' | 'QUALIDADE'
+
+function normalizarPerfil(perfil: unknown): string {
+  return typeof perfil === 'string' ? perfil.trim().toUpperCase() : ''
+}
+
+function podeAdministrarSenha(perfil: unknown): perfil is PerfilResponsavel {
+  const normalizado = normalizarPerfil(perfil)
+  return normalizado === 'ADMIN' || normalizado === 'QUALIDADE'
+}
+
+function podeGerenciarUsuario(perfilResponsavel: PerfilResponsavel, perfilUsuario: unknown): boolean {
+  return perfilResponsavel === 'ADMIN' || normalizarPerfil(perfilUsuario) !== 'ADMIN'
 }
 
 export class PasswordResetService {
   async solicitar(matricula: string): Promise<Resultado> {
-    const matriculaNormalizada = matricula.trim()
+    const matriculaNormalizada = typeof matricula === 'string' ? matricula.trim() : ''
 
     if (!matriculaNormalizada) {
       return {
@@ -162,32 +173,71 @@ export class PasswordResetService {
     }
   }
 
-  async listarPendentes(): Promise<SolicitacaoSenha[]> {
+  async listarPendentes(responsavelId: number): Promise<SolicitacaoSenha[]> {
     if (getDatabaseProvider() === 'postgres') {
-      const result = await pool.query<SolicitacaoSenha>(`
-        SELECT
-          s.id,
-          s.uuid,
-          s.usuario_id AS "usuarioId",
-          u.nome AS "usuarioNome",
-          u.matricula AS "usuarioMatricula",
-          s.status,
-          s.solicitado_em AS "solicitadoEm",
-          s.atendido_em AS "atendidoEm",
-          s.cancelado_em AS "canceladoEm",
-          s.atendido_por AS "atendidoPor",
-          au.nome AS "atendidoPorNome",
-          s.cancelado_por AS "canceladoPor",
-          cu.nome AS "canceladoPorNome"
-        FROM solicitacoes_alteracao_senha s
-        INNER JOIN usuarios u ON u.id = s.usuario_id
-        LEFT JOIN usuarios au ON au.id = s.atendido_por
-        LEFT JOIN usuarios cu ON cu.id = s.cancelado_por
-        WHERE s.status = 'PENDENTE'
-        ORDER BY s.solicitado_em ASC
-      `)
+      const responsavel = await pool.query<{ perfil: string }>(
+        `
+          SELECT perfil
+          FROM usuarios
+          WHERE id = $1
+            AND ativo = true
+            AND deleted_at IS NULL
+        `,
+        [responsavelId]
+      )
+
+      const perfilResponsavel = responsavel.rows[0]?.perfil
+
+      if (!podeAdministrarSenha(perfilResponsavel)) {
+        return []
+      }
+
+      const result = await pool.query<SolicitacaoSenha>(
+        `
+          SELECT
+            s.id,
+            s.uuid,
+            s.usuario_id AS "usuarioId",
+            u.nome AS "usuarioNome",
+            u.matricula AS "usuarioMatricula",
+            s.status,
+            s.solicitado_em AS "solicitadoEm",
+            s.atendido_em AS "atendidoEm",
+            s.cancelado_em AS "canceladoEm",
+            s.atendido_por AS "atendidoPor",
+            au.nome AS "atendidoPorNome",
+            s.cancelado_por AS "canceladoPor",
+            cu.nome AS "canceladoPorNome"
+          FROM solicitacoes_alteracao_senha s
+          INNER JOIN usuarios u ON u.id = s.usuario_id
+          LEFT JOIN usuarios au ON au.id = s.atendido_por
+          LEFT JOIN usuarios cu ON cu.id = s.cancelado_por
+          WHERE s.status = 'PENDENTE'
+            AND u.ativo = true
+            AND u.deleted_at IS NULL
+            AND ($1 = 'ADMIN' OR UPPER(u.perfil) <> 'ADMIN')
+          ORDER BY s.solicitado_em ASC
+        `,
+        [normalizarPerfil(perfilResponsavel)]
+      )
 
       return result.rows
+    }
+
+    const responsavel = db
+      .prepare(
+        `
+          SELECT perfil
+          FROM usuarios
+          WHERE id = ?
+            AND ativo = 1
+            AND deleted_at IS NULL
+        `
+      )
+      .get(responsavelId) as { perfil: string } | undefined
+
+    if (!podeAdministrarSenha(responsavel?.perfil)) {
+      return []
     }
 
     return db
@@ -212,10 +262,13 @@ export class PasswordResetService {
           LEFT JOIN usuarios au ON au.id = s.atendido_por
           LEFT JOIN usuarios cu ON cu.id = s.cancelado_por
           WHERE s.status = 'PENDENTE'
+            AND u.ativo = 1
+            AND u.deleted_at IS NULL
+            AND (? = 'ADMIN' OR UPPER(u.perfil) <> 'ADMIN')
           ORDER BY s.solicitado_em ASC
         `
       )
-      .all() as SolicitacaoSenha[]
+      .all(normalizarPerfil(responsavel.perfil)) as SolicitacaoSenha[]
   }
 
   async atender(solicitacaoId: number, atendenteId: number): Promise<Resultado> {
@@ -239,26 +292,42 @@ export class PasswordResetService {
           [atendenteId]
         )
 
-        if (!atendente.rows[0] || !podeAdministrarSenha(atendente.rows[0].perfil)) {
+        const perfilAtendente = atendente.rows[0]?.perfil
+
+        if (!podeAdministrarSenha(perfilAtendente)) {
           throw new Error('SEM_PERMISSAO')
         }
 
-        const solicitacao = await client.query<{ usuario_id: number }>(
+        const solicitacao = await client.query<{
+          usuario_id: number
+          usuario_perfil: string
+        }>(
           `
-            SELECT usuario_id
-            FROM solicitacoes_alteracao_senha
-            WHERE id = $1
-              AND status = 'PENDENTE'
-            FOR UPDATE
+            SELECT
+              s.usuario_id,
+              u.perfil AS usuario_perfil
+            FROM solicitacoes_alteracao_senha s
+            INNER JOIN usuarios u ON u.id = s.usuario_id
+            WHERE s.id = $1
+              AND s.status = 'PENDENTE'
+              AND u.ativo = true
+              AND u.deleted_at IS NULL
+            FOR UPDATE OF s
           `,
           [solicitacaoId]
         )
 
-        if (!solicitacao.rows[0]) {
+        const encontrada = solicitacao.rows[0]
+
+        if (!encontrada) {
           throw new Error('SOLICITACAO_INDISPONIVEL')
         }
 
-        await client.query(
+        if (!podeGerenciarUsuario(perfilAtendente, encontrada.usuario_perfil)) {
+          throw new Error('QUALIDADE_NAO_GERENCIA_ADMIN')
+        }
+
+        const usuarioAtualizado = await client.query(
           `
             UPDATE usuarios
             SET
@@ -270,10 +339,14 @@ export class PasswordResetService {
               AND ativo = true
               AND deleted_at IS NULL
           `,
-          [senhaHash, atendenteId, solicitacao.rows[0].usuario_id]
+          [senhaHash, atendenteId, encontrada.usuario_id]
         )
 
-        await client.query(
+        if ((usuarioAtualizado.rowCount ?? 0) !== 1) {
+          throw new Error('SOLICITACAO_INDISPONIVEL')
+        }
+
+        const solicitacaoAtualizada = await client.query(
           `
             UPDATE solicitacoes_alteracao_senha
             SET
@@ -282,9 +355,14 @@ export class PasswordResetService {
               atendido_por = $2,
               updated_at = CURRENT_TIMESTAMP
             WHERE id = $1
+              AND status = 'PENDENTE'
           `,
           [solicitacaoId, atendenteId]
         )
+
+        if ((solicitacaoAtualizada.rowCount ?? 0) !== 1) {
+          throw new Error('SOLICITACAO_INDISPONIVEL')
+        }
 
         await client.query('COMMIT')
 
@@ -296,12 +374,15 @@ export class PasswordResetService {
       } catch (error) {
         await client.query('ROLLBACK')
 
+        const codigo = error instanceof Error ? error.message : ''
         const mensagem =
-          error instanceof Error && error.message === 'SEM_PERMISSAO'
+          codigo === 'SEM_PERMISSAO'
             ? 'Você não possui permissão para gerar senhas temporárias.'
-            : error instanceof Error && error.message === 'SOLICITACAO_INDISPONIVEL'
-              ? 'Esta solicitação já foi atendida ou cancelada.'
-              : 'Não foi possível atender a solicitação.'
+            : codigo === 'QUALIDADE_NAO_GERENCIA_ADMIN'
+              ? 'Somente um administrador pode redefinir a senha de outro administrador.'
+              : codigo === 'SOLICITACAO_INDISPONIVEL'
+                ? 'Esta solicitação já foi atendida, cancelada ou não está mais disponível.'
+                : 'Não foi possível atender a solicitação.'
 
         return { sucesso: false, mensagem }
       } finally {
@@ -322,23 +403,36 @@ export class PasswordResetService {
         )
         .get(atendenteId) as { perfil: string } | undefined
 
-      if (!atendente || !podeAdministrarSenha(atendente.perfil)) {
+      const perfilAtendente = atendente?.perfil
+
+      if (!podeAdministrarSenha(perfilAtendente)) {
         throw new Error('SEM_PERMISSAO')
       }
 
       const solicitacao = db
         .prepare(
           `
-            SELECT usuario_id AS usuarioId
-            FROM solicitacoes_alteracao_senha
-            WHERE id = ?
-              AND status = 'PENDENTE'
+            SELECT
+              s.usuario_id AS usuarioId,
+              u.perfil AS usuarioPerfil
+            FROM solicitacoes_alteracao_senha s
+            INNER JOIN usuarios u ON u.id = s.usuario_id
+            WHERE s.id = ?
+              AND s.status = 'PENDENTE'
+              AND u.ativo = 1
+              AND u.deleted_at IS NULL
           `
         )
-        .get(solicitacaoId) as { usuarioId: number } | undefined
+        .get(solicitacaoId) as
+        | { usuarioId: number; usuarioPerfil: string }
+        | undefined
 
       if (!solicitacao) {
         throw new Error('SOLICITACAO_INDISPONIVEL')
+      }
+
+      if (!podeGerenciarUsuario(perfilAtendente, solicitacao.usuarioPerfil)) {
+        throw new Error('QUALIDADE_NAO_GERENCIA_ADMIN')
       }
 
       const usuarioAtualizado = db
@@ -393,12 +487,15 @@ export class PasswordResetService {
         senhaTemporaria
       }
     } catch (error) {
+      const codigo = error instanceof Error ? error.message : ''
       const mensagem =
-        error instanceof Error && error.message === 'SEM_PERMISSAO'
+        codigo === 'SEM_PERMISSAO'
           ? 'Você não possui permissão para gerar senhas temporárias.'
-          : error instanceof Error && error.message === 'SOLICITACAO_INDISPONIVEL'
-            ? 'Esta solicitação já foi atendida ou cancelada.'
-            : 'Não foi possível atender a solicitação.'
+          : codigo === 'QUALIDADE_NAO_GERENCIA_ADMIN'
+            ? 'Somente um administrador pode redefinir a senha de outro administrador.'
+            : codigo === 'SOLICITACAO_INDISPONIVEL'
+              ? 'Esta solicitação já foi atendida, cancelada ou não está mais disponível.'
+              : 'Não foi possível atender a solicitação.'
 
       return { sucesso: false, mensagem }
     }
@@ -406,95 +503,176 @@ export class PasswordResetService {
 
   async cancelar(solicitacaoId: number, responsavelId: number): Promise<Resultado> {
     if (getDatabaseProvider() === 'postgres') {
-      const responsavel = await pool.query<{ perfil: string }>(
-        `
-          SELECT perfil
-          FROM usuarios
-          WHERE id = $1
-            AND ativo = true
-            AND deleted_at IS NULL
-        `,
-        [responsavelId]
-      )
+      const client = await pool.connect()
 
-      if (!responsavel.rows[0] || !podeAdministrarSenha(responsavel.rows[0].perfil)) {
-        return {
-          sucesso: false,
-          mensagem: 'Você não possui permissão para cancelar solicitações.'
+      try {
+        await client.query('BEGIN')
+
+        const responsavel = await client.query<{ perfil: string }>(
+          `
+            SELECT perfil
+            FROM usuarios
+            WHERE id = $1
+              AND ativo = true
+              AND deleted_at IS NULL
+          `,
+          [responsavelId]
+        )
+
+        const perfilResponsavel = responsavel.rows[0]?.perfil
+
+        if (!podeAdministrarSenha(perfilResponsavel)) {
+          throw new Error('SEM_PERMISSAO')
         }
-      }
 
-      const result = await pool.query(
-        `
-          UPDATE solicitacoes_alteracao_senha
-          SET
-            status = 'CANCELADA',
-            cancelado_em = CURRENT_TIMESTAMP,
-            cancelado_por = $2,
-            updated_at = CURRENT_TIMESTAMP
-          WHERE id = $1
-            AND status = 'PENDENTE'
-        `,
-        [solicitacaoId, responsavelId]
-      )
+        const solicitacao = await client.query<{ usuario_perfil: string }>(
+          `
+            SELECT u.perfil AS usuario_perfil
+            FROM solicitacoes_alteracao_senha s
+            INNER JOIN usuarios u ON u.id = s.usuario_id
+            WHERE s.id = $1
+              AND s.status = 'PENDENTE'
+              AND u.ativo = true
+              AND u.deleted_at IS NULL
+            FOR UPDATE OF s
+          `,
+          [solicitacaoId]
+        )
 
-      return {
-        sucesso: (result.rowCount ?? 0) > 0,
-        mensagem:
-          (result.rowCount ?? 0) > 0
-            ? 'Solicitação cancelada.'
-            : 'Esta solicitação já foi atendida ou cancelada.'
-      }
-    }
+        const encontrada = solicitacao.rows[0]
 
-    const responsavel = db
-      .prepare(
-        `
-          SELECT perfil
-          FROM usuarios
-          WHERE id = ?
-            AND ativo = 1
-            AND deleted_at IS NULL
-        `
-      )
-      .get(responsavelId) as { perfil: string } | undefined
+        if (!encontrada) {
+          throw new Error('SOLICITACAO_INDISPONIVEL')
+        }
 
-    if (!responsavel || !podeAdministrarSenha(responsavel.perfil)) {
-      return {
-        sucesso: false,
-        mensagem: 'Você não possui permissão para cancelar solicitações.'
-      }
-    }
+        if (!podeGerenciarUsuario(perfilResponsavel, encontrada.usuario_perfil)) {
+          throw new Error('QUALIDADE_NAO_GERENCIA_ADMIN')
+        }
 
-    const changes = db.transaction(() => {
-      const result = db
-        .prepare(
+        const resultado = await client.query(
           `
             UPDATE solicitacoes_alteracao_senha
             SET
               status = 'CANCELADA',
-              cancelado_em = datetime('now','localtime'),
-              cancelado_por = ?,
-              updated_at = datetime('now','localtime')
-            WHERE id = ?
+              cancelado_em = CURRENT_TIMESTAMP,
+              cancelado_por = $2,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
               AND status = 'PENDENTE'
-          `
+          `,
+          [solicitacaoId, responsavelId]
         )
-        .run(responsavelId, solicitacaoId)
 
-      if (result.changes > 0) {
-        syncQueue.enqueueSolicitacaoAlteracaoSenha(solicitacaoId, 'UPDATE')
+        if ((resultado.rowCount ?? 0) !== 1) {
+          throw new Error('SOLICITACAO_INDISPONIVEL')
+        }
+
+        await client.query('COMMIT')
+
+        return {
+          sucesso: true,
+          mensagem: 'Solicitação cancelada.'
+        }
+      } catch (error) {
+        await client.query('ROLLBACK')
+
+        const codigo = error instanceof Error ? error.message : ''
+        const mensagem =
+          codigo === 'SEM_PERMISSAO'
+            ? 'Você não possui permissão para cancelar solicitações.'
+            : codigo === 'QUALIDADE_NAO_GERENCIA_ADMIN'
+              ? 'Somente um administrador pode cancelar solicitações de outro administrador.'
+              : codigo === 'SOLICITACAO_INDISPONIVEL'
+                ? 'Esta solicitação já foi atendida, cancelada ou não está mais disponível.'
+                : 'Não foi possível cancelar a solicitação.'
+
+        return { sucesso: false, mensagem }
+      } finally {
+        client.release()
       }
+    }
 
-      return result.changes
-    })()
+    try {
+      const changes = db.transaction(() => {
+        const responsavel = db
+          .prepare(
+            `
+              SELECT perfil
+              FROM usuarios
+              WHERE id = ?
+                AND ativo = 1
+                AND deleted_at IS NULL
+            `
+          )
+          .get(responsavelId) as { perfil: string } | undefined
 
-    return {
-      sucesso: changes > 0,
-      mensagem:
-        changes > 0
-          ? 'Solicitação cancelada.'
-          : 'Esta solicitação já foi atendida ou cancelada.'
+        const perfilResponsavel = responsavel?.perfil
+
+        if (!podeAdministrarSenha(perfilResponsavel)) {
+          throw new Error('SEM_PERMISSAO')
+        }
+
+        const solicitacao = db
+          .prepare(
+            `
+              SELECT u.perfil AS usuarioPerfil
+              FROM solicitacoes_alteracao_senha s
+              INNER JOIN usuarios u ON u.id = s.usuario_id
+              WHERE s.id = ?
+                AND s.status = 'PENDENTE'
+                AND u.ativo = 1
+                AND u.deleted_at IS NULL
+            `
+          )
+          .get(solicitacaoId) as { usuarioPerfil: string } | undefined
+
+        if (!solicitacao) {
+          throw new Error('SOLICITACAO_INDISPONIVEL')
+        }
+
+        if (!podeGerenciarUsuario(perfilResponsavel, solicitacao.usuarioPerfil)) {
+          throw new Error('QUALIDADE_NAO_GERENCIA_ADMIN')
+        }
+
+        const result = db
+          .prepare(
+            `
+              UPDATE solicitacoes_alteracao_senha
+              SET
+                status = 'CANCELADA',
+                cancelado_em = datetime('now','localtime'),
+                cancelado_por = ?,
+                updated_at = datetime('now','localtime')
+              WHERE id = ?
+                AND status = 'PENDENTE'
+            `
+          )
+          .run(responsavelId, solicitacaoId)
+
+        if (result.changes !== 1) {
+          throw new Error('SOLICITACAO_INDISPONIVEL')
+        }
+
+        syncQueue.enqueueSolicitacaoAlteracaoSenha(solicitacaoId, 'UPDATE')
+        return result.changes
+      })()
+
+      return {
+        sucesso: changes === 1,
+        mensagem: 'Solicitação cancelada.'
+      }
+    } catch (error) {
+      const codigo = error instanceof Error ? error.message : ''
+      const mensagem =
+        codigo === 'SEM_PERMISSAO'
+          ? 'Você não possui permissão para cancelar solicitações.'
+          : codigo === 'QUALIDADE_NAO_GERENCIA_ADMIN'
+            ? 'Somente um administrador pode cancelar solicitações de outro administrador.'
+            : codigo === 'SOLICITACAO_INDISPONIVEL'
+              ? 'Esta solicitação já foi atendida, cancelada ou não está mais disponível.'
+              : 'Não foi possível cancelar a solicitação.'
+
+      return { sucesso: false, mensagem }
     }
   }
 
@@ -503,7 +681,12 @@ export class PasswordResetService {
     senhaAtual: string,
     novaSenha: string
   ): Promise<Resultado> {
-    if (novaSenha.trim().length < 8) {
+    if (
+      typeof senhaAtual !== 'string' ||
+      typeof novaSenha !== 'string' ||
+      !senhaAtual ||
+      novaSenha.length < 8
+    ) {
       return {
         sucesso: false,
         mensagem: 'A nova senha deve possuir pelo menos 8 caracteres.'
@@ -545,7 +728,7 @@ export class PasswordResetService {
         }
       }
 
-      await pool.query(
+      const resultado = await pool.query(
         `
           UPDATE usuarios
           SET
@@ -555,9 +738,19 @@ export class PasswordResetService {
             updated_at = CURRENT_TIMESTAMP,
             updated_by = $2
           WHERE id = $2
+            AND ativo = true
+            AND deleted_at IS NULL
+            AND deve_trocar_senha = true
         `,
         [gerarHashSenha(novaSenha), usuarioId]
       )
+
+      if ((resultado.rowCount ?? 0) !== 1) {
+        return {
+          sucesso: false,
+          mensagem: 'Senha temporária inválida.'
+        }
+      }
 
       return {
         sucesso: true,
@@ -604,6 +797,7 @@ export class PasswordResetService {
               WHERE id = ?
                 AND ativo = 1
                 AND deleted_at IS NULL
+                AND deve_trocar_senha = 1
             `
           )
           .run(gerarHashSenha(novaSenha), usuarioId, usuarioId)

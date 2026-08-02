@@ -34,8 +34,8 @@ export function registerPasswordResetIpc(): void {
   )
 
   ipcMain.handle('usuarios:listar-solicitacoes-senha', async (event) => {
-    requireSession(event, { perfis: PERFIS_GESTAO_SENHAS })
-    return await service.listarPendentes()
+    const sessao = requireSession(event, { perfis: PERFIS_GESTAO_SENHAS })
+    return await service.listarPendentes(sessao.usuarioId)
   })
 
   ipcMain.handle('usuarios:atender-solicitacao-senha', async (event, solicitacaoId: number) => {

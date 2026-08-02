@@ -4,6 +4,25 @@ const ITERACOES = 100000
 const TAMANHO_CHAVE = 64
 const ALGORITMO = 'sha512'
 
+const LETRAS_MAIUSCULAS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
+const LETRAS_MINUSCULAS = 'abcdefghijkmnopqrstuvwxyz'
+const NUMEROS = '23456789'
+const CARACTERES_TEMPORARIOS = `${LETRAS_MAIUSCULAS}${LETRAS_MINUSCULAS}${NUMEROS}`
+const TAMANHO_SENHA_TEMPORARIA = 12
+
+function caractereAleatorio(conjunto: string): string {
+  return conjunto[crypto.randomInt(0, conjunto.length)]
+}
+
+function embaralharSeguro(caracteres: string[]): string {
+  for (let indice = caracteres.length - 1; indice > 0; indice--) {
+    const troca = crypto.randomInt(0, indice + 1)
+    ;[caracteres[indice], caracteres[troca]] = [caracteres[troca], caracteres[indice]]
+  }
+
+  return caracteres.join('')
+}
+
 export function gerarHashSenha(senha: string): string {
   const salt = crypto.randomBytes(16).toString('hex')
   const hash = crypto.pbkdf2Sync(senha, salt, ITERACOES, TAMANHO_CHAVE, ALGORITMO).toString('hex')
@@ -29,6 +48,15 @@ export function verificarSenha(senha: string, senhaHash: string): boolean {
 }
 
 export function gerarSenhaTemporaria(): string {
-  const valor = crypto.randomInt(0, 10000)
-  return valor.toString().padStart(4, '0')
+  const caracteres = [
+    caractereAleatorio(LETRAS_MAIUSCULAS),
+    caractereAleatorio(LETRAS_MINUSCULAS),
+    caractereAleatorio(NUMEROS)
+  ]
+
+  while (caracteres.length < TAMANHO_SENHA_TEMPORARIA) {
+    caracteres.push(caractereAleatorio(CARACTERES_TEMPORARIOS))
+  }
+
+  return embaralharSeguro(caracteres)
 }

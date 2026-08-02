@@ -1,6 +1,8 @@
 import { RepositoryFactory } from '../repositories/factory/RepositoryFactory'
 import { verificarSenha } from '../shared/security/password'
 
+const USUARIO_SISTEMA_ID = 1
+
 type AuthResult = {
   sucesso: boolean
   mensagem: string
@@ -19,7 +21,12 @@ export class AuthService {
       const repository = RepositoryFactory.usuarios()
       const usuario = await repository.buscarCredenciaisPorMatricula(matricula.trim())
 
-      if (!usuario || !usuario.ativo || usuario.deletedAt) {
+      if (
+        !usuario ||
+        usuario.id === USUARIO_SISTEMA_ID ||
+        !usuario.ativo ||
+        usuario.deletedAt
+      ) {
         return {
           sucesso: false,
           mensagem: 'Matrícula ou senha inválida.'

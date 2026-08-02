@@ -8,6 +8,32 @@ import type {
 
 export {}
 
+type EstadoConfiguracaoInicial =
+  | 'SEM_CONFIGURACAO'
+  | 'SEM_CONEXAO'
+  | 'SEM_ADMIN'
+  | 'AGUARDANDO_SINCRONIZACAO'
+  | 'PRONTO'
+
+type StatusConfiguracaoInicialApi = {
+  status: EstadoConfiguracaoInicial
+  mensagem: string
+  temAdminLocal: boolean
+  temAdminRemoto: boolean | null
+}
+
+type PostgresConfiguracaoInicialApi = {
+  host: string
+  port: number
+  database: string
+  user: string
+  password?: string
+  passwordConfigured: boolean
+  clearPassword?: boolean
+  timeoutSeconds: number
+  ssl: boolean
+}
+
 type SetorApi = {
   id: number
   uuid: string
@@ -750,6 +776,33 @@ declare global {
       }
 
       configuracao: {
+        statusInicial: () => Promise<StatusConfiguracaoInicialApi>
+
+        carregarPostgresInicial: () => Promise<PostgresConfiguracaoInicialApi>
+
+        testarPostgresInicial: (
+          config: PostgresConfiguracaoInicialApi
+        ) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
+
+        salvarPostgresInicial: (
+          config: PostgresConfiguracaoInicialApi
+        ) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
+
+        criarPrimeiroAdministrador: (input: {
+          nome: string
+          matricula: string
+          senha: string
+        }) => Promise<{
+          sucesso: boolean
+          mensagem: string
+        }>
+
         carregarBanco: () => Promise<{
           mode: 'sqliteSync' | 'api' | 'postgres'
           sqlite: {

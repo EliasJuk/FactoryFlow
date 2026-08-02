@@ -19,6 +19,8 @@ function LoginPage() {
   const [erroLogin, setErroLogin] = useState('')
   const [carregandoLogin, setCarregandoLogin] = useState(false)
   const [mostrarEsqueciSenha, setMostrarEsqueciSenha] = useState(false)
+  const [configuracaoInicialVerificada, setConfiguracaoInicialVerificada] =
+    useState(false)
 
   const { usuario, sessaoCarregada, definirUsuario } = useApp()
 
@@ -51,6 +53,33 @@ function LoginPage() {
   }, [])
 
   useEffect(() => {
+    let ativo = true
+
+    window.api.configuracao
+      .statusInicial()
+      .then((status) => {
+        if (!ativo) return
+
+        if (status.status !== 'PRONTO') {
+          navigate('/configuracao-inicial', { replace: true })
+          return
+        }
+
+        setConfiguracaoInicialVerificada(true)
+      })
+      .catch(() => {
+        if (!ativo) return
+
+        setStartupError('Não foi possível verificar a configuração inicial.')
+        setConfiguracaoInicialVerificada(false)
+      })
+
+    return () => {
+      ativo = false
+    }
+  }, [navigate])
+
+  useEffect(() => {
     if (!sessaoCarregada || !usuario.id) {
       return
     }
@@ -63,7 +92,7 @@ function LoginPage() {
   async function fazerLogin(event: React.FormEvent) {
     event.preventDefault()
 
-    if (!isReady) return
+    if (!isReady || !configuracaoInicialVerificada) return
 
     setErroLogin('')
 
@@ -128,7 +157,7 @@ function LoginPage() {
               placeholder="Digite sua matrícula"
               value={matricula}
               onChange={(event) => setMatricula(event.target.value)}
-              disabled={!isReady || carregandoLogin}
+              disabled={!isReady || !configuracaoInicialVerificada || carregandoLogin}
             />
 
             <Input
@@ -137,7 +166,7 @@ function LoginPage() {
               placeholder="Digite sua senha"
               value={senha}
               onChange={(event) => setSenha(event.target.value)}
-              disabled={!isReady || carregandoLogin}
+              disabled={!isReady || !configuracaoInicialVerificada || carregandoLogin}
             />
 
             <div className="space-y-2 rounded-2xl bg-slate-950 p-3">
@@ -163,14 +192,21 @@ function LoginPage() {
             <button
               type="button"
               onClick={() => setMostrarEsqueciSenha(true)}
-              disabled={!isReady || carregandoLogin}
+              disabled={!isReady || !configuracaoInicialVerificada || carregandoLogin}
               className="w-full text-center text-sm font-semibold text-orange-500 hover:text-orange-400 disabled:opacity-50"
             >
               Esqueci minha senha
             </button>
 
-            <Button type="submit" disabled={!isReady || carregandoLogin}>
-              {carregandoLogin ? 'Entrando...' : isReady ? 'Entrar' : 'Aguarde...'}
+            <Button
+              type="submit"
+              disabled={!isReady || !configuracaoInicialVerificada || carregandoLogin}
+            >
+              {carregandoLogin
+                ? 'Entrando...'
+                : isReady && configuracaoInicialVerificada
+                  ? 'Entrar'
+                  : 'Aguarde...'}
             </Button>
           </form>
 

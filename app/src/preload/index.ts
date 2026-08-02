@@ -24,6 +24,38 @@ type RefugoInput = {
   itens: RefugoItemInput[]
 }
 
+type EstadoConfiguracaoInicial =
+  | 'SEM_CONFIGURACAO'
+  | 'SEM_CONEXAO'
+  | 'SEM_ADMIN'
+  | 'AGUARDANDO_SINCRONIZACAO'
+  | 'PRONTO'
+
+type StatusConfiguracaoInicial = {
+  status: EstadoConfiguracaoInicial
+  mensagem: string
+  temAdminLocal: boolean
+  temAdminRemoto: boolean | null
+}
+
+type PostgresConfiguracaoInicial = {
+  host: string
+  port: number
+  database: string
+  user: string
+  password?: string
+  passwordConfigured: boolean
+  clearPassword?: boolean
+  timeoutSeconds: number
+  ssl: boolean
+}
+
+type PrimeiroAdministradorInput = {
+  nome: string
+  matricula: string
+  senha: string
+}
+
 type ConfiguracaoBanco = {
   mode: 'sqliteSync' | 'api' | 'postgres'
   sqlite: {
@@ -295,6 +327,29 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   configuracao: {
+    statusInicial: () =>
+      ipcRenderer.invoke(
+        'configuracao:inicial-status'
+      ) as Promise<StatusConfiguracaoInicial>,
+    carregarPostgresInicial: () =>
+      ipcRenderer.invoke(
+        'configuracao:inicial-postgres-carregar'
+      ) as Promise<PostgresConfiguracaoInicial>,
+    testarPostgresInicial: (config: PostgresConfiguracaoInicial) =>
+      ipcRenderer.invoke('configuracao:inicial-postgres-testar', config) as Promise<{
+        sucesso: boolean
+        mensagem: string
+      }>,
+    salvarPostgresInicial: (config: PostgresConfiguracaoInicial) =>
+      ipcRenderer.invoke('configuracao:inicial-postgres-salvar', config) as Promise<{
+        sucesso: boolean
+        mensagem: string
+      }>,
+    criarPrimeiroAdministrador: (input: PrimeiroAdministradorInput) =>
+      ipcRenderer.invoke('configuracao:inicial-admin-criar', input) as Promise<{
+        sucesso: boolean
+        mensagem: string
+      }>,
     carregarBanco: () =>
       ipcRenderer.invoke('configuracao:banco-carregar') as Promise<ConfiguracaoBanco>,
     salvarBanco: (config: ConfiguracaoBanco) =>

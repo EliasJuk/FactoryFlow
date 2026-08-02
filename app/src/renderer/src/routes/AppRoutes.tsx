@@ -21,6 +21,7 @@ import ResultadosPage from '../pages/Resultados/ResultadosPage'
 import ExportacaoPage from '../pages/Exportacao/ExportacaoPage'
 import ConfiguracoesPage from '../pages/Configuracoes/ConfiguracoesPage'
 import TrocarSenhaPage from '../pages/TrocarSenha/TrocarSenhaPage'
+import ConfiguracaoInicialPage from '../pages/ConfiguracaoInicial/ConfiguracaoInicialPage'
 import { ProtectedRoute } from './ProtectedRoute'
 
 function AppRoutes() {
@@ -28,6 +29,7 @@ function AppRoutes() {
     <HashRouter>
       <Routes>
         <Route path="/" element={<LoginPage />} />
+        <Route path="/configuracao-inicial" element={<ConfiguracaoInicialPage />} />
         <Route path="/trocar-senha" element={<TrocarSenhaPage />} />
 
         <Route element={<ProtectedRoute />}>

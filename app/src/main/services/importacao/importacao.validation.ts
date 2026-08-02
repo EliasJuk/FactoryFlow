@@ -1359,15 +1359,44 @@ export async function analisarRoteiros(
   }
 }
 
-const PERFIS_USUARIO_PERMITIDOS = new Set(['ADMIN', 'QUALIDADE', 'LIDER', 'OPERADOR'])
+const PERFIS_USUARIO_PERMITIDOS = new Set([
+  'OPERADOR',
+  'TECNICO',
+  'LIDER',
+  'SUPERVISOR',
+  'QUALIDADE',
+  'ADMIN'
+])
 
-export async function analisarUsuarios(registros: RegistroCsv[]): Promise<RegistroPreview[]> {
+function normalizarPerfilUsuario(valor: unknown): string {
+  return normalizar(valor).toUpperCase()
+}
+
+export async function analisarUsuarios(
+  registros: RegistroCsv[],
+  usuarioId: number
+): Promise<RegistroPreview[]> {
   const repository = RepositoryFactory.usuarios()
 
-  const [ativos, inativos] = await Promise.all([repository.listar(), repository.listarInativos()])
+  const [ativos, inativos, responsavel] = await Promise.all([
+    repository.listar(),
+    repository.listarInativos(),
+    repository.buscarPerfilPorId(usuarioId)
+  ])
 
+  const perfilResponsavel = normalizarPerfilUsuario(responsavel?.perfil)
+
+  if (
+    !responsavel ||
+    !responsavel.ativo ||
+    (perfilResponsavel !== 'ADMIN' && perfilResponsavel !== 'QUALIDADE')
+  ) {
+    throw new Error('Usuário autenticado não possui permissão para importar usuários.')
+  }
+
+  const todosUsuarios = [...ativos, ...inativos]
   const usuariosPorMatricula = new Map(
-    [...ativos, ...inativos].map((usuario) => [normalizar(usuario.matricula), usuario])
+    todosUsuarios.map((usuario) => [normalizar(usuario.matricula), usuario])
   )
 
   const ocorrenciasPorMatricula = new Map<string, number>()
@@ -1380,11 +1409,75 @@ export async function analisarUsuarios(registros: RegistroCsv[]): Promise<Regist
     }
   }
 
+  const estadoFinal = new Map(
+    todosUsuarios.map((usuario) => [
+      usuario.id,
+      {
+        ativo: usuario.ativo,
+        perfil: normalizarPerfilUsuario(usuario.perfil)
+      }
+    ])
+  )
+
+  let proximoIdVirtual = -1
+
+  for (const registro of registros) {
+    const matricula = normalizar(registro.matricula)
+    const nome = normalizar(registro.nome)
+    const perfil = normalizarPerfilUsuario(registro.perfil || 'OPERADOR')
+    const senha = normalizar(registro.senha)
+
+    if (
+      !matricula ||
+      !nome ||
+      !PERFIS_USUARIO_PERMITIDOS.has(perfil) ||
+      (senha && senha.length < 8) ||
+      (ocorrenciasPorMatricula.get(matricula) ?? 0) > 1
+    ) {
+      continue
+    }
+
+    const existente = usuariosPorMatricula.get(matricula)
+
+    if (!existente && !senha) {
+      continue
+    }
+
+    const perfilExistente = normalizarPerfilUsuario(existente?.perfil)
+
+    if (
+      perfilResponsavel === 'QUALIDADE' &&
+      (perfil === 'ADMIN' || perfilExistente === 'ADMIN')
+    ) {
+      continue
+    }
+
+    if (existente?.id === usuarioId && perfil !== perfilExistente) {
+      continue
+    }
+
+    if (existente) {
+      estadoFinal.set(existente.id, {
+        ativo: true,
+        perfil
+      })
+    } else {
+      estadoFinal.set(proximoIdVirtual--, {
+        ativo: true,
+        perfil
+      })
+    }
+  }
+
+  const totalAdminsAtivosAposImportacao = [...estadoFinal.values()].filter(
+    (usuario) => usuario.ativo && usuario.perfil === 'ADMIN'
+  ).length
+
   return registros.map((registro, index) => {
     const linha = Number(registro.__linha ?? index + 2)
     const matricula = normalizar(registro.matricula)
     const nome = normalizar(registro.nome)
-    const perfil = normalizar(registro.perfil || 'OPERADOR').toUpperCase()
+    const perfil = normalizarPerfilUsuario(registro.perfil || 'OPERADOR')
     const senha = normalizar(registro.senha)
     const mensagens: string[] = []
     const alteracoes: AlteracaoCampoImportacao[] = []
@@ -1399,12 +1492,12 @@ export async function analisarUsuarios(registros: RegistroCsv[]): Promise<Regist
 
     if (!PERFIS_USUARIO_PERMITIDOS.has(perfil)) {
       mensagens.push(
-        `O perfil ${perfil || '(vazio)'} é inválido. Use ADMIN, QUALIDADE, LIDER ou OPERADOR.`
+        `O perfil ${perfil || '(vazio)'} é inválido. Use OPERADOR, TECNICO, LIDER, SUPERVISOR, QUALIDADE ou ADMIN.`
       )
     }
 
-    if (senha && senha.length < 4) {
-      mensagens.push('A senha temporária deve possuir pelo menos 4 caracteres.')
+    if (senha && senha.length < 8) {
+      mensagens.push('A senha temporária deve possuir pelo menos 8 caracteres.')
     }
 
     if (matricula && (ocorrenciasPorMatricula.get(matricula) ?? 0) > 1) {
@@ -1412,9 +1505,30 @@ export async function analisarUsuarios(registros: RegistroCsv[]): Promise<Regist
     }
 
     const existente = matricula ? usuariosPorMatricula.get(matricula) : undefined
+    const perfilExistente = normalizarPerfilUsuario(existente?.perfil)
 
     if (!existente && !senha) {
       mensagens.push('A senha temporária é obrigatória para novos usuários.')
+    }
+
+    if (
+      perfilResponsavel === 'QUALIDADE' &&
+      (perfil === 'ADMIN' || perfilExistente === 'ADMIN')
+    ) {
+      mensagens.push('A Qualidade não pode criar, restaurar ou alterar contas de administrador.')
+    }
+
+    if (existente?.id === usuarioId && perfil !== perfilExistente) {
+      mensagens.push('Você não pode alterar o perfil da sua própria conta pela importação.')
+    }
+
+    if (
+      existente?.ativo &&
+      perfilExistente === 'ADMIN' &&
+      perfil !== 'ADMIN' &&
+      totalAdminsAtivosAposImportacao < 1
+    ) {
+      mensagens.push('A importação não pode remover o último administrador ativo.')
     }
 
     const dados = {
@@ -1452,8 +1566,7 @@ export async function analisarUsuarios(registros: RegistroCsv[]): Promise<Regist
     }
 
     const nomeAlterado = normalizarComparacao(existente.nome) !== normalizarComparacao(nome)
-
-    const perfilAlterado = normalizar(existente.perfil).toUpperCase() !== perfil
+    const perfilAlterado = perfilExistente !== perfil
 
     if (nomeAlterado) {
       alteracoes.push({

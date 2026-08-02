@@ -74,9 +74,11 @@ D003,Defeito de montagem
 `,
 
   usuarios: `matricula,nome,perfil,senha
-1001,Usuario Admin,ADMIN,1234
-1002,Usuario Operador,OPERADOR,1234
-1003,Usuario Lider,LIDER,1234
+1001,Usuario Qualidade,QUALIDADE,Temp2026A
+1002,Usuario Operador,OPERADOR,Temp2026B
+1003,Usuario Lider,LIDER,Temp2026C
+1004,Usuario Tecnico,TECNICO,Temp2026D
+1005,Usuario Supervisor,SUPERVISOR,Temp2026E
 `,
 
   circuitoComponentes: `circuito_codigo,componente_codigo,quantidade
@@ -99,6 +101,25 @@ SA,Área de Montagem,Posto 01,D002
   refugosHistoricos: `id_origem,data_hora,matricula_operador,setor_sigla,subsetor_nome,posto_nome,circuito_codigo,turno,quantidade_produzida,componente_codigo,defeito_codigo,quantidade_refugada,preco_unitario,observacao
 PLAN-0001,2025-04-10 08:30,1234,AC,Montagem,Posto 01,41-0000-6444,A,500,33-0000-0612,D001,2,12.50,Peça amassada
 PLAN-0001,2025-04-10 08:30,1234,AC,Montagem,Posto 01,41-0000-6444,A,500,33-0000-0648,D002,1,,Peça amassada
+`
+}
+
+function obterModelo(tipo: TipoImportacao, perfilResponsavel: string): string {
+  if (tipo !== 'usuarios') {
+    return modelos[tipo]
+  }
+
+  if (perfilResponsavel.trim().toUpperCase() !== 'ADMIN') {
+    return modelos.usuarios
+  }
+
+  return `matricula,nome,perfil,senha
+1000,Usuario Administrador,ADMIN,Temp2026A
+1001,Usuario Qualidade,QUALIDADE,Temp2026B
+1002,Usuario Operador,OPERADOR,Temp2026C
+1003,Usuario Lider,LIDER,Temp2026D
+1004,Usuario Tecnico,TECNICO,Temp2026E
+1005,Usuario Supervisor,SUPERVISOR,Temp2026F
 `
 }
 
@@ -199,8 +220,8 @@ async function executarImportacao(
 }
 
 export class ImportacaoService {
-  async baixarModelo(tipo: TipoImportacao) {
-    const modelo = modelos[tipo]
+  async baixarModelo(tipo: TipoImportacao, perfilResponsavel: string) {
+    const modelo = obterModelo(tipo, perfilResponsavel)
 
     const resultado = await dialog.showSaveDialog({
       title: 'Salvar modelo CSV',
@@ -247,7 +268,7 @@ export class ImportacaoService {
     }
   }
 
-  async preVisualizar(tipo: TipoImportacao) {
+  async preVisualizar(tipo: TipoImportacao, usuarioId: number) {
     const resultado = await dialog.showOpenDialog({
       title: 'Selecionar arquivo CSV',
       properties: ['openFile'],
@@ -470,7 +491,7 @@ export class ImportacaoService {
         }
       }
 
-      const registrosAnalisados = await analisarUsuarios(registros)
+      const registrosAnalisados = await analisarUsuarios(registros, usuarioId)
 
       return {
         sucesso: true,

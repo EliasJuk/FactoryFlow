@@ -32,19 +32,19 @@ function validarTipoImportacao(tipo: unknown): TipoImportacao {
 
 export function registerImportacaoIpc() {
   ipcMain.handle('importacao:baixar-modelo', (event, tipo: unknown) => {
-    requireSession(event, {
+    const sessao = requireSession(event, {
       perfis: PERFIS_IMPORTACAO
     })
 
-    return service.baixarModelo(validarTipoImportacao(tipo))
+    return service.baixarModelo(validarTipoImportacao(tipo), sessao.perfil)
   })
 
   ipcMain.handle('importacao:pre-visualizar', (event, tipo: unknown) => {
-    requireSession(event, {
+    const sessao = requireSession(event, {
       perfis: PERFIS_IMPORTACAO
     })
 
-    return service.preVisualizar(validarTipoImportacao(tipo))
+    return service.preVisualizar(validarTipoImportacao(tipo), sessao.usuarioId)
   })
 
   ipcMain.handle(

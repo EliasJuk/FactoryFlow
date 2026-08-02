@@ -2,7 +2,10 @@ import { loadConfig } from '../config/appConfig'
 import { SYSTEM_IDS } from '../shared/ids/systemIds'
 import { PostgresPullRepository } from './PostgresPullRepository'
 import { SqliteRemoteApplyRepository } from './SqliteRemoteApplyRepository'
-import { SyncPullStateRepository } from './SyncPullStateRepository'
+import {
+  LOCAL_PENDING_CONFLICT_REASON,
+  SyncPullStateRepository
+} from './SyncPullStateRepository'
 import type { PullEntity, PullRecordBase } from './pull.types'
 
 export class SyncPullWorker {
@@ -166,7 +169,7 @@ export class SyncPullWorker {
               entity,
               record.uuid,
               record.updatedAt,
-              'Existe alteração local ainda não sincronizada.'
+              LOCAL_PENDING_CONFLICT_REASON
             )
 
             this.state.markSuccess(entity, {

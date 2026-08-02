@@ -13,6 +13,7 @@ import { PostgresSetorSyncRepository } from './postgres/PostgresSetorSyncReposit
 import { PostgresSolicitacaoSenhaSyncRepository } from './postgres/PostgresSolicitacaoSenhaSyncRepository'
 import { PostgresSubsetorSyncRepository } from './postgres/PostgresSubsetorSyncRepository'
 import { PostgresUsuarioSyncRepository } from './postgres/PostgresUsuarioSyncRepository'
+import { SyncPullStateRepository } from './SyncPullStateRepository'
 import type { SyncPayload } from './sync.types'
 
 type QueueRow = {
@@ -38,6 +39,7 @@ export class SyncWorker {
   private readonly postoDefeitoRepository = new PostgresPostoDefeitoSyncRepository()
   private readonly roteiroRepository = new PostgresRoteiroSyncRepository()
   private readonly refugoRepository = new PostgresRefugoSyncRepository()
+  private readonly pullStateRepository = new SyncPullStateRepository()
 
   constructor(private readonly intervalMs = 30_000) {}
 
@@ -59,6 +61,8 @@ export class SyncWorker {
     this.running = true
 
     try {
+      this.pullStateRepository.resolveStaleLocalQueueConflicts()
+
       while (this.shouldRun()) {
         const item = this.claimNextPending()
         if (!item) break
@@ -211,13 +215,17 @@ export class SyncWorker {
           throw new Error('Entidade de sincronização não suportada.')
       }
 
-      this.markAsSynced(item.id)
+      this.markAsSynced(item.id, payload.entity, payload.record.uuid)
     } catch (error) {
       this.markAsFailed(item, error)
     }
   }
 
-  private markAsSynced(id: number): void {
+  private markAsSynced(
+    id: number,
+    entity: SyncPayload['entity'],
+    recordUuid: string
+  ): void {
     db.transaction(() => {
       db.prepare(
         `
@@ -232,6 +240,11 @@ export class SyncWorker {
         WHERE id = ?
         `
       ).run(id)
+
+      this.pullStateRepository.resolveLocalQueueConflictIfPossible(
+        entity,
+        recordUuid
+      )
 
       db.prepare(
         `

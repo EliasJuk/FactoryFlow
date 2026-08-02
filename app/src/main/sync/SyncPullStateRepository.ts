@@ -1,6 +1,9 @@
 import db from '../database/database'
 import type { PullCursor, PullEntity } from './pull.types'
 
+export const LOCAL_PENDING_CONFLICT_REASON =
+  'Existe alteração local ainda não sincronizada.'
+
 export class SyncPullStateRepository {
   getCursor(entity: PullEntity): PullCursor {
     const row = db
@@ -110,6 +113,65 @@ export class SyncPullStateRepository {
       .get(entity, recordUuid)
 
     return Boolean(row)
+  }
+
+  resolveLocalQueueConflictIfPossible(
+    entity: PullEntity,
+    recordUuid: string
+  ): number {
+    const result = db
+      .prepare(
+        `
+        UPDATE sync_pull_conflicts
+        SET
+          status = 'RESOLVIDO',
+          resolved_at = datetime('now','localtime')
+        WHERE entity = ?
+          AND record_uuid = ?
+          AND status = 'PENDENTE'
+          AND reason = ?
+          AND NOT EXISTS (
+            SELECT 1
+            FROM sync_queue queue
+            WHERE queue.entity = ?
+              AND queue.record_uuid = ?
+              AND queue.status IN ('PENDENTE', 'PROCESSANDO', 'ERRO')
+          )
+        `
+      )
+      .run(
+        entity,
+        recordUuid,
+        LOCAL_PENDING_CONFLICT_REASON,
+        entity,
+        recordUuid
+      )
+
+    return result.changes
+  }
+
+  resolveStaleLocalQueueConflicts(): number {
+    const result = db
+      .prepare(
+        `
+        UPDATE sync_pull_conflicts
+        SET
+          status = 'RESOLVIDO',
+          resolved_at = datetime('now','localtime')
+        WHERE status = 'PENDENTE'
+          AND reason = ?
+          AND NOT EXISTS (
+            SELECT 1
+            FROM sync_queue queue
+            WHERE queue.entity = sync_pull_conflicts.entity
+              AND queue.record_uuid = sync_pull_conflicts.record_uuid
+              AND queue.status IN ('PENDENTE', 'PROCESSANDO', 'ERRO')
+          )
+        `
+      )
+      .run(LOCAL_PENDING_CONFLICT_REASON)
+
+    return result.changes
   }
 
   registerConflict(

@@ -16,6 +16,10 @@ export type SessaoPublica = {
   deveTrocarSenha: boolean
 }
 
+export type AtualizacaoSessaoUsuario = Partial<
+  Pick<SessaoUsuario, 'nome' | 'matricula' | 'perfil' | 'deveTrocarSenha'>
+>
+
 export class MainSessionService {
   private readonly sessoes = new Map<number, SessaoUsuario>()
 
@@ -48,6 +52,43 @@ export class MainSessionService {
 
     this.sessoes.set(webContentsId, atualizada)
     return this.toPublica(atualizada)
+  }
+
+  atualizarPorUsuario(
+    usuarioId: number,
+    atualizacao: AtualizacaoSessaoUsuario
+  ): number {
+    let totalAtualizadas = 0
+
+    for (const [webContentsId, sessao] of this.sessoes.entries()) {
+      if (sessao.usuarioId !== usuarioId) {
+        continue
+      }
+
+      this.sessoes.set(webContentsId, {
+        ...sessao,
+        ...atualizacao
+      })
+
+      totalAtualizadas++
+    }
+
+    return totalAtualizadas
+  }
+
+  removerPorUsuario(usuarioId: number): number {
+    let totalRemovidas = 0
+
+    for (const [webContentsId, sessao] of this.sessoes.entries()) {
+      if (sessao.usuarioId !== usuarioId) {
+        continue
+      }
+
+      this.sessoes.delete(webContentsId)
+      totalRemovidas++
+    }
+
+    return totalRemovidas
   }
 
   remover(webContentsId: number): void {

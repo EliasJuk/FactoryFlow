@@ -3,7 +3,7 @@ import type { UsuarioInput as RepositoryUsuarioInput } from '../repositories/pos
 
 export type UsuarioInput = Omit<RepositoryUsuarioInput, 'usuarioId'>
 
-type PerfilUsuario =
+export type PerfilUsuario =
   | 'OPERADOR'
   | 'TECNICO'
   | 'LIDER'
@@ -195,10 +195,17 @@ export class UsuarioService {
       await this.garantirQueNaoEhUltimoAdmin(usuarioAlvo)
     }
 
-    return await this.repository.editar(id, {
+    await this.repository.editar(id, {
       ...dados,
       usuarioId: responsavel.usuarioId
     })
+
+    return {
+      nome: dados.nome,
+      matricula: dados.matricula,
+      perfil: dados.perfil,
+      senhaRedefinida: Boolean(dados.senha)
+    }
   }
 
   async excluir(id: number, usuarioId: number) {

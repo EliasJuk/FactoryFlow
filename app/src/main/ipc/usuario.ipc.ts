@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 
+import { mainSessionService, type PerfilSessao } from '../auth/MainSessionService'
 import { requireSession } from '../auth/requireSession'
 import { type UsuarioInput, UsuarioService } from '../services/UsuarioService'
 
@@ -98,7 +99,17 @@ export function registerUsuarioIpc(): void {
         perfis: PERFIS_GESTAO_USUARIOS
       })
 
-      await service.editar(id, input, sessao.usuarioId)
+      const usuarioAtualizado = await service.editar(id, input, sessao.usuarioId)
+
+      mainSessionService.atualizarPorUsuario(id, {
+        nome: usuarioAtualizado.nome,
+        matricula: usuarioAtualizado.matricula,
+        perfil: usuarioAtualizado.perfil as PerfilSessao,
+        ...(usuarioAtualizado.senhaRedefinida
+          ? { deveTrocarSenha: true }
+          : {})
+      })
+
       return sucesso('Usuário atualizado com sucesso.')
     } catch (error) {
       return falha(error, 'Erro ao editar usuário.')
@@ -112,6 +123,8 @@ export function registerUsuarioIpc(): void {
       })
 
       await service.excluir(id, sessao.usuarioId)
+      mainSessionService.removerPorUsuario(id)
+
       return sucesso('Usuário inativado com sucesso.')
     } catch (error) {
       return falha(error, 'Erro ao inativar usuário.')
@@ -138,6 +151,8 @@ export function registerUsuarioIpc(): void {
       })
 
       await service.remover(id, sessao.usuarioId)
+      mainSessionService.removerPorUsuario(id)
+
       return sucesso('Usuário removido com sucesso.')
     } catch (error) {
       return falha(error, 'Erro ao remover usuário.')

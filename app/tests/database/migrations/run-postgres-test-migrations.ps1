@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $appRoot = (
-  Resolve-Path (Join-Path $PSScriptRoot "../..")
+  Resolve-Path (Join-Path $PSScriptRoot "../../..")
 ).Path
 
 $configModule = Join-Path (

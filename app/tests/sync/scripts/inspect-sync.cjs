@@ -163,7 +163,7 @@ async function inspectPostgres() {
 
 async function main() {
   if (!['pc-a', 'pc-b', 'all'].includes(target)) {
-    console.error('Uso: electron tests/scripts/inspect-sync.cjs [pc-a|pc-b|all]')
+    console.error('Uso: electron tests/sync/scripts/inspect-sync.cjs [pc-a|pc-b|all]')
     process.exitCode = 1
     return
   }

@@ -41,9 +41,9 @@
     "test:sync:inspect:pc-a": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/sync/scripts/run-with-postgres-config.ps1 -NpmScript test:sync:inspect:pc-a:raw",
     "test:sync:inspect:pc-b": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/sync/scripts/run-with-postgres-config.ps1 -NpmScript test:sync:inspect:pc-b:raw",
 
-    "test:sync:inspect:raw": "electron tests/scripts/inspect-sync.cjs all",
-    "test:sync:inspect:pc-a:raw": "electron tests/scripts/inspect-sync.cjs pc-a",
-    "test:sync:inspect:pc-b:raw": "electron tests/scripts/inspect-sync.cjs pc-b"
+    "test:sync:inspect:raw": "electron tests/sync/scripts/inspect-sync.cjs all",
+    "test:sync:inspect:pc-a:raw": "electron tests/sync/scripts/inspect-sync.cjs pc-a",
+    "test:sync:inspect:pc-b:raw": "electron tests/sync/scripts/inspect-sync.cjs pc-b"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

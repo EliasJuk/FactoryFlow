@@ -76,6 +76,7 @@ type SyncNormalizado = {
 
 const secrets = new SecretStorageService()
 const PRIMEIRO_ADMIN_LOCK_ID = 2026080201
+const MATRICULA_USUARIO_SISTEMA = '0000'
 
 function objeto(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === 'object' && valor !== null && !Array.isArray(valor)
@@ -294,6 +295,10 @@ export class ConfiguracaoService {
 
     const nome = texto(input.nome, 'o nome do administrador', true, 150)
     const matricula = texto(input.matricula, 'a matrícula do administrador', true, 80)
+
+    if (matricula === MATRICULA_USUARIO_SISTEMA) {
+      throw new Error('A matrícula 0000 é reservada ao usuário Sistema.')
+    }
 
     if (typeof input.senha !== 'string' || input.senha.length < 8 || input.senha.length > 128) {
       throw new Error('A senha do administrador deve possuir entre 8 e 128 caracteres.')
@@ -621,6 +626,25 @@ export class ConfiguracaoService {
         throw new Error('ADMIN_JA_EXISTE')
       }
 
+      const usuarioSistema = await client.query<{ id: number }>(
+        `
+        SELECT id
+        FROM usuarios
+        WHERE uuid = $1
+          AND ativo = true
+          AND deleted_at IS NULL
+        LIMIT 1
+        FOR SHARE
+        `,
+        [SYSTEM_IDS.usuarioSistema]
+      )
+
+      const usuarioSistemaId = usuarioSistema.rows[0]?.id
+
+      if (!usuarioSistemaId) {
+        throw new Error('USUARIO_SISTEMA_NAO_ENCONTRADO')
+      }
+
       const matriculaExistente = await client.query<{ id: number }>(
         `
         SELECT id
@@ -648,7 +672,9 @@ export class ConfiguracaoService {
           deve_trocar_senha,
           ativo,
           created_at,
-          updated_at
+          updated_at,
+          created_by,
+          updated_by
         )
         VALUES (
           $1,
@@ -659,7 +685,9 @@ export class ConfiguracaoService {
           true,
           true,
           CURRENT_TIMESTAMP,
-          CURRENT_TIMESTAMP
+          CURRENT_TIMESTAMP,
+          $5,
+          $5
         )
         RETURNING id
         `,
@@ -667,7 +695,8 @@ export class ConfiguracaoService {
           IdGenerator.generate(),
           dados.nome,
           dados.matricula,
-          gerarHashSenha(dados.senha)
+          gerarHashSenha(dados.senha),
+          usuarioSistemaId
         ]
       )
 
@@ -676,17 +705,6 @@ export class ConfiguracaoService {
       if (!usuarioId) {
         throw new Error('ADMIN_NAO_CRIADO')
       }
-
-      await client.query(
-        `
-        UPDATE usuarios
-        SET
-          created_by = $1,
-          updated_by = $1
-        WHERE id = $1
-        `,
-        [usuarioId]
-      )
 
       await client.query('COMMIT')
 
@@ -712,6 +730,14 @@ export class ConfiguracaoService {
         return {
           sucesso: false,
           mensagem: 'A matrícula informada já existe no PostgreSQL.'
+        }
+      }
+
+      if (codigo === 'USUARIO_SISTEMA_NAO_ENCONTRADO') {
+        return {
+          sucesso: false,
+          mensagem:
+            'O usuário reservado Sistema não foi encontrado no PostgreSQL. Execute novamente as migrations.'
         }
       }
 

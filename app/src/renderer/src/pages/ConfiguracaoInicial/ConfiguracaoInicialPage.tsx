@@ -152,6 +152,11 @@ function ConfiguracaoInicialPage() {
       return
     }
 
+    if (matricula.trim() === '0000') {
+      setMensagem('A matrícula 0000 é reservada ao usuário Sistema.')
+      return
+    }
+
     if (senha.length < 8) {
       setMensagem('A senha deve possuir pelo menos 8 caracteres.')
       return
@@ -423,8 +428,10 @@ function ConfiguracaoInicialPage() {
                     <p className="mt-1 text-sm text-slate-400">
                       Esta conta será criada diretamente no PostgreSQL. A
                       operação é protegida contra dois computadores tentando
-                      criar o primeiro administrador ao mesmo tempo. No primeiro
-                      login, o administrador deverá definir uma nova senha.
+                      criar o primeiro administrador ao mesmo tempo. Depois da
+                      criação, os demais computadores reutilizam esta mesma conta
+                      pela sincronização. No primeiro login, o administrador deverá
+                      definir uma nova senha.
                     </p>
                   </div>
 
@@ -433,6 +440,8 @@ function ConfiguracaoInicialPage() {
                     <input
                       value={nome}
                       onChange={(event) => setNome(event.target.value)}
+                      placeholder="Ex.: Administrador da empresa"
+                      autoComplete="name"
                       className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-normal text-white outline-none focus:border-orange-500"
                       disabled={processando}
                     />
@@ -443,9 +452,14 @@ function ConfiguracaoInicialPage() {
                     <input
                       value={matricula}
                       onChange={(event) => setMatricula(event.target.value)}
+                      placeholder="Ex.: 1001"
+                      autoComplete="username"
                       className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-normal text-white outline-none focus:border-orange-500"
                       disabled={processando}
                     />
+                    <span className="block text-xs font-normal text-slate-500">
+                      A matrícula 0000 é reservada ao usuário Sistema.
+                    </span>
                   </label>
 
                   <div className="grid gap-4 md:grid-cols-2">

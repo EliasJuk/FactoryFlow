@@ -1,13 +1,12 @@
 sync/databases/*.db
 sync/databases/*.db-shm
 sync/databases/*.db-wal
-sync/configs/*.local.json
 
 sync/pc-a/config/
 sync/pc-b/config/
 sync/pc-a/user-data/
 sync/pc-b/user-data/
 
-sync/configs/postgres.local.json
-
 sync/migration-runner/
+
+config/*.local.json

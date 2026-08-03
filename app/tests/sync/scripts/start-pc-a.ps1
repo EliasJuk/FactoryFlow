@@ -6,7 +6,7 @@ $appRoot = (
 
 $configModule = Join-Path (
   $PSScriptRoot
-) "postgres-test-config.ps1"
+) "../../shared/postgres-test-config.ps1"
 
 if (-not (Test-Path $configModule)) {
   throw "O carregador do PostgreSQL de testes nao foi encontrado: $configModule"

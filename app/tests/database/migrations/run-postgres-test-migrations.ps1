@@ -7,7 +7,7 @@ $appRoot = (
 
 $configModule = Join-Path (
   $appRoot
-) "tests/sync/scripts/postgres-test-config.ps1"
+) "tests/shared/postgres-test-config.ps1"
 
 $templatePath = Join-Path (
   $PSScriptRoot

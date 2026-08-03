@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
 
@@ -121,20 +121,20 @@ if not exist "%RUN_WITH_POSTGRES%" (
     exit /b 1
 )
 
-if not exist "%~dp0configs\postgres.json" (
+if not exist "%~dp0..\config\postgres.json" (
     echo(
     echo(%RED%%BOLD%ERRO: postgres.json nao encontrado.%RESET%
-    echo(%~dp0configs\postgres.json
+    echo(%~dp0..\config\postgres.json
     echo(
     exit /b 1
 )
 
-if not exist "%~dp0configs\postgres.local.json" (
+if not exist "%~dp0..\config\postgres.local.json" (
     echo(
     echo(%RED%%BOLD%ERRO: postgres.local.json nao encontrado.%RESET%
     echo(
     echo Crie o arquivo usando:
-    echo %~dp0configs\postgres.local.example.json
+    echo %~dp0..\config\postgres.local.example.json
     echo(
     exit /b 1
 )

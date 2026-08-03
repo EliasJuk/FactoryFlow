@@ -10,11 +10,11 @@ function Get-FactoryFlowPostgresTestSettings {
 
   $publicConfigPath = Join-Path (
     $AppRoot
-  ) "tests/sync/configs/postgres.json"
+  ) "tests/config/postgres.json"
 
   $localConfigPath = Join-Path (
     $AppRoot
-  ) "tests/sync/configs/postgres.local.json"
+  ) "tests/config/postgres.local.json"
 
   if (-not (Test-Path $publicConfigPath)) {
     throw @"
@@ -26,7 +26,7 @@ $publicConfigPath
   if (-not (Test-Path $localConfigPath)) {
     $examplePath = Join-Path (
       $AppRoot
-    ) "tests/sync/configs/postgres.local.example.json"
+    ) "tests/config/postgres.local.example.json"
 
     throw @"
 A configuracao local do PostgreSQL de testes nao foi encontrada:

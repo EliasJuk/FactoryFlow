@@ -8,8 +8,18 @@ const service = new PasswordResetService()
 const PERFIS_GESTAO_SENHAS = ['ADMIN', 'QUALIDADE'] as const
 
 export function registerPasswordResetIpc(): void {
-  ipcMain.handle('auth:solicitar-redefinicao', async (_, matricula: string) => {
-    return await service.solicitar(matricula)
+  ipcMain.handle('auth:solicitar-redefinicao', async (_, matricula: unknown) => {
+    try {
+      return await service.solicitar(matricula)
+    } catch (error) {
+      console.error('[AUTH] Falha ao solicitar redefinição de senha:', error)
+
+      return {
+        sucesso: false,
+        mensagem:
+          'Não foi possível registrar a solicitação agora. Tente novamente mais tarde.'
+      }
+    }
   })
 
   ipcMain.handle(

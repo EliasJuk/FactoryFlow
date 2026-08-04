@@ -2,6 +2,7 @@ import { getDatabase } from '../database/connection'
 import { pool } from '../database/postgres/connection'
 import { getDatabaseProvider } from '../repositories/factory/getDatabaseProvider'
 import { IdGenerator } from '../shared/ids/IdGenerator'
+import { SYSTEM_IDS } from '../shared/ids/systemIds'
 import { SyncQueueRepository } from '../sync/SyncQueueRepository'
 import {
   gerarHashSenha,
@@ -34,7 +35,37 @@ type Resultado = {
 const db = getDatabase()
 const syncQueue = new SyncQueueRepository()
 
+const MATRICULA_USUARIO_SISTEMA = '0000'
+const TAMANHO_MAXIMO_MATRICULA = 80
+const MENSAGEM_SOLICITACAO_NEUTRA =
+  'Se a matrícula estiver cadastrada e ativa, a solicitação será encaminhada.'
+
 type PerfilResponsavel = 'ADMIN' | 'QUALIDADE'
+
+function resultadoSolicitacaoNeutro(): Resultado {
+  return {
+    sucesso: true,
+    mensagem: MENSAGEM_SOLICITACAO_NEUTRA
+  }
+}
+
+function normalizarMatriculaSolicitacao(valor: unknown): string | null {
+  if (typeof valor !== 'string') {
+    return null
+  }
+
+  const matricula = valor.trim()
+
+  if (
+    !matricula ||
+    matricula.length > TAMANHO_MAXIMO_MATRICULA ||
+    /[\0\r\n]/.test(matricula)
+  ) {
+    return null
+  }
+
+  return matricula
+}
 
 function normalizarPerfil(perfil: unknown): string {
   return typeof perfil === 'string' ? perfil.trim().toUpperCase() : ''
@@ -50,15 +81,14 @@ function podeGerenciarUsuario(perfilResponsavel: PerfilResponsavel, perfilUsuari
 }
 
 export class PasswordResetService {
-  async solicitar(matricula: string): Promise<Resultado> {
-    const matriculaNormalizada = typeof matricula === 'string' ? matricula.trim() : ''
+  async solicitar(matricula: unknown): Promise<Resultado> {
+    const matriculaNormalizada = normalizarMatriculaSolicitacao(matricula)
 
-    if (!matriculaNormalizada) {
-      return {
-        sucesso: true,
-        mensagem:
-          'Se a matrícula estiver cadastrada e ativa, a solicitação será encaminhada.'
-      }
+    if (
+      !matriculaNormalizada ||
+      matriculaNormalizada === MATRICULA_USUARIO_SISTEMA
+    ) {
+      return resultadoSolicitacaoNeutro()
     }
 
     if (getDatabaseProvider() === 'postgres') {
@@ -71,9 +101,10 @@ export class PasswordResetService {
           SELECT id, ativo, deleted_at
           FROM usuarios
           WHERE matricula = $1
+            AND uuid <> $2
           LIMIT 1
         `,
-        [matriculaNormalizada]
+        [matriculaNormalizada, SYSTEM_IDS.usuarioSistema]
       )
 
       const encontrado = usuario.rows[0]
@@ -107,11 +138,7 @@ export class PasswordResetService {
         )
       }
 
-      return {
-        sucesso: true,
-        mensagem:
-          'Se a matrícula estiver cadastrada e ativa, a solicitação será encaminhada.'
-      }
+      return resultadoSolicitacaoNeutro()
     }
 
     const usuario = db
@@ -120,10 +147,11 @@ export class PasswordResetService {
           SELECT id, ativo, deleted_at AS deletedAt
           FROM usuarios
           WHERE matricula = ?
+            AND uuid <> ?
           LIMIT 1
         `
       )
-      .get(matriculaNormalizada) as
+      .get(matriculaNormalizada, SYSTEM_IDS.usuarioSistema) as
       | { id: number; ativo: number; deletedAt: string | null }
       | undefined
 
@@ -166,11 +194,7 @@ export class PasswordResetService {
       })()
     }
 
-    return {
-      sucesso: true,
-      mensagem:
-        'Se a matrícula estiver cadastrada e ativa, a solicitação será encaminhada.'
-    }
+    return resultadoSolicitacaoNeutro()
   }
 
   async listarPendentes(responsavelId: number): Promise<SolicitacaoSenha[]> {

@@ -77,6 +77,8 @@ type SyncNormalizado = {
 const secrets = new SecretStorageService()
 const PRIMEIRO_ADMIN_LOCK_ID = 2026080201
 const MATRICULA_USUARIO_SISTEMA = '0000'
+const MENSAGEM_CONFIGURACAO_INICIAL_ENCERRADA =
+  'A configuração inicial já foi concluída. Entre como administrador para alterar o banco.'
 
 function objeto(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === 'object' && valor !== null && !Array.isArray(valor)
@@ -130,19 +132,18 @@ function booleano(valor: unknown, campo: string): boolean {
 
 export class ConfiguracaoService {
   private migrateLegacyPassword() {
-    if (secrets.hasPostgresPassword()) {
-      return
-    }
-
     const legacyPassword = loadLegacyPostgresPassword()
 
     if (!legacyPassword) {
       return
     }
 
-    secrets.savePostgresPassword(legacyPassword)
+    if (!secrets.hasPostgresPassword()) {
+      secrets.savePostgresPassword(legacyPassword)
+    }
 
-    // Regrava o config.json sem a senha antiga em texto puro.
+    // Regrava o config.json sem a senha antiga em texto puro, inclusive quando
+    // a credencial protegida já havia sido criada em uma execução anterior.
     saveConfig(loadConfig())
   }
 
@@ -224,11 +225,60 @@ export class ConfiguracaoService {
     }
   }
 
-  private garantirConfiguracaoInicialAberta(): void {
+  private garantirSemAdminLocal(): void {
     if (this.temAdminLocal()) {
-      throw new Error(
-        'A configuração inicial já foi concluída. Entre como administrador para alterar o banco.'
-      )
+      throw new Error(MENSAGEM_CONFIGURACAO_INICIAL_ENCERRADA)
+    }
+  }
+
+  private async garantirConfiguracaoInicialEditavel(): Promise<void> {
+    this.garantirSemAdminLocal()
+    this.migrateLegacyPassword()
+
+    let password: string | null
+
+    try {
+      password = secrets.getPostgresPassword()
+    } catch {
+      // Sem uma credencial utilizável, o primeiro acesso precisa continuar disponível
+      // para que o usuário possa corrigir a configuração local.
+      return
+    }
+
+    if (!password) {
+      return
+    }
+
+    let postgres: PostgresNormalizado
+
+    try {
+      postgres = this.normalizarPostgres(loadConfig().database.postgres, true)
+    } catch {
+      return
+    }
+
+    const client = this.criarClientePostgres(postgres, password)
+
+    try {
+      await client.connect()
+
+      if (!(await this.tabelaUsuariosExiste(client))) {
+        return
+      }
+
+      if (await this.temAdminRemoto(client)) {
+        throw new Error('CONFIGURACAO_INICIAL_ENCERRADA')
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message === 'CONFIGURACAO_INICIAL_ENCERRADA') {
+        throw new Error(MENSAGEM_CONFIGURACAO_INICIAL_ENCERRADA)
+      }
+
+      // Falhas de conexão não podem impedir a correção das credenciais durante
+      // o primeiro acesso. A existência do ADMIN remoto será verificada novamente
+      // assim que a conexão voltar a funcionar.
+    } finally {
+      await client.end().catch(() => {})
     }
   }
 
@@ -451,9 +501,8 @@ export class ConfiguracaoService {
     }
   }
 
-  carregarPostgresConfiguracaoInicial() {
-    this.garantirConfiguracaoInicialAberta()
-    this.migrateLegacyPassword()
+  async carregarPostgresConfiguracaoInicial() {
+    await this.garantirConfiguracaoInicialEditavel()
 
     const config = loadConfig()
 
@@ -536,14 +585,14 @@ export class ConfiguracaoService {
   async testarPostgresConfiguracaoInicial(
     config: PostgresConfig & { password?: string }
   ) {
-    this.garantirConfiguracaoInicialAberta()
+    await this.garantirConfiguracaoInicialEditavel()
     return this.testarPostgres(config)
   }
 
   async salvarPostgresConfiguracaoInicial(
     config: PostgresConfig & { password?: string }
   ) {
-    this.garantirConfiguracaoInicialAberta()
+    await this.garantirConfiguracaoInicialEditavel()
 
     const postgres = this.normalizarPostgres(config, true)
     const password = this.obterSenhaPostgres(postgres)
@@ -602,7 +651,7 @@ export class ConfiguracaoService {
   }
 
   async criarPrimeiroAdministrador(input: PrimeiroAdministradorInput) {
-    this.garantirConfiguracaoInicialAberta()
+    this.garantirSemAdminLocal()
     this.migrateLegacyPassword()
 
     const dados = this.normalizarPrimeiroAdministrador(input)

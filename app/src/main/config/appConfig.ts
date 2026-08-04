@@ -151,6 +151,8 @@ export function loadConfig(): AppConfig {
     savedConfig.database?.mode ?? (legacyProvider === 'postgres' ? 'postgres' : 'sqliteSync')
 
   const provider: DatabaseProvider = inferredMode === 'postgres' ? 'postgres' : 'sqlite'
+  const postgresSemSenha = { ...(savedConfig.database?.postgres ?? {}) }
+  delete postgresSemSenha.password
 
   return {
     ...defaultConfig,
@@ -166,7 +168,7 @@ export function loadConfig(): AppConfig {
       },
       postgres: {
         ...defaultConfig.database.postgres,
-        ...savedConfig.database?.postgres
+        ...postgresSemSenha
       },
       api: {
         ...defaultConfig.database.api,
@@ -196,7 +198,15 @@ export function saveConfig(config: AppConfig) {
     ...config,
     database: {
       ...config.database,
-      provider: config.database.mode === 'postgres' ? 'postgres' : 'sqlite'
+      provider: config.database.mode === 'postgres' ? 'postgres' : 'sqlite',
+      postgres: {
+        host: config.database.postgres.host,
+        port: config.database.postgres.port,
+        database: config.database.postgres.database,
+        user: config.database.postgres.user,
+        timeoutSeconds: config.database.postgres.timeoutSeconds,
+        ssl: config.database.postgres.ssl
+      }
     }
   }
 

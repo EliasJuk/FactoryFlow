@@ -34,7 +34,7 @@ export class RefugoService {
   }
 
   private async validarPermissaoAlteracao(usuarioId: number): Promise<number> {
-    const perfisPermitidos = new Set(['ADMIN', 'TECNICO', 'QUALIDADE', 'LIDER'])
+    const perfisPermitidos = new Set(['ADMIN', 'TECNICO', 'QUALIDADE', 'LIDER', 'SUPERVISOR'])
     return await this.validarUsuarioAtivo(usuarioId, perfisPermitidos)
   }
 

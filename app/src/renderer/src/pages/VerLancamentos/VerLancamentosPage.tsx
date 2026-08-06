@@ -10,7 +10,7 @@ import { EditarRefugoModal } from './components/EditarRefugoModal'
 import { LancamentoCard } from './components/LancamentoCard'
 import type { EditItem, RefugoListagem } from './types'
 
-const PERFIS_QUE_PODEM_ALTERAR = new Set(['ADMIN', 'TECNICO', 'QUALIDADE', 'LIDER'])
+const PERFIS_QUE_PODEM_ALTERAR = new Set(['ADMIN', 'TECNICO', 'QUALIDADE', 'LIDER', 'SUPERVISOR'])
 
 function VerLancamentosPage() {
   const { usuario } = useApp()

@@ -40,7 +40,6 @@ function AppRoutes() {
           <Route path="/circuitos" element={<CircuitosPage />} />
           <Route path="/composicao-circuitos" element={<ComposicaoCircuitosPage />} />
           <Route path="/defeitos" element={<DefeitosPage />} />
-          <Route path="/defeitos-por-posto" element={<DefeitosPorPostoPage />} />
           <Route path="/setores" element={<SetoresPage />} />
           <Route path="/subSetores" element={<Subsetores />} />
           <Route path="/postos" element={<Postos />} />
@@ -49,6 +48,15 @@ function AppRoutes() {
           <Route path="/importacao" element={<ImportacaoPage />} />
           <Route path="/resultados" element={<ResultadosPage />} />
           <Route path="/exportacao" element={<ExportacaoPage />} />
+          <Route
+            element={
+              <ProtectedRoute
+                perfisPermitidos={['ADMIN', 'QUALIDADE', 'TECNICO', 'LIDER', 'SUPERVISOR']}
+              />
+            }
+          >
+            <Route path="/defeitos-por-posto" element={<DefeitosPorPostoPage />} />
+          </Route>
           <Route element={<ProtectedRoute perfisPermitidos={['ADMIN']} />}>
             <Route path="/configuracoes" element={<ConfiguracoesPage />} />
           </Route>

@@ -5,6 +5,34 @@ import { PostoDefeitoService } from '../services/PostoDefeitoService'
 
 const service = new PostoDefeitoService()
 
+const PERFIS_GERENCIAMENTO = [
+  'ADMIN',
+  'QUALIDADE',
+  'TECNICO',
+  'LIDER',
+  'SUPERVISOR'
+] as const
+
+function validarIdPositivo(valor: unknown): number {
+  if (typeof valor !== 'number' || !Number.isInteger(valor) || valor <= 0) {
+    throw new Error('PARAMETRO_INVALIDO')
+  }
+
+  return valor
+}
+
+function validarBooleanoOpcional(valor: unknown): boolean {
+  if (valor === undefined) {
+    return false
+  }
+
+  if (typeof valor !== 'boolean') {
+    throw new Error('PARAMETRO_INVALIDO')
+  }
+
+  return valor
+}
+
 function falha(error: unknown, mensagemPadrao: string) {
   const codigo = error instanceof Error ? error.message : ''
 
@@ -36,49 +64,83 @@ function falha(error: unknown, mensagemPadrao: string) {
     }
   }
 
+  if (codigo === 'PARAMETRO_INVALIDO') {
+    return {
+      sucesso: false,
+      mensagem: 'Os dados informados são inválidos.'
+    }
+  }
+
   return {
     sucesso: false,
-    mensagem: codigo || mensagemPadrao
+    mensagem: mensagemPadrao
   }
+}
+
+function lancarFalha(error: unknown, mensagemPadrao: string): never {
+  const resultado = falha(error, mensagemPadrao)
+  throw new Error(resultado.mensagem)
 }
 
 export function registerPostoDefeitoIpc() {
   ipcMain.handle(
     'posto-defeitos:listar-por-posto',
-    async (event, postoId: number, incluirInativos = false) => {
-      requireSession(event)
+    async (event, postoId: unknown, incluirInativos: unknown = false) => {
+      try {
+        const sessao = requireSession(event, {
+          perfis: PERFIS_GERENCIAMENTO
+        })
 
-      return await service.listarPorPosto(postoId, incluirInativos)
+        return await service.listarPorPosto(
+          validarIdPositivo(postoId),
+          validarBooleanoOpcional(incluirInativos),
+          sessao.usuarioId
+        )
+      } catch (error) {
+        lancarFalha(error, 'Não foi possível listar os vínculos do posto.')
+      }
     }
   )
 
   ipcMain.handle(
     'posto-defeitos:listar-permitidos-por-posto',
-    async (event, postoId: number) => {
-      requireSession(event)
+    async (event, postoId: unknown) => {
+      try {
+        requireSession(event)
 
-      return await service.listarPermitidosPorPosto(postoId)
+        return await service.listarPermitidosPorPosto(validarIdPositivo(postoId))
+      } catch (error) {
+        lancarFalha(error, 'Não foi possível listar os defeitos permitidos para o posto.')
+      }
     }
   )
 
   ipcMain.handle(
     'posto-defeitos:adicionar',
-    async (event, postoId: number, defeitoId: number) => {
+    async (event, postoId: unknown, defeitoId: unknown) => {
       try {
-        const sessao = requireSession(event)
+        const sessao = requireSession(event, {
+          perfis: PERFIS_GERENCIAMENTO
+        })
 
-        return await service.adicionar(postoId, defeitoId, sessao.usuarioId)
+        return await service.adicionar(
+          validarIdPositivo(postoId),
+          validarIdPositivo(defeitoId),
+          sessao.usuarioId
+        )
       } catch (error) {
         return falha(error, 'Erro ao vincular o defeito ao posto.')
       }
     }
   )
 
-  ipcMain.handle('posto-defeitos:remover', async (event, id: number) => {
+  ipcMain.handle('posto-defeitos:remover', async (event, id: unknown) => {
     try {
-      const sessao = requireSession(event)
+      const sessao = requireSession(event, {
+        perfis: PERFIS_GERENCIAMENTO
+      })
 
-      await service.remover(id, sessao.usuarioId)
+      await service.remover(validarIdPositivo(id), sessao.usuarioId)
 
       return {
         sucesso: true,
@@ -89,11 +151,13 @@ export function registerPostoDefeitoIpc() {
     }
   })
 
-  ipcMain.handle('posto-defeitos:restaurar', async (event, id: number) => {
+  ipcMain.handle('posto-defeitos:restaurar', async (event, id: unknown) => {
     try {
-      const sessao = requireSession(event)
+      const sessao = requireSession(event, {
+        perfis: PERFIS_GERENCIAMENTO
+      })
 
-      await service.restaurar(id, sessao.usuarioId)
+      await service.restaurar(validarIdPositivo(id), sessao.usuarioId)
 
       return {
         sucesso: true,

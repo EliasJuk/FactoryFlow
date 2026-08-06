@@ -17,7 +17,12 @@ export class PostoDefeitoService {
     return usuarioId
   }
 
-  async listarPorPosto(postoId: number, incluirInativos = false) {
+  async listarPorPosto(
+    postoId: number,
+    incluirInativos: boolean,
+    usuarioId: number
+  ) {
+    await this.validarPermissao(usuarioId)
     return await this.repository.listarPorPosto(postoId, incluirInativos)
   }
 

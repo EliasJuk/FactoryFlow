@@ -71,6 +71,12 @@ type SyncNormalizado = {
   retryFailed: boolean
 }
 
+type SenhaPostgresProtegida = {
+  password: string | null
+  configured: boolean
+  unreadable: boolean
+}
+
 const secrets = new SecretStorageService()
 const PRIMEIRO_ADMIN_LOCK_ID = 2026080201
 const MATRICULA_USUARIO_SISTEMA = '0000'
@@ -125,13 +131,57 @@ export class ConfiguracaoService {
       return
     }
 
-    if (!secrets.hasPostgresPassword()) {
+    let passwordConfigured = false
+
+    try {
+      passwordConfigured = secrets.hasPostgresPassword()
+    } catch {
+      passwordConfigured = false
+    }
+
+    if (!passwordConfigured) {
       secrets.savePostgresPassword(legacyPassword)
     }
 
     // Regrava o config.json sem a senha antiga em texto puro, inclusive quando
     // a credencial protegida já havia sido criada em uma execução anterior.
     saveConfig(loadConfig())
+  }
+
+  private lerSenhaPostgresProtegida(): SenhaPostgresProtegida {
+    let configured = false
+
+    try {
+      configured = secrets.hasPostgresPassword()
+    } catch {
+      return {
+        password: null,
+        configured: true,
+        unreadable: true
+      }
+    }
+
+    if (!configured) {
+      return {
+        password: null,
+        configured: false,
+        unreadable: false
+      }
+    }
+
+    try {
+      return {
+        password: secrets.getPostgresPassword(),
+        configured: true,
+        unreadable: false
+      }
+    } catch {
+      return {
+        password: null,
+        configured: true,
+        unreadable: true
+      }
+    }
   }
 
   private normalizarModo(valor: unknown): StorageMode {
@@ -222,17 +272,11 @@ export class ConfiguracaoService {
     this.garantirSemAdminLocal()
     this.migrateLegacyPassword()
 
-    let password: string | null
-
-    try {
-      password = secrets.getPostgresPassword()
-    } catch {
-      // Sem uma credencial utilizável, o primeiro acesso precisa continuar disponível
-      // para que o usuário possa corrigir a configuração local.
-      return
-    }
+    const { password } = this.lerSenhaPostgresProtegida()
 
     if (!password) {
+      // Sem uma credencial utilizável, o primeiro acesso precisa continuar disponível
+      // para que o usuário possa corrigir a configuração local.
       return
     }
 
@@ -270,7 +314,8 @@ export class ConfiguracaoService {
   }
 
   private obterSenhaPostgres(postgres: PostgresNormalizado): string {
-    const password = postgres.password?.trim() || secrets.getPostgresPassword() || ''
+    const protegida = this.lerSenhaPostgresProtegida()
+    const password = postgres.password?.trim() || protegida.password || ''
 
     if (!password) {
       throw new Error('Informe a senha do PostgreSQL.')
@@ -359,7 +404,7 @@ export class ConfiguracaoService {
       postgres: {
         ...config.database.postgres,
         password: '',
-        passwordConfigured: secrets.hasPostgresPassword()
+        passwordConfigured: Boolean(this.lerSenhaPostgresProtegida().password)
       },
       api: {
         ...config.database.api
@@ -450,7 +495,8 @@ export class ConfiguracaoService {
     this.migrateLegacyPassword()
 
     const postgres = this.normalizarPostgres(config, true)
-    const password = postgres.password?.trim() || secrets.getPostgresPassword() || ''
+    const protegida = this.lerSenhaPostgresProtegida()
+    const password = postgres.password?.trim() || protegida.password || ''
 
     const client = new Client({
       host: postgres.host,
@@ -490,7 +536,7 @@ export class ConfiguracaoService {
     return {
       ...config.database.postgres,
       password: '',
-      passwordConfigured: secrets.hasPostgresPassword(),
+      passwordConfigured: Boolean(this.lerSenhaPostgresProtegida().password),
       clearPassword: false
     }
   }
@@ -508,12 +554,15 @@ export class ConfiguracaoService {
     }
 
     const config = loadConfig()
-    const password = secrets.getPostgresPassword()
+    const protegida = this.lerSenhaPostgresProtegida()
+    const password = protegida.password
 
     if (!password) {
       return {
         status: 'SEM_CONFIGURACAO',
-        mensagem: 'Configure a conexão com o PostgreSQL para continuar.',
+        mensagem: protegida.unreadable
+          ? 'A senha protegida do PostgreSQL não pôde ser aberta neste usuário do Windows. Configure novamente a conexão.'
+          : 'Configure a conexão com o PostgreSQL para continuar.',
         temAdminLocal: false,
         temAdminRemoto: null
       }

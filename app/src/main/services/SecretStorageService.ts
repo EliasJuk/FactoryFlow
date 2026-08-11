@@ -47,11 +47,19 @@ export class SecretStorageService {
     return Boolean(this.readSecrets().postgresPassword)
   }
 
-  savePostgresPassword(password: string) {
+  savePostgresPassword(password: string): void {
     this.ensureEncryptionAvailable()
 
-    const secrets = this.readSecrets()
+    let secrets: SecretsFile = {}
+
+    try {
+      secrets = this.readSecrets()
+    } catch {
+      // Arquivo inválido: inicia um novo conteúdo e sobrescreve com a nova credencial.
+    }
+
     secrets.postgresPassword = safeStorage.encryptString(password).toString('base64')
+
     this.writeSecrets(secrets)
   }
 

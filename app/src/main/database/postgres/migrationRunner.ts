@@ -10,6 +10,10 @@ export type PostgresMigrationInput = PostgresConfig & {
 }
 
 export async function runPostgresMigrationsSafely(config: PostgresMigrationInput): Promise<void> {
+  if (!config.password) {
+    throw new Error('A senha do PostgreSQL é obrigatória para executar as migrations.')
+  }
+
   const client = new Client({
     host: config.host,
     port: config.port,
@@ -33,7 +37,18 @@ export async function runPostgresMigrationsSafely(config: PostgresMigrationInput
     await client.query('BEGIN')
     transactionStarted = true
 
-    await client.query('SELECT pg_advisory_xact_lock($1::bigint)', [POSTGRES_MIGRATION_LOCK_ID])
+    // Garante que as migrations sejam aplicadas sempre no schema public,
+    // evitando que uma configuração diferente do search_path mande as alterações para outro lugar.
+    await client.query('SET LOCAL search_path TO public')
+
+    const lockResult = await client.query<{ locked: boolean }>(
+      'SELECT pg_try_advisory_xact_lock($1::bigint) AS locked',
+      [POSTGRES_MIGRATION_LOCK_ID]
+    )
+
+    if (!lockResult.rows[0]?.locked) {
+      throw new Error('Outra instância do FactoryFlow já está preparando este PostgreSQL.')
+    }
 
     await runPostgresMigrations(client)
 

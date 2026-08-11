@@ -1,15 +1,10 @@
 import { RepositoryFactory } from '../repositories/factory/RepositoryFactory'
+import { SYSTEM_IDS } from '../shared/ids/systemIds'
 import type { UsuarioInput as RepositoryUsuarioInput } from '../repositories/postgres/UsuarioRepository'
 
 export type UsuarioInput = Omit<RepositoryUsuarioInput, 'usuarioId'>
 
-export type PerfilUsuario =
-  | 'OPERADOR'
-  | 'TECNICO'
-  | 'LIDER'
-  | 'SUPERVISOR'
-  | 'QUALIDADE'
-  | 'ADMIN'
+export type PerfilUsuario = 'OPERADOR' | 'TECNICO' | 'LIDER' | 'SUPERVISOR' | 'QUALIDADE' | 'ADMIN'
 
 type Responsavel = {
   usuarioId: number
@@ -31,6 +26,13 @@ const PERFIS_VALIDOS = new Set<PerfilUsuario>([
 ])
 
 const PERFIS_GESTAO = new Set<PerfilUsuario>(['ADMIN', 'QUALIDADE'])
+const MATRICULA_USUARIO_SISTEMA = '0000'
+
+function ehUsuarioSistema(usuario: { uuid: string; matricula: string }): boolean {
+  return (
+    usuario.uuid === SYSTEM_IDS.usuarioSistema || usuario.matricula === MATRICULA_USUARIO_SISTEMA
+  )
+}
 
 function normalizarPerfil(valor: unknown): string {
   return typeof valor === 'string' ? valor.trim().toUpperCase() : ''
@@ -61,10 +63,25 @@ export class UsuarioService {
     }
   }
 
+  private async garantirUsuarioNaoEhSistema(id: number): Promise<void> {
+    const [usuariosAtivos, usuariosInativos] = await Promise.all([
+      this.repository.listar(),
+      this.repository.listarInativos()
+    ])
+
+    const usuario = [...usuariosAtivos, ...usuariosInativos].find((item) => item.id === id)
+
+    if (usuario && ehUsuarioSistema(usuario)) {
+      throw new Error('USUARIO_SISTEMA_PROTEGIDO')
+    }
+  }
+
   private async obterUsuarioAlvo(id: number): Promise<UsuarioAlvo> {
     if (!idValido(id)) {
       throw new Error('USUARIO_NAO_ENCONTRADO')
     }
+
+    await this.garantirUsuarioNaoEhSistema(id)
 
     const usuario = await this.repository.buscarPerfilPorId(id)
 
@@ -90,6 +107,10 @@ export class UsuarioService {
 
     if (!nome || !matricula) {
       throw new Error('DADOS_USUARIO_INVALIDOS')
+    }
+
+    if (matricula === MATRICULA_USUARIO_SISTEMA) {
+      throw new Error('MATRICULA_USUARIO_SISTEMA_RESERVADA')
     }
 
     if (!PERFIS_VALIDOS.has(perfil)) {
@@ -119,10 +140,7 @@ export class UsuarioService {
     perfilAtual?: string,
     novoPerfil?: string
   ): void {
-    if (
-      responsavel.perfil === 'QUALIDADE' &&
-      (perfilAtual === 'ADMIN' || novoPerfil === 'ADMIN')
-    ) {
+    if (responsavel.perfil === 'QUALIDADE' && (perfilAtual === 'ADMIN' || novoPerfil === 'ADMIN')) {
       throw new Error('QUALIDADE_NAO_GERENCIA_ADMIN')
     }
   }
@@ -134,7 +152,7 @@ export class UsuarioService {
 
     const usuariosAtivos = await this.repository.listar()
     const totalAdminsAtivos = usuariosAtivos.filter(
-      (item) => normalizarPerfil(item.perfil) === 'ADMIN'
+      (item) => !ehUsuarioSistema(item) && normalizarPerfil(item.perfil) === 'ADMIN'
     ).length
 
     if (totalAdminsAtivos <= 1) {
@@ -144,7 +162,9 @@ export class UsuarioService {
 
   async listar(usuarioId: number) {
     const responsavel = await this.obterResponsavel(usuarioId)
-    const usuarios = await this.repository.listar()
+    const usuarios = (await this.repository.listar()).filter(
+      (usuario) => !ehUsuarioSistema(usuario)
+    )
 
     if (responsavel.perfil === 'QUALIDADE') {
       return usuarios.filter((usuario) => normalizarPerfil(usuario.perfil) !== 'ADMIN')
@@ -155,7 +175,9 @@ export class UsuarioService {
 
   async listarInativos(usuarioId: number) {
     const responsavel = await this.obterResponsavel(usuarioId)
-    const usuarios = await this.repository.listarInativos()
+    const usuarios = (await this.repository.listarInativos()).filter(
+      (usuario) => !ehUsuarioSistema(usuario)
+    )
 
     if (responsavel.perfil === 'QUALIDADE') {
       return usuarios.filter((usuario) => normalizarPerfil(usuario.perfil) !== 'ADMIN')
@@ -181,11 +203,7 @@ export class UsuarioService {
     const usuarioAlvo = await this.obterUsuarioAlvo(id)
     const dados = this.normalizarInput(input)
 
-    this.garantirQualidadeNaoGerenciaAdmin(
-      responsavel,
-      usuarioAlvo.perfil,
-      dados.perfil
-    )
+    this.garantirQualidadeNaoGerenciaAdmin(responsavel, usuarioAlvo.perfil, dados.perfil)
 
     if (id === responsavel.usuarioId && dados.perfil !== responsavel.perfil) {
       throw new Error('NAO_PODE_ALTERAR_PROPRIO_PERFIL')

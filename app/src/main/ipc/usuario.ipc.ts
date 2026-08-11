@@ -30,6 +30,14 @@ function falha(error: unknown, mensagemPadrao: string) {
     mensagem = 'O usuário informado não foi encontrado.'
   }
 
+  if (mensagem.includes('USUARIO_SISTEMA_PROTEGIDO')) {
+    mensagem = 'O usuário Sistema é reservado e não pode ser alterado.'
+  }
+
+  if (mensagem.includes('MATRICULA_USUARIO_SISTEMA_RESERVADA')) {
+    mensagem = 'A matrícula 0000 é reservada ao usuário Sistema.'
+  }
+
   if (mensagem.includes('QUALIDADE_NAO_GERENCIA_ADMIN')) {
     mensagem = 'Somente um administrador pode criar ou alterar contas de administrador.'
   }
@@ -105,9 +113,7 @@ export function registerUsuarioIpc(): void {
         nome: usuarioAtualizado.nome,
         matricula: usuarioAtualizado.matricula,
         perfil: usuarioAtualizado.perfil as PerfilSessao,
-        ...(usuarioAtualizado.senhaRedefinida
-          ? { deveTrocarSenha: true }
-          : {})
+        ...(usuarioAtualizado.senhaRedefinida ? { deveTrocarSenha: true } : {})
       })
 
       return sucesso('Usuário atualizado com sucesso.')

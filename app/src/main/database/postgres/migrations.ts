@@ -2,7 +2,6 @@ import type { QueryResult, QueryResultRow } from 'pg'
 
 import { IdGenerator } from '../../shared/ids/IdGenerator'
 import { SYSTEM_IDS } from '../../shared/ids/systemIds'
-import { gerarHashSenha } from '../../shared/security/password'
 import { pool } from './connection'
 
 type MigrationDatabase = {
@@ -1068,8 +1067,6 @@ export async function runPostgresMigrations(db: MigrationDatabase = pool) {
     `)
   }
 
-  const senhaInicialHash = gerarHashSenha('admin123')
-
   await db.query(
     `
       INSERT INTO usuarios (
@@ -1090,8 +1087,8 @@ export async function runPostgresMigrations(db: MigrationDatabase = pool) {
         'Sistema',
         '0000',
         'ADMIN',
-        $2,
-        true,
+        NULL,
+        false,
         true,
         CURRENT_TIMESTAMP,
         CURRENT_TIMESTAMP
@@ -1099,14 +1096,10 @@ export async function runPostgresMigrations(db: MigrationDatabase = pool) {
       ON CONFLICT (id) DO UPDATE
       SET
         uuid = EXCLUDED.uuid,
-        senha_hash = COALESCE(usuarios.senha_hash, EXCLUDED.senha_hash),
-        deve_trocar_senha = CASE
-          WHEN usuarios.senha_hash IS NULL OR BTRIM(usuarios.senha_hash) = ''
-            THEN true
-          ELSE usuarios.deve_trocar_senha
-        END;
+        senha_hash = NULL,
+        deve_trocar_senha = false;
     `,
-    [SYSTEM_IDS.usuarioSistema, senhaInicialHash]
+    [SYSTEM_IDS.usuarioSistema]
   )
 
   await db.query(`

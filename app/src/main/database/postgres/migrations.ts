@@ -1,10 +1,20 @@
+import type { QueryResult, QueryResultRow } from 'pg'
+
 import { IdGenerator } from '../../shared/ids/IdGenerator'
 import { SYSTEM_IDS } from '../../shared/ids/systemIds'
 import { gerarHashSenha } from '../../shared/security/password'
 import { pool } from './connection'
 
-async function columnExists(table: string, column: string): Promise<boolean> {
-  const result = await pool.query(
+type MigrationDatabase = {
+  query<T extends QueryResultRow = any>(text: string, values?: unknown[]): Promise<QueryResult<T>>
+}
+
+async function columnExists(
+  db: MigrationDatabase,
+  table: string,
+  column: string
+): Promise<boolean> {
+  const result = await db.query(
     `
       SELECT 1
       FROM information_schema.columns
@@ -19,8 +29,8 @@ async function columnExists(table: string, column: string): Promise<boolean> {
   return (result.rowCount ?? 0) > 0
 }
 
-export async function runPostgresMigrations() {
-  await pool.query(`
+export async function runPostgresMigrations(db: MigrationDatabase = pool) {
+  await db.query(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id SERIAL PRIMARY KEY,
       uuid UUID NOT NULL UNIQUE,
@@ -257,14 +267,14 @@ export async function runPostgresMigrations() {
     );
   `)
 
-  if (!(await columnExists('usuarios', 'uuid'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'usuarios', 'uuid'))) {
+    await db.query(`
       ALTER TABLE usuarios
       ADD COLUMN uuid UUID;
     `)
   }
 
-  await pool.query(
+  await db.query(
     `
       UPDATE usuarios
       SET uuid = $1
@@ -273,14 +283,14 @@ export async function runPostgresMigrations() {
     [SYSTEM_IDS.usuarioSistema]
   )
 
-  const usuariosSemUuid = await pool.query<{ id: number }>(`
+  const usuariosSemUuid = await db.query<{ id: number }>(`
     SELECT id
     FROM usuarios
     WHERE uuid IS NULL
   `)
 
   for (const usuario of usuariosSemUuid.rows) {
-    await pool.query(
+    await db.query(
       `
         UPDATE usuarios
         SET uuid = $1
@@ -290,31 +300,31 @@ export async function runPostgresMigrations() {
     )
   }
 
-  await pool.query(`
+  await db.query(`
     ALTER TABLE usuarios
     ALTER COLUMN uuid SET NOT NULL;
   `)
 
-  await pool.query(`
+  await db.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_uuid
     ON usuarios(uuid);
   `)
 
-  if (!(await columnExists('setores', 'uuid'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'setores', 'uuid'))) {
+    await db.query(`
       ALTER TABLE setores
       ADD COLUMN uuid UUID;
     `)
   }
 
-  const setoresSemUuid = await pool.query<{ id: number }>(`
+  const setoresSemUuid = await db.query<{ id: number }>(`
     SELECT id
     FROM setores
     WHERE uuid IS NULL
   `)
 
   for (const setor of setoresSemUuid.rows) {
-    await pool.query(
+    await db.query(
       `
         UPDATE setores
         SET uuid = $1
@@ -324,12 +334,12 @@ export async function runPostgresMigrations() {
     )
   }
 
-  await pool.query(`
+  await db.query(`
     ALTER TABLE setores
     ALTER COLUMN uuid SET NOT NULL;
   `)
 
-  await pool.query(`
+  await db.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_setores_uuid
     ON setores(uuid);
   `)
@@ -362,12 +372,12 @@ export async function runPostgresMigrations() {
   ]
 
   for (const coluna of colunasSetores) {
-    if (!(await columnExists('setores', coluna.nome))) {
-      await pool.query(coluna.sql)
+    if (!(await columnExists(db, 'setores', coluna.nome))) {
+      await db.query(coluna.sql)
     }
   }
 
-  await pool.query(`
+  await db.query(`
     UPDATE setores
     SET
       created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
@@ -376,21 +386,21 @@ export async function runPostgresMigrations() {
       updated_by = COALESCE(updated_by, created_by, 1)
   `)
 
-  if (!(await columnExists('subsetores', 'uuid'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'subsetores', 'uuid'))) {
+    await db.query(`
       ALTER TABLE subsetores
       ADD COLUMN uuid UUID;
     `)
   }
 
-  const subsetoresSemUuid = await pool.query<{ id: number }>(`
+  const subsetoresSemUuid = await db.query<{ id: number }>(`
     SELECT id
     FROM subsetores
     WHERE uuid IS NULL
   `)
 
   for (const subsetor of subsetoresSemUuid.rows) {
-    await pool.query(
+    await db.query(
       `
         UPDATE subsetores
         SET uuid = $1
@@ -400,12 +410,12 @@ export async function runPostgresMigrations() {
     )
   }
 
-  await pool.query(`
+  await db.query(`
     ALTER TABLE subsetores
     ALTER COLUMN uuid SET NOT NULL;
   `)
 
-  await pool.query(`
+  await db.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_subsetores_uuid
     ON subsetores(uuid);
   `)
@@ -438,12 +448,12 @@ export async function runPostgresMigrations() {
   ]
 
   for (const coluna of colunasSubsetores) {
-    if (!(await columnExists('subsetores', coluna.nome))) {
-      await pool.query(coluna.sql)
+    if (!(await columnExists(db, 'subsetores', coluna.nome))) {
+      await db.query(coluna.sql)
     }
   }
 
-  await pool.query(`
+  await db.query(`
     UPDATE subsetores
     SET
       created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
@@ -452,21 +462,21 @@ export async function runPostgresMigrations() {
       updated_by = COALESCE(updated_by, created_by, 1)
   `)
 
-  if (!(await columnExists('postos', 'uuid'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'postos', 'uuid'))) {
+    await db.query(`
       ALTER TABLE postos
       ADD COLUMN uuid UUID;
     `)
   }
 
-  const postosSemUuid = await pool.query<{ id: number }>(`
+  const postosSemUuid = await db.query<{ id: number }>(`
     SELECT id
     FROM postos
     WHERE uuid IS NULL
   `)
 
   for (const posto of postosSemUuid.rows) {
-    await pool.query(
+    await db.query(
       `
         UPDATE postos
         SET uuid = $1
@@ -476,12 +486,12 @@ export async function runPostgresMigrations() {
     )
   }
 
-  await pool.query(`
+  await db.query(`
     ALTER TABLE postos
     ALTER COLUMN uuid SET NOT NULL;
   `)
 
-  await pool.query(`
+  await db.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_postos_uuid
     ON postos(uuid);
   `)
@@ -514,12 +524,12 @@ export async function runPostgresMigrations() {
   ]
 
   for (const coluna of colunasPostos) {
-    if (!(await columnExists('postos', coluna.nome))) {
-      await pool.query(coluna.sql)
+    if (!(await columnExists(db, 'postos', coluna.nome))) {
+      await db.query(coluna.sql)
     }
   }
 
-  await pool.query(`
+  await db.query(`
     UPDATE postos
     SET
       created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
@@ -528,21 +538,21 @@ export async function runPostgresMigrations() {
       updated_by = COALESCE(updated_by, created_by, 1)
   `)
 
-  if (!(await columnExists('componentes', 'uuid'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'componentes', 'uuid'))) {
+    await db.query(`
       ALTER TABLE componentes
       ADD COLUMN uuid UUID;
     `)
   }
 
-  const componentesSemUuid = await pool.query<{ id: number }>(`
+  const componentesSemUuid = await db.query<{ id: number }>(`
     SELECT id
     FROM componentes
     WHERE uuid IS NULL
   `)
 
   for (const componente of componentesSemUuid.rows) {
-    await pool.query(
+    await db.query(
       `
         UPDATE componentes
         SET uuid = $1
@@ -552,12 +562,12 @@ export async function runPostgresMigrations() {
     )
   }
 
-  await pool.query(`
+  await db.query(`
     ALTER TABLE componentes
     ALTER COLUMN uuid SET NOT NULL;
   `)
 
-  await pool.query(`
+  await db.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_componentes_uuid
     ON componentes(uuid);
   `)
@@ -590,12 +600,12 @@ export async function runPostgresMigrations() {
   ]
 
   for (const coluna of colunasComponentes) {
-    if (!(await columnExists('componentes', coluna.nome))) {
-      await pool.query(coluna.sql)
+    if (!(await columnExists(db, 'componentes', coluna.nome))) {
+      await db.query(coluna.sql)
     }
   }
 
-  await pool.query(`
+  await db.query(`
     UPDATE componentes
     SET
       created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
@@ -604,28 +614,28 @@ export async function runPostgresMigrations() {
       updated_by = COALESCE(updated_by, created_by, 1)
   `)
 
-  if (!(await columnExists('componentes_precos', 'uuid'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'componentes_precos', 'uuid'))) {
+    await db.query(`
       ALTER TABLE componentes_precos
       ADD COLUMN uuid UUID;
     `)
   }
 
-  if (!(await columnExists('componentes_precos', 'criado_em'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'componentes_precos', 'criado_em'))) {
+    await db.query(`
       ALTER TABLE componentes_precos
       ADD COLUMN criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
     `)
   }
 
-  const componentesPrecosSemUuid = await pool.query<{ id: number }>(`
+  const componentesPrecosSemUuid = await db.query<{ id: number }>(`
     SELECT id
     FROM componentes_precos
     WHERE uuid IS NULL
   `)
 
   for (const preco of componentesPrecosSemUuid.rows) {
-    await pool.query(
+    await db.query(
       `
         UPDATE componentes_precos
         SET uuid = $1
@@ -635,36 +645,36 @@ export async function runPostgresMigrations() {
     )
   }
 
-  await pool.query(`
+  await db.query(`
     ALTER TABLE componentes_precos
     ALTER COLUMN uuid SET NOT NULL;
   `)
 
-  await pool.query(`
+  await db.query(`
     ALTER TABLE componentes_precos
     ALTER COLUMN criado_em SET NOT NULL;
   `)
 
-  await pool.query(`
+  await db.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_componentes_precos_uuid
     ON componentes_precos(uuid);
   `)
 
-  if (!(await columnExists('defeitos', 'uuid'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'defeitos', 'uuid'))) {
+    await db.query(`
       ALTER TABLE defeitos
       ADD COLUMN uuid UUID;
     `)
   }
 
-  const defeitosSemUuid = await pool.query<{ id: number }>(`
+  const defeitosSemUuid = await db.query<{ id: number }>(`
     SELECT id
     FROM defeitos
     WHERE uuid IS NULL
   `)
 
   for (const defeito of defeitosSemUuid.rows) {
-    await pool.query(
+    await db.query(
       `
         UPDATE defeitos
         SET uuid = $1
@@ -674,12 +684,12 @@ export async function runPostgresMigrations() {
     )
   }
 
-  await pool.query(`
+  await db.query(`
     ALTER TABLE defeitos
     ALTER COLUMN uuid SET NOT NULL;
   `)
 
-  await pool.query(`
+  await db.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_defeitos_uuid
     ON defeitos(uuid);
   `)
@@ -712,12 +722,12 @@ export async function runPostgresMigrations() {
   ]
 
   for (const coluna of colunasDefeitos) {
-    if (!(await columnExists('defeitos', coluna.nome))) {
-      await pool.query(coluna.sql)
+    if (!(await columnExists(db, 'defeitos', coluna.nome))) {
+      await db.query(coluna.sql)
     }
   }
 
-  await pool.query(`
+  await db.query(`
     UPDATE defeitos
     SET
       created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
@@ -726,21 +736,21 @@ export async function runPostgresMigrations() {
       updated_by = COALESCE(updated_by, created_by, 1)
   `)
 
-  if (!(await columnExists('circuitos', 'uuid'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'circuitos', 'uuid'))) {
+    await db.query(`
       ALTER TABLE circuitos
       ADD COLUMN uuid UUID;
     `)
   }
 
-  const circuitosSemUuid = await pool.query<{ id: number }>(`
+  const circuitosSemUuid = await db.query<{ id: number }>(`
     SELECT id
     FROM circuitos
     WHERE uuid IS NULL
   `)
 
   for (const circuito of circuitosSemUuid.rows) {
-    await pool.query(
+    await db.query(
       `
         UPDATE circuitos
         SET uuid = $1
@@ -750,12 +760,12 @@ export async function runPostgresMigrations() {
     )
   }
 
-  await pool.query(`
+  await db.query(`
     ALTER TABLE circuitos
     ALTER COLUMN uuid SET NOT NULL;
   `)
 
-  await pool.query(`
+  await db.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_circuitos_uuid
     ON circuitos(uuid);
   `)
@@ -788,12 +798,12 @@ export async function runPostgresMigrations() {
   ]
 
   for (const coluna of colunasCircuitos) {
-    if (!(await columnExists('circuitos', coluna.nome))) {
-      await pool.query(coluna.sql)
+    if (!(await columnExists(db, 'circuitos', coluna.nome))) {
+      await db.query(coluna.sql)
     }
   }
 
-  await pool.query(`
+  await db.query(`
     UPDATE circuitos
     SET
       created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
@@ -802,32 +812,32 @@ export async function runPostgresMigrations() {
       updated_by = COALESCE(updated_by, created_by, 1)
   `)
 
-  if (!(await columnExists('circuito_posto_componentes', 'uuid'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'circuito_posto_componentes', 'uuid'))) {
+    await db.query(`
       ALTER TABLE circuito_posto_componentes
       ADD COLUMN uuid UUID;
     `)
   }
 
-  const roteirosSemUuid = await pool.query<{ id: number }>(`
+  const roteirosSemUuid = await db.query<{ id: number }>(`
     SELECT id
     FROM circuito_posto_componentes
     WHERE uuid IS NULL
   `)
 
   for (const roteiro of roteirosSemUuid.rows) {
-    await pool.query(`UPDATE circuito_posto_componentes SET uuid = $1 WHERE id = $2`, [
+    await db.query(`UPDATE circuito_posto_componentes SET uuid = $1 WHERE id = $2`, [
       IdGenerator.generate(),
       roteiro.id
     ])
   }
 
-  await pool.query(`
+  await db.query(`
     ALTER TABLE circuito_posto_componentes
     ALTER COLUMN uuid SET NOT NULL;
   `)
 
-  await pool.query(`
+  await db.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_circuito_posto_componentes_uuid
     ON circuito_posto_componentes(uuid);
   `)
@@ -860,12 +870,12 @@ export async function runPostgresMigrations() {
   ]
 
   for (const coluna of colunasRoteiro) {
-    if (!(await columnExists('circuito_posto_componentes', coluna.nome))) {
-      await pool.query(coluna.sql)
+    if (!(await columnExists(db, 'circuito_posto_componentes', coluna.nome))) {
+      await db.query(coluna.sql)
     }
   }
 
-  await pool.query(`
+  await db.query(`
     UPDATE circuito_posto_componentes
     SET
       created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
@@ -874,22 +884,22 @@ export async function runPostgresMigrations() {
       updated_by = COALESCE(updated_by, created_by, 1)
   `)
 
-  if (!(await columnExists('usuarios', 'deve_trocar_senha'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'usuarios', 'deve_trocar_senha'))) {
+    await db.query(`
       ALTER TABLE usuarios
       ADD COLUMN deve_trocar_senha BOOLEAN NOT NULL DEFAULT false;
     `)
   }
 
-  if (!(await columnExists('usuarios', 'senha_alterada_em'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'usuarios', 'senha_alterada_em'))) {
+    await db.query(`
       ALTER TABLE usuarios
       ADD COLUMN senha_alterada_em TIMESTAMP NULL;
     `)
   }
 
-  if (!(await columnExists('usuarios', 'senha_hash'))) {
-    await pool.query(`ALTER TABLE usuarios ADD COLUMN senha_hash TEXT;`)
+  if (!(await columnExists(db, 'usuarios', 'senha_hash'))) {
+    await db.query(`ALTER TABLE usuarios ADD COLUMN senha_hash TEXT;`)
   }
 
   const colunasUsuarios = [
@@ -920,34 +930,34 @@ export async function runPostgresMigrations() {
   ]
 
   for (const coluna of colunasUsuarios) {
-    if (!(await columnExists('usuarios', coluna.nome))) {
-      await pool.query(coluna.sql)
+    if (!(await columnExists(db, 'usuarios', coluna.nome))) {
+      await db.query(coluna.sql)
     }
   }
 
-  if (!(await columnExists('circuito_componentes', 'uuid'))) {
-    await pool.query(`ALTER TABLE circuito_componentes ADD COLUMN uuid UUID;`)
+  if (!(await columnExists(db, 'circuito_componentes', 'uuid'))) {
+    await db.query(`ALTER TABLE circuito_componentes ADD COLUMN uuid UUID;`)
   }
 
-  const circuitoComponentesSemUuid = await pool.query<{ id: number }>(`
+  const circuitoComponentesSemUuid = await db.query<{ id: number }>(`
     SELECT id
     FROM circuito_componentes
     WHERE uuid IS NULL
   `)
 
   for (const item of circuitoComponentesSemUuid.rows) {
-    await pool.query(`UPDATE circuito_componentes SET uuid = $1 WHERE id = $2`, [
+    await db.query(`UPDATE circuito_componentes SET uuid = $1 WHERE id = $2`, [
       IdGenerator.generate(),
       item.id
     ])
   }
 
-  await pool.query(`
+  await db.query(`
     ALTER TABLE circuito_componentes
     ALTER COLUMN uuid SET NOT NULL;
   `)
 
-  await pool.query(`
+  await db.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_circuito_componentes_uuid
     ON circuito_componentes(uuid);
   `)
@@ -980,12 +990,12 @@ export async function runPostgresMigrations() {
   ]
 
   for (const coluna of colunasCircuitoComponentes) {
-    if (!(await columnExists('circuito_componentes', coluna.nome))) {
-      await pool.query(coluna.sql)
+    if (!(await columnExists(db, 'circuito_componentes', coluna.nome))) {
+      await db.query(coluna.sql)
     }
   }
 
-  await pool.query(`
+  await db.query(`
     UPDATE circuito_componentes
     SET
       created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
@@ -1002,57 +1012,57 @@ export async function runPostgresMigrations() {
       END
   `)
 
-  if (!(await columnExists('refugos', 'status'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'refugos', 'status'))) {
+    await db.query(`
       ALTER TABLE refugos
       ADD COLUMN status TEXT NOT NULL DEFAULT 'ATIVO';
     `)
   }
 
-  if (!(await columnExists('refugos', 'motivo_cancelamento'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'refugos', 'motivo_cancelamento'))) {
+    await db.query(`
       ALTER TABLE refugos
       ADD COLUMN motivo_cancelamento TEXT;
     `)
   }
 
-  if (!(await columnExists('refugo_itens', 'codigo_componente_snapshot'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'refugo_itens', 'codigo_componente_snapshot'))) {
+    await db.query(`
       ALTER TABLE refugo_itens
       ADD COLUMN codigo_componente_snapshot TEXT;
     `)
   }
 
-  if (!(await columnExists('refugo_itens', 'nome_componente_snapshot'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'refugo_itens', 'nome_componente_snapshot'))) {
+    await db.query(`
       ALTER TABLE refugo_itens
       ADD COLUMN nome_componente_snapshot TEXT;
     `)
   }
 
-  if (!(await columnExists('refugo_itens', 'codigo_defeito_snapshot'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'refugo_itens', 'codigo_defeito_snapshot'))) {
+    await db.query(`
       ALTER TABLE refugo_itens
       ADD COLUMN codigo_defeito_snapshot TEXT;
     `)
   }
 
-  if (!(await columnExists('refugo_itens', 'descricao_defeito_snapshot'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'refugo_itens', 'descricao_defeito_snapshot'))) {
+    await db.query(`
       ALTER TABLE refugo_itens
       ADD COLUMN descricao_defeito_snapshot TEXT;
     `)
   }
 
-  if (!(await columnExists('refugo_itens', 'preco_unitario_snapshot'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'refugo_itens', 'preco_unitario_snapshot'))) {
+    await db.query(`
       ALTER TABLE refugo_itens
       ADD COLUMN preco_unitario_snapshot NUMERIC(12, 4);
     `)
   }
 
-  if (!(await columnExists('refugo_itens', 'custo_total_snapshot'))) {
-    await pool.query(`
+  if (!(await columnExists(db, 'refugo_itens', 'custo_total_snapshot'))) {
+    await db.query(`
       ALTER TABLE refugo_itens
       ADD COLUMN custo_total_snapshot NUMERIC(12, 4);
     `)
@@ -1060,7 +1070,7 @@ export async function runPostgresMigrations() {
 
   const senhaInicialHash = gerarHashSenha('admin123')
 
-  await pool.query(
+  await db.query(
     `
       INSERT INTO usuarios (
         id,
@@ -1099,7 +1109,7 @@ export async function runPostgresMigrations() {
     [SYSTEM_IDS.usuarioSistema, senhaInicialHash]
   )
 
-  await pool.query(`
+  await db.query(`
     SELECT setval(
       pg_get_serial_sequence('usuarios', 'id'),
       COALESCE((SELECT MAX(id) FROM usuarios), 1),
@@ -1107,22 +1117,22 @@ export async function runPostgresMigrations() {
     );
   `)
 
-  if (!(await columnExists('refugos', 'uuid'))) {
-    await pool.query(`ALTER TABLE refugos ADD COLUMN uuid UUID;`)
+  if (!(await columnExists(db, 'refugos', 'uuid'))) {
+    await db.query(`ALTER TABLE refugos ADD COLUMN uuid UUID;`)
   }
 
-  const refugosSemUuid = await pool.query<{ id: number }>(`
+  const refugosSemUuid = await db.query<{ id: number }>(`
     SELECT id FROM refugos WHERE uuid IS NULL
   `)
 
   for (const refugo of refugosSemUuid.rows) {
-    await pool.query(`UPDATE refugos SET uuid = $1 WHERE id = $2`, [
+    await db.query(`UPDATE refugos SET uuid = $1 WHERE id = $2`, [
       IdGenerator.generate(),
       refugo.id
     ])
   }
 
-  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_refugos_uuid ON refugos(uuid);`)
+  await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_refugos_uuid ON refugos(uuid);`)
 
   const colunasAuditoriaRefugos = [
     {
@@ -1149,10 +1159,10 @@ export async function runPostgresMigrations() {
   ]
 
   for (const coluna of colunasAuditoriaRefugos) {
-    if (!(await columnExists('refugos', coluna.nome))) await pool.query(coluna.sql)
+    if (!(await columnExists(db, 'refugos', coluna.nome))) await db.query(coluna.sql)
   }
 
-  await pool.query(`
+  await db.query(`
     UPDATE refugos
     SET created_at = COALESCE(created_at, data_hora, CURRENT_TIMESTAMP),
         updated_at = COALESCE(updated_at, created_at, data_hora, CURRENT_TIMESTAMP),
@@ -1160,22 +1170,22 @@ export async function runPostgresMigrations() {
         updated_by = COALESCE(updated_by, created_by, usuario_id, 1)
   `)
 
-  if (!(await columnExists('refugo_itens', 'uuid'))) {
-    await pool.query(`ALTER TABLE refugo_itens ADD COLUMN uuid UUID;`)
+  if (!(await columnExists(db, 'refugo_itens', 'uuid'))) {
+    await db.query(`ALTER TABLE refugo_itens ADD COLUMN uuid UUID;`)
   }
 
-  const itensRefugoSemUuid = await pool.query<{ id: number }>(`
+  const itensRefugoSemUuid = await db.query<{ id: number }>(`
     SELECT id FROM refugo_itens WHERE uuid IS NULL
   `)
 
   for (const item of itensRefugoSemUuid.rows) {
-    await pool.query(`UPDATE refugo_itens SET uuid = $1 WHERE id = $2`, [
+    await db.query(`UPDATE refugo_itens SET uuid = $1 WHERE id = $2`, [
       IdGenerator.generate(),
       item.id
     ])
   }
 
-  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_refugo_itens_uuid ON refugo_itens(uuid);`)
+  await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_refugo_itens_uuid ON refugo_itens(uuid);`)
 
   const colunasAuditoriaItensRefugo = [
     {
@@ -1202,10 +1212,10 @@ export async function runPostgresMigrations() {
   ]
 
   for (const coluna of colunasAuditoriaItensRefugo) {
-    if (!(await columnExists('refugo_itens', coluna.nome))) await pool.query(coluna.sql)
+    if (!(await columnExists(db, 'refugo_itens', coluna.nome))) await db.query(coluna.sql)
   }
 
-  await pool.query(`
+  await db.query(`
     UPDATE refugo_itens ri
     SET created_at = COALESCE(ri.created_at, r.created_at, CURRENT_TIMESTAMP),
         updated_at = COALESCE(ri.updated_at, ri.created_at, r.updated_at, CURRENT_TIMESTAMP),
@@ -1235,12 +1245,12 @@ export async function runPostgresMigrations() {
   ]
 
   for (const coluna of colunasMigracaoRefugos) {
-    if (!(await columnExists('refugos', coluna.nome))) {
-      await pool.query(coluna.sql)
+    if (!(await columnExists(db, 'refugos', coluna.nome))) {
+      await db.query(coluna.sql)
     }
   }
 
-  await pool.query(`
+  await db.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_refugos_id_origem_historica
     ON refugos(id_origem)
     WHERE id_origem IS NOT NULL AND BTRIM(id_origem) <> '';

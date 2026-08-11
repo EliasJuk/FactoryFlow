@@ -9,4 +9,6 @@ sync/pc-b/user-data/
 
 sync/migration-runner/
 
+first-access/pc-new/*
+
 config/*.local.json

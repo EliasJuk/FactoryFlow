@@ -3,7 +3,7 @@ setlocal
 
 rem Este arquivo fica em app\scripts.
 rem Volta para a pasta app, onde estao package.json e electron-builder.yml.
-cd /d "%~dp0.."
+cd /d "%~dp0../.."
 
 title FactoryFlow - Portable
 color 0B
@@ -131,6 +131,7 @@ if not "%EXIT_CODE%"=="0" (
   echo Verifique a pasta de saida configurada no electron-builder.yml.
 )
 
+color 07
 echo.
 pause
 exit /b %EXIT_CODE%

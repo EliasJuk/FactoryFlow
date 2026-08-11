@@ -31,6 +31,7 @@ echo %GRAY%------------------------------------------------------------%RESET%
 echo   %GREEN%[1]%RESET% %WHITE%Testes de instalacao e primeiro acesso%RESET%
 echo   %MAGENTA%[2]%RESET% %WHITE%Testes de sincronizacao%RESET%
 echo   %YELLOW%[3]%RESET% %WHITE%Testes do banco%RESET%
+echo   %CYAN%[4]%RESET% %WHITE%Testes de configuracao%RESET%
 echo %GRAY%------------------------------------------------------------%RESET%
 echo   %RED%[0]%RESET% %WHITE%Sair%RESET%
 echo.
@@ -42,10 +43,11 @@ set /p "opcao=%WHITE%Escolha uma opcao: %RESET%"
 if "%opcao%"=="1" goto testes_instalacao
 if "%opcao%"=="2" goto testes_sincronizacao
 if "%opcao%"=="3" goto testes_banco
+if "%opcao%"=="4" goto testes_configuracao
 if "%opcao%"=="0" goto fim
 
 echo.
-echo %RED%Opcao invalida. Digite 0, 1, 2 ou 3.%RESET%
+echo %RED%Opcao invalida. Digite 0, 1, 2, 3 ou 4.%RESET%
 echo.
 pause
 goto menu
@@ -109,6 +111,25 @@ if not exist "%~dp0database\run-tests-database.bat" (
 )
 
 call "%~dp0database\run-tests-database.bat"
+goto menu
+
+:testes_configuracao
+cls
+
+if not exist "%~dp0configuracao\run-tests-configuracao.bat" (
+    echo %RED%============================================================%RESET%
+    echo %RED%                  ARQUIVO NAO ENCONTRADO%RESET%
+    echo %RED%============================================================%RESET%
+    echo.
+    echo %WHITE%O menu de testes de configuracao nao foi encontrado:%RESET%
+    echo.
+    echo %YELLOW%%~dp0configuracao\run-tests-configuracao.bat%RESET%
+    echo.
+    pause
+    goto menu
+)
+
+call "%~dp0configuracao\run-tests-configuracao.bat"
 goto menu
 
 :fim

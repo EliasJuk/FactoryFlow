@@ -43,7 +43,9 @@
 
     "test:sync:inspect:raw": "electron tests/sync/scripts/inspect-sync.cjs all",
     "test:sync:inspect:pc-a:raw": "electron tests/sync/scripts/inspect-sync.cjs pc-a",
-    "test:sync:inspect:pc-b:raw": "electron tests/sync/scripts/inspect-sync.cjs pc-b"
+    "test:sync:inspect:pc-b:raw": "electron tests/sync/scripts/inspect-sync.cjs pc-b",
+
+    "test:configuracao:secrets": "vitest run tests/configuracao/SecretStorageService.test.ts"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

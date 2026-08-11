@@ -1,6 +1,7 @@
 import { Client, type PoolClient } from 'pg'
 
 import { getDatabase } from '../database/connection'
+import { runPostgresMigrationsSafely } from '../database/postgres/migrationRunner'
 import { IdGenerator } from '../shared/ids/IdGenerator'
 import { SYSTEM_IDS } from '../shared/ids/systemIds'
 import { gerarHashSenha } from '../shared/security/password'
@@ -18,11 +19,7 @@ import {
 import { SecretStorageService } from './SecretStorageService'
 
 export type EstadoConfiguracaoInicial =
-  | 'SEM_CONFIGURACAO'
-  | 'SEM_CONEXAO'
-  | 'SEM_ADMIN'
-  | 'AGUARDANDO_SINCRONIZACAO'
-  | 'PRONTO'
+  'SEM_CONFIGURACAO' | 'SEM_CONEXAO' | 'SEM_ADMIN' | 'AGUARDANDO_SINCRONIZACAO' | 'PRONTO'
 
 export type StatusConfiguracaoInicial = {
   status: EstadoConfiguracaoInicial
@@ -84,12 +81,7 @@ function objeto(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === 'object' && valor !== null && !Array.isArray(valor)
 }
 
-function texto(
-  valor: unknown,
-  campo: string,
-  obrigatorio: boolean,
-  tamanhoMaximo = 255
-): string {
+function texto(valor: unknown, campo: string, obrigatorio: boolean, tamanhoMaximo = 255): string {
   if (typeof valor !== 'string') {
     throw new Error(`Valor inválido para ${campo}.`)
   }
@@ -107,12 +99,7 @@ function texto(
   return normalizado
 }
 
-function inteiro(
-  valor: unknown,
-  campo: string,
-  minimo: number,
-  maximo: number
-): number {
+function inteiro(valor: unknown, campo: string, minimo: number, maximo: number): number {
   const numero = typeof valor === 'number' ? valor : Number(valor)
 
   if (!Number.isSafeInteger(numero) || numero < minimo || numero > maximo) {
@@ -283,10 +270,7 @@ export class ConfiguracaoService {
   }
 
   private obterSenhaPostgres(postgres: PostgresNormalizado): string {
-    const password =
-      postgres.password?.trim() ||
-      secrets.getPostgresPassword() ||
-      ''
+    const password = postgres.password?.trim() || secrets.getPostgresPassword() || ''
 
     if (!password) {
       throw new Error('Informe a senha do PostgreSQL.')
@@ -295,10 +279,7 @@ export class ConfiguracaoService {
     return password
   }
 
-  private criarClientePostgres(
-    postgres: PostgresNormalizado,
-    password: string
-  ): Client {
+  private criarClientePostgres(postgres: PostgresNormalizado, password: string): Client {
     return new Client({
       host: postgres.host,
       port: postgres.port,
@@ -582,33 +563,26 @@ export class ConfiguracaoService {
     }
   }
 
-  async testarPostgresConfiguracaoInicial(
-    config: PostgresConfig & { password?: string }
-  ) {
+  async testarPostgresConfiguracaoInicial(config: PostgresConfig & { password?: string }) {
     await this.garantirConfiguracaoInicialEditavel()
     return this.testarPostgres(config)
   }
 
-  async salvarPostgresConfiguracaoInicial(
-    config: PostgresConfig & { password?: string }
-  ) {
+  async salvarPostgresConfiguracaoInicial(config: PostgresConfig & { password?: string }) {
     await this.garantirConfiguracaoInicialEditavel()
 
     const postgres = this.normalizarPostgres(config, true)
     const password = this.obterSenhaPostgres(postgres)
-    const client = this.criarClientePostgres(postgres, password)
 
-    try {
-      await client.connect()
-
-      if (!(await this.tabelaUsuariosExiste(client))) {
-        throw new Error(
-          'A tabela de usuários ainda não existe. Execute as migrations do PostgreSQL.'
-        )
-      }
-    } finally {
-      await client.end().catch(() => {})
-    }
+    await runPostgresMigrationsSafely({
+      host: postgres.host,
+      port: postgres.port,
+      database: postgres.database,
+      user: postgres.user,
+      timeoutSeconds: postgres.timeoutSeconds,
+      ssl: postgres.ssl,
+      password
+    })
 
     secrets.savePostgresPassword(password)
 
@@ -645,8 +619,7 @@ export class ConfiguracaoService {
 
     return {
       sucesso: true,
-      mensagem:
-        'Conexão inicial salva. Verifique agora se já existe um administrador no PostgreSQL.'
+      mensagem: 'PostgreSQL preparado e conexão inicial salva com sucesso.'
     }
   }
 
@@ -663,9 +636,7 @@ export class ConfiguracaoService {
     try {
       await client.connect()
       await client.query('BEGIN')
-      await client.query('SELECT pg_advisory_xact_lock($1)', [
-        PRIMEIRO_ADMIN_LOCK_ID
-      ])
+      await client.query('SELECT pg_advisory_xact_lock($1)', [PRIMEIRO_ADMIN_LOCK_ID])
 
       if (!(await this.tabelaUsuariosExiste(client))) {
         throw new Error('TABELA_USUARIOS_INEXISTENTE')
@@ -793,8 +764,7 @@ export class ConfiguracaoService {
       if (codigo === 'TABELA_USUARIOS_INEXISTENTE') {
         return {
           sucesso: false,
-          mensagem:
-            'A tabela de usuários ainda não existe. Execute as migrations do PostgreSQL.'
+          mensagem: 'A tabela de usuários ainda não existe. Execute as migrations do PostgreSQL.'
         }
       }
 

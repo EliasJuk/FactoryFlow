@@ -1,7 +1,7 @@
 import { Client } from 'pg'
 
 import type { PostgresConfig } from '../../config/appConfig'
-import { runPostgresMigrations } from './migrations'
+import { runVersionedPostgresMigrations } from './schemaMigrations'
 
 const POSTGRES_MIGRATION_LOCK_ID = 2026081101
 
@@ -50,7 +50,7 @@ export async function runPostgresMigrationsSafely(config: PostgresMigrationInput
       throw new Error('Outra instância do FactoryFlow já está preparando este PostgreSQL.')
     }
 
-    await runPostgresMigrations(client)
+    await runVersionedPostgresMigrations(client)
 
     await client.query('COMMIT')
     transactionStarted = false

@@ -4,7 +4,7 @@ import { IdGenerator } from '../../shared/ids/IdGenerator'
 import { SYSTEM_IDS } from '../../shared/ids/systemIds'
 import { pool } from './connection'
 
-type MigrationDatabase = {
+export type MigrationDatabase = {
   query<T extends QueryResultRow = any>(text: string, values?: unknown[]): Promise<QueryResult<T>>
 }
 

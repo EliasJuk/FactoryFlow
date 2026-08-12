@@ -1,11 +1,9 @@
 import { loadConfig } from '../config/appConfig'
 import { SYSTEM_IDS } from '../shared/ids/systemIds'
+import { postgresMigrationService } from '../database/postgres/PostgresMigrationService'
 import { PostgresPullRepository } from './PostgresPullRepository'
 import { SqliteRemoteApplyRepository } from './SqliteRemoteApplyRepository'
-import {
-  LOCAL_PENDING_CONFLICT_REASON,
-  SyncPullStateRepository
-} from './SyncPullStateRepository'
+import { LOCAL_PENDING_CONFLICT_REASON, SyncPullStateRepository } from './SyncPullStateRepository'
 import type { PullEntity, PullRecordBase } from './pull.types'
 
 export class SyncPullWorker {
@@ -15,7 +13,7 @@ export class SyncPullWorker {
   private readonly local = new SqliteRemoteApplyRepository()
   private readonly state = new SyncPullStateRepository()
   constructor(
-    private readonly intervalMs = 8000,  //TEMPO DE SINCRONIZAÇÃO
+    private readonly intervalMs = 8000, //TEMPO DE SINCRONIZAÇÃO
     private readonly batchSize = 200
   ) {}
   start(): void {
@@ -23,15 +21,24 @@ export class SyncPullWorker {
     void this.runOnce()
     this.timer = setInterval(() => void this.runOnce(), this.intervalMs)
   }
+
   stop(): void {
     if (!this.timer) return
     clearInterval(this.timer)
     this.timer = null
   }
+
   async runOnce(): Promise<void> {
     if (this.running || !this.shouldRun()) return
     this.running = true
+
     try {
+      try {
+        await postgresMigrationService.ensureReady()
+      } catch {
+        return
+      }
+
       await this.pullUsuarios()
       await this.pullSolicitacoesAlteracaoSenha()
       await this.pullSetores()
@@ -48,6 +55,7 @@ export class SyncPullWorker {
       this.running = false
     }
   }
+
   private shouldRun(): boolean {
     const c = loadConfig()
     return c.database.mode === 'sqliteSync' && c.sync.enabled && c.sync.destination === 'postgres'
@@ -158,13 +166,9 @@ export class SyncPullWorker {
         }
         for (const record of records) {
           const isReservedSystemUser =
-            entity === 'USUARIO' &&
-            record.uuid === SYSTEM_IDS.usuarioSistema
+            entity === 'USUARIO' && record.uuid === SYSTEM_IDS.usuarioSistema
 
-          if (
-            !isReservedSystemUser &&
-            this.state.hasLocalConflict(entity, record.uuid)
-          ) {
+          if (!isReservedSystemUser && this.state.hasLocalConflict(entity, record.uuid)) {
             this.state.registerConflict(
               entity,
               record.uuid,

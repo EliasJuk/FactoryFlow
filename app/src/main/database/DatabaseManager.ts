@@ -1,8 +1,8 @@
 import { loadConfig } from '../config/appConfig'
 
+import { postgresMigrationService } from './postgres/PostgresMigrationService'
 import { runMigrations as runSqliteMigrations } from './sqlite/migrations'
 import { runSyncMigrations } from './sqlite/syncMigrations'
-import { runPostgresMigrations } from './postgres/migrations'
 
 export class DatabaseManager {
   static async initialize() {
@@ -11,7 +11,9 @@ export class DatabaseManager {
 
     if (mode === 'postgres') {
       console.log('[DATABASE] Modo: PostgreSQL')
-      await runPostgresMigrations()
+
+      await postgresMigrationService.ensureReady()
+
       return
     }
 
@@ -20,7 +22,21 @@ export class DatabaseManager {
     }
 
     console.log('[DATABASE] Modo: SQLite + Sync')
+
     runSqliteMigrations()
     runSyncMigrations()
+
+    const usaPostgres = config.sync.enabled && config.sync.destination === 'postgres'
+
+    if (usaPostgres) {
+      try {
+        await postgresMigrationService.ensureReady()
+      } catch (error) {
+        console.warn(
+          '[DATABASE] PostgreSQL indisponível durante a inicialização. O FactoryFlow continuará usando SQLite.',
+          error
+        )
+      }
+    }
   }
 }

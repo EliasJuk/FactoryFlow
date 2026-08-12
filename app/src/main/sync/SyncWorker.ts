@@ -1,6 +1,7 @@
 import db from '../database/database'
 import { loadConfig } from '../config/appConfig'
 
+import { postgresMigrationService } from '../database/postgres/PostgresMigrationService'
 import { PostgresCircuitoComponenteSyncRepository } from './postgres/PostgresCircuitoComponenteSyncRepository'
 import { PostgresCircuitoSyncRepository } from './postgres/PostgresCircuitoSyncRepository'
 import { PostgresComponenteSyncRepository } from './postgres/PostgresComponenteSyncRepository'
@@ -61,11 +62,18 @@ export class SyncWorker {
     this.running = true
 
     try {
+      try {
+        await postgresMigrationService.ensureReady()
+      } catch {
+        return
+      }
+
       this.pullStateRepository.resolveStaleLocalQueueConflicts()
 
       while (this.shouldRun()) {
         const item = this.claimNextPending()
         if (!item) break
+
         await this.processItem(item)
       }
     } finally {
@@ -148,9 +156,7 @@ export class SyncWorker {
         )
         .run(row.id)
 
-      return result.changes === 1
-        ? { ...row, attempts: row.attempts + 1 }
-        : null
+      return result.changes === 1 ? { ...row, attempts: row.attempts + 1 } : null
     })()
   }
 
@@ -221,11 +227,7 @@ export class SyncWorker {
     }
   }
 
-  private markAsSynced(
-    id: number,
-    entity: SyncPayload['entity'],
-    recordUuid: string
-  ): void {
+  private markAsSynced(id: number, entity: SyncPayload['entity'], recordUuid: string): void {
     db.transaction(() => {
       db.prepare(
         `
@@ -241,10 +243,7 @@ export class SyncWorker {
         `
       ).run(id)
 
-      this.pullStateRepository.resolveLocalQueueConflictIfPossible(
-        entity,
-        recordUuid
-      )
+      this.pullStateRepository.resolveLocalQueueConflictIfPossible(entity, recordUuid)
 
       db.prepare(
         `
@@ -262,19 +261,11 @@ export class SyncWorker {
 
   private markAsFailed(item: QueueRow, error: unknown): void {
     const message =
-      error instanceof Error
-        ? error.message
-        : 'Erro desconhecido durante a sincronização.'
+      error instanceof Error ? error.message : 'Erro desconhecido durante a sincronização.'
 
     const exhausted = item.attempts >= item.maxAttempts
     const schedule = [30, 60, 120, 300, 600, 1800]
-    const delay =
-      schedule[
-        Math.min(
-          Math.max(item.attempts - 1, 0),
-          schedule.length - 1
-        )
-      ]
+    const delay = schedule[Math.min(Math.max(item.attempts - 1, 0), schedule.length - 1)]
 
     db.transaction(() => {
       db.prepare(
